@@ -11,7 +11,12 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.get("/api/health", (c) => c.json({ ok: true }));
 
-app.get("/embed.js", (c) => c.text(EMBED_JS, 200, { "content-type": "application/javascript; charset=utf-8" }));
+app.get("/embed.js", (c) =>
+  c.text(EMBED_JS, 200, {
+    "content-type": "application/javascript; charset=utf-8",
+    "cache-control": "public, max-age=300, stale-while-revalidate=86400",
+  }),
+);
 app.route("/", feedbackRoutes);
 app.route("/", mediaRoutes);
 app.route("/", authRoutes);

@@ -58,7 +58,9 @@ function FeedbackRow({ f }: { f: Feedback }) {
         {f.reporter_email && <span className="muted">{f.reporter_email}</span>}
       </div>
       {f.state === "issue_error" && f.issue_error && (
-        <div className="muted" style={{ color: "#b45309" }}>{f.issue_error}</div>
+        <div className="muted" style={{ color: "#b45309" }} title={f.issue_error}>
+          Issue creation failed ({f.issue_error.split(":")[0]}). Stored as pending.
+        </div>
       )}
     </div>
   );
@@ -92,7 +94,7 @@ function NewProjectForm({ onCreated }: { onCreated: () => void }) {
       <h2 style={{ margin: 0, fontSize: 16 }}>New project</h2>
       <div className="row">
         <label style={{ flex: 1 }}>Name<input value={name} onChange={(e) => setName(e.target.value)} required placeholder="My App" /></label>
-        <label style={{ flex: 1 }}>Slug<input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase())} required placeholder="myapp" pattern="[a-z0-9][a-z0-9-]*" /></label>
+        <label style={{ flex: 1 }}>Slug<input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} required placeholder="myapp" minLength={3} maxLength={40} /></label>
       </div>
       <label>GitHub repo (owner/repo)<input value={repo} onChange={(e) => setRepo(e.target.value)} required placeholder="ashik/myapp" /></label>
       <label>GitHub PAT (kept encrypted, never shown again)<input value={pat} onChange={(e) => setPat(e.target.value)} required type="password" placeholder="ghp_…" /></label>
