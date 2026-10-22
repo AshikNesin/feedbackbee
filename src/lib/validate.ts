@@ -36,17 +36,30 @@ export function repoOk(repo: string): boolean {
   return /^[\w.-]+\/[\w.-]+$/.test(repo);
 }
 
-const MAGIC: Array<{ bytes: number[]; mime: string; media: "screenshot" | "recording" }> = [
+type SniffedRole = "screenshot" | "recording" | "audio" | "webm";
+const MAGIC: Array<{ bytes: number[]; mime: string; media: SniffedRole }> = [
   { bytes: [0x89, 0x50, 0x4e, 0x47], mime: "image/png", media: "screenshot" },
   { bytes: [0xff, 0xd8, 0xff], mime: "image/jpeg", media: "screenshot" },
   { bytes: [0x52, 0x49, 0x46, 0x46], mime: "image/webp", media: "screenshot" },
-  { bytes: [0x1a, 0x45, 0xdf, 0xa3], mime: "video/webm", media: "recording" },
+  { bytes: [0x1a, 0x45, 0xdf, 0xa3], mime: "video/webm", media: "webm" },
   { bytes: [0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70], mime: "video/mp4", media: "recording" },
+  { bytes: [0x4f, 0x70, 0x75, 0x73], mime: "audio/ogg", media: "audio" },
+  { bytes: [0xff, 0xfb], mime: "audio/mpeg", media: "audio" },
+  { bytes: [0x49, 0x44, 0x33], mime: "audio/mpeg", media: "audio" },
+  { bytes: [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x4d, 0x34, 0x41], mime: "audio/mp4", media: "audio" },
 ];
 
-export function sniffMedia(head: Uint8Array): { mime: string; media: "screenshot" | "recording" } | null {
+// WebM is a container for both video and audio. Role comes from the declared
+// part, so a voice note in webm passes the audio check and a screen recording
+// in webm passes the recording check.
+export function sniffRole(head: Uint8Array, declared: "screenshot" | "recording" | "audio"): { mime: string } | null {
   for (const m of MAGIC) {
-    if (m.bytes.every((b, i) => head[i] === b)) return { mime: m.mime, media: m.media };
+    if (!m.bytes.every((b, i) => head[i] === b)) continue;
+    if (m.media === "webm") {
+      return { mime: declared === "audio" ? "audio/webm" : "video/webm" };
+    }
+    if (m.media === declared) return { mime: m.mime };
   }
   return null;
 }
+

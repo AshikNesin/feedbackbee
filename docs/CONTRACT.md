@@ -14,6 +14,8 @@ The endpoint is public, CORS `*`, rate-limited 20/hour/IP/project.
 | `media` | file | no | Screenshot (png/jpeg/webp, max 10 MB) or recording (webm/mp4, max 200 MB) |
 | `media_kind` | text | no | `screenshot` or `recording`. Required iff `media` present |
 | `media_seconds` | number | no | Recording length in seconds, max 300 |
+| `audio` | file | no | Voice note (webm/ogg/mp4/m4a, max 25 MB) |
+| `audio_seconds` | number | no | Voice note length in seconds, max 300. Required iff `audio` present |
 | `url` | text | no | Page URL (web) or deep link (app) |
 | `app_version` | text | no | |
 | `os_name` | text | no | `web`, `android` |
@@ -33,3 +35,4 @@ Web adds `viewport_w`/`viewport_h` in `screen_w`/`screen_h` plus a `user_agent` 
 ## Media serving
 
 Media lives at `GET /f/<key>` with long cache headers. Key shape `p/<project>/f/<feedback-id>/<filename>`.
+Visual media and voice notes are independent: a report can carry `media`, `audio`, both, or neither.

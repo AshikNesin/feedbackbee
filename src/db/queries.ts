@@ -60,12 +60,13 @@ export async function insertFeedback(db: D1Database, f: NewFeedback): Promise<Fe
   await db
     .prepare(
       "INSERT INTO feedback (id, project_id, kind, text, reporter_email, url, user_agent, screen_w, screen_h, " +
-        "media_kind, media_key, media_seconds, app_version, os_name, os_version, device_model, state, created_at) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "media_kind, media_key, media_seconds, audio_key, audio_seconds, app_version, os_name, os_version, device_model, state, created_at) " +
+        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(
       row.id, row.project_id, row.kind, row.text, row.reporter_email, row.url, row.user_agent,
       row.screen_w, row.screen_h, row.media_kind, row.media_key, row.media_seconds,
+      row.audio_key, row.audio_seconds,
       row.app_version, row.os_name, row.os_version, row.device_model, row.state, row.created_at,
     )
     .run();
