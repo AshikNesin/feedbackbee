@@ -14,7 +14,7 @@ export default defineConfig({
         miniflare: {
           bindings: {
             TEST_MIGRATIONS: migrations as unknown as string,
-            APP_SECRET: "test-secret-for-vitest-only",
+            GITHUB_TOKEN: "ghp_testtoken1234567890abcdefgh",
           },
         },
       };

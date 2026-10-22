@@ -61,7 +61,6 @@ function NewProjectForm({ onCreated }: { onCreated: () => void }) {
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
   const [repo, setRepo] = useState("");
-  const [pat, setPat] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -70,8 +69,8 @@ function NewProjectForm({ onCreated }: { onCreated: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await api.createProject({ name, slug, github_repo: repo, github_pat: pat });
-      setName(""); setSlug(""); setRepo(""); setPat("");
+      await api.createProject({ name, slug, github_repo: repo });
+      setName(""); setSlug(""); setRepo("");
       onCreated();
     } catch (err) {
       setError(err instanceof Error ? err.message : "failed");
@@ -94,14 +93,11 @@ function NewProjectForm({ onCreated }: { onCreated: () => void }) {
         <label style={{ flex: 1 }}>GitHub repo
           <input value={repo} onChange={(e) => setRepo(e.target.value)} required placeholder="owner/repo" />
         </label>
-        <label style={{ flex: 1 }}>GitHub PAT
-          <input value={pat} onChange={(e) => setPat(e.target.value)} required type="password" placeholder="ghp_…" />
-        </label>
       </div>
       {error && <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>}
       <div className="row" style={{ justifyContent: "space-between" }}>
         <button style={{ justifySelf: "start" }} disabled={busy}>{busy ? "Creating…" : "Add project"}</button>
-        <span className="muted">PAT needs issue write. Encrypted at rest.</span>
+        <span className="muted">Issues are created with the deployment&apos;s GitHub token.</span>
       </div>
     </form>
   );

@@ -54,7 +54,7 @@ export const api = {
     const data = (await res.json()) as { projects: Project[] };
     return data.projects;
   },
-  async createProject(p: { name: string; slug: string; github_repo: string; github_pat: string }): Promise<Project> {
+  async createProject(p: { name: string; slug: string; github_repo: string }): Promise<Project> {
     const res = await req("/api/projects", { method: "POST", body: JSON.stringify(p) });
     if (!res.ok) throw new Error((await res.json()).error);
     return (await res.json()).project;

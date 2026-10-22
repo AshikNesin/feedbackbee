@@ -20,25 +20,6 @@ async function keyFrom(secret: string): Promise<CryptoKey> {
   return crypto.subtle.importKey("raw", digest, "AES-GCM", false, ["encrypt", "decrypt"]);
 }
 
-export async function encryptSecret(plain: string, secret: string): Promise<string> {
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const key = await keyFrom(secret);
-  const cipher = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, enc.encode(plain));
-  return `${b64urlEncode(iv)}.${b64urlEncode(new Uint8Array(cipher))}`;
-}
-
-export async function decryptSecret(packed: string, secret: string): Promise<string> {
-  const [ivPart, dataPart] = packed.split(".");
-  if (!ivPart || !dataPart) throw new Error("bad ciphertext");
-  const key = await keyFrom(secret);
-  const plain = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: b64urlDecode(ivPart) },
-    key,
-    b64urlDecode(dataPart),
-  );
-  return dec.decode(plain);
-}
-
 export async function hashPassword(password: string, salt?: string): Promise<string> {
   const useSalt = salt ?? b64urlEncode(crypto.getRandomValues(new Uint8Array(16)));
   const digest = await crypto.subtle.digest("SHA-256", enc.encode(`${useSalt}:${password}`));

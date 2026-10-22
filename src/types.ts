@@ -1,7 +1,7 @@
 export type Env = {
   DB: D1Database;
   MEDIA: R2Bucket;
-  APP_SECRET?: string;
+  GITHUB_TOKEN: string;
   MEDIA_BASE?: string;
 };
 
@@ -16,7 +16,6 @@ export type ProjectRow = {
   name: string;
   slug: string;
   github_repo: string;
-  github_pat_enc: string;
   labels_map: string;
   created_at: number;
 };

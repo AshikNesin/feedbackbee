@@ -1,5 +1,4 @@
-import type { FeedbackRow, LabelsMap, ProjectRow } from "../types.ts";
-import { decryptSecret } from "./crypto.ts";
+import type { Env, FeedbackRow, LabelsMap, ProjectRow } from "../types.ts";
 
 declare global {
   // deno-lint-ignore no-var
@@ -94,12 +93,11 @@ export async function createIssue(
 }
 
 export async function createIssueForProject(
+  env: Pick<Env, "GITHUB_TOKEN">,
   project: ProjectRow,
-  appSecret: string,
   title: string,
   body: string,
   labels: string[],
 ): Promise<IssueResult> {
-  const pat = await decryptSecret(project.github_pat_enc, appSecret);
-  return createIssue(pat, project.github_repo, title, body, labels);
+  return createIssue(env.GITHUB_TOKEN, project.github_repo, title, body, labels);
 }

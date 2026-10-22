@@ -2,14 +2,15 @@
 
 ## One click (recommended)
 
-Click the Deploy to Cloudflare button in the README. Cloudflare clones the repo into your GitHub, provisions a D1 database and R2 bucket, installs, builds (`npm run build`), applies migrations (`npm run deploy`), and deploys. No secrets to configure: the app generates its own encryption secret on first run and stores it in D1.
+Click the Deploy to Cloudflare button in the README. Cloudflare clones the repo into your GitHub, provisions a D1 database and R2 bucket, installs, builds (`npm run build`), applies migrations (`npm run deploy`), and deploys. After it deploys, set the GitHub token once, step 1 below.
 
 Open the deployed URL. The first email/password you submit creates the owner account.
 
 Then:
 
-1. Create a project (slug, `owner/repo`, a GitHub PAT with issue write).
-2. Copy the embed snippet into your app, or point the Android SDK at the deploy URL.
+1. Create a [fine-grained PAT](https://github.com/settings/personal-access-tokens/new) with Issues: Read and Write on all your repos, then `npx wrangler secret put GITHUB_TOKEN`.
+2. Create a project (slug, `owner/repo`). No token per project.
+3. Copy the embed snippet into your app, or point the Android SDK at the deploy URL.
 
 ## Manual deploy
 
@@ -17,20 +18,20 @@ Then:
 npx wrangler d1 create feedbackbee      # optional: pin the id in wrangler.jsonc
 npx wrangler r2 bucket create feedbackbee-media
 npm install && npm --prefix web install
-npx wrangler secret put APP_SECRET      # optional; D1-stored secret is generated otherwise
+npx wrangler secret put GITHUB_TOKEN    # fine-grained PAT, Issues: Read and Write
 npm run deploy
 ```
 
 ## Self-check after deploy
 
 - `GET /api/health` returns `{"ok":true}`.
-- In the dashboard, create a project with slug `demo` (any repo + PAT). `/demo` hardcodes that slug.
+- In the dashboard, create a project with slug `demo` (any repo). `/demo` hardcodes that slug.
 - `GET /demo` renders the demo shop with the widget pill.
 - Send one feedback from `/demo` and watch the issue appear in the repo.
 
-## APP_SECRET
+## GITHUB_TOKEN
 
-The env var, when set (16+ chars), overrides the D1-stored secret. Rotating either invalidates stored PATs (re-enter them per project) but not the owner password.
+One token for the whole deployment, held as a Worker secret. Every project's issue is created with it, so its repo access list defines what projects can point at. Rotate it with `npx wrangler secret put GITHUB_TOKEN`. Projects never store tokens.
 
 ## Free-tier ceilings
 
