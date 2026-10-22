@@ -6,6 +6,7 @@ import { checkRate } from "../lib/rate.ts";
 import { insertFeedback, markIssueCreated, markIssueError, projectBySlug } from "../db/queries.ts";
 import { createIssueForProject, issueBody, issueLabels, issueTitle } from "../lib/github.ts";
 import { newId } from "../lib/crypto.ts";
+import { getAppSecret } from "../lib/secret.ts";
 
 const MAX_SCREENSHOT = 10 * 1024 * 1024;
 const MAX_RECORDING = 200 * 1024 * 1024;
@@ -92,11 +93,12 @@ feedbackRoutes.post("/api/feedback", async (c) => {
   });
 
   const base = c.env.MEDIA_BASE || new URL(c.req.url).origin;
+  const appSecret = await getAppSecret(c.env.DB, c.env.APP_SECRET);
   const mediaUrl = mediaKey ? `${base}/f/${mediaKey}` : null;
   const labels = issueLabels(row.kind, project.labels_map);
   const issue = await createIssueForProject(
     project,
-    c.env.APP_SECRET,
+    appSecret,
     issueTitle(row),
     issueBody(row, mediaUrl),
     labels,

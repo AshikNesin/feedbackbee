@@ -4,6 +4,7 @@ import { encryptSecret } from "../lib/crypto.ts";
 import { repoOk, slugOk } from "../lib/validate.ts";
 import { insertProject, listFeedback, listProjects, projectById } from "../db/queries.ts";
 import { readCookie, requireAdmin } from "./auth.ts";
+import { getAppSecret } from "../lib/secret.ts";
 
 export const apiRoutes = new Hono<{ Bindings: Env }>();
 
@@ -56,11 +57,12 @@ apiRoutes.post("/api/projects", async (c) => {
   if (slugTaken) return c.json({ error: `slug "${slug}" is already used by another project` }, 409);
 
   const labels = body?.labels && Object.keys(body.labels).length > 0 ? body.labels : DEFAULT_LABELS;
+  const appSecret = await getAppSecret(c.env.DB, c.env.APP_SECRET);
   const created = await insertProject(c.env.DB, {
     name,
     slug,
     github_repo: repo,
-    github_pat_enc: await encryptSecret(pat, c.env.APP_SECRET),
+    github_pat_enc: await encryptSecret(pat, appSecret),
     labels_map: JSON.stringify(labels),
   });
   return c.json({ project: publicProject(created) }, 201);
@@ -78,6 +80,7 @@ apiRoutes.patch("/api/projects/:id", async (c) => {
   const repo = body?.github_repo?.trim() ?? existing.github_repo;
   if (!repoOk(repo)) return c.json({ error: "github_repo must look like owner/repo" }, 400);
   const labelsMap = body?.labels && Object.keys(body.labels).length > 0 ? body.labels : null;
+  const appSecret = await getAppSecret(c.env.DB, c.env.APP_SECRET);
 
   await c.env.DB
     .prepare(
@@ -87,7 +90,7 @@ apiRoutes.patch("/api/projects/:id", async (c) => {
       name,
       repo,
       labelsMap ? JSON.stringify(labelsMap) : existing.labels_map,
-      body?.github_pat?.trim() ? await encryptSecret(body.github_pat.trim(), c.env.APP_SECRET) : existing.github_pat_enc,
+      body?.github_pat?.trim() ? await encryptSecret(body.github_pat.trim(), appSecret) : existing.github_pat_enc,
       id,
     )
     .run();
