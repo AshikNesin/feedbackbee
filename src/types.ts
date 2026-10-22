@@ -1,7 +1,7 @@
 export type Env = {
   DB: D1Database;
   MEDIA: R2Bucket;
-  APP_SECRET: string;
+  APP_SECRET?: string;
   MEDIA_BASE?: string;
 };
 
