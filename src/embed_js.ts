@@ -66,6 +66,8 @@ export const EMBED_JS = `(function () {
       '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2" fill="#5b7186"/><circle cx="12" cy="12" r="2" fill="#5b7186"/><circle cx="19" cy="12" r="2" fill="#5b7186"/></svg>',
     camera:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/><line x1="18" y1="2" x2="18" y2="6"/><line x1="16" y1="4" x2="20" y2="4"/></svg>',
+    record:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="14" height="14" rx="3"/><path d="M22 8.5v7L16 12z"/></svg>',
   };
 
   var KINDS = [
@@ -84,6 +86,7 @@ export const EMBED_JS = `(function () {
     seconds: 0,
     recording: false,
     recorder: null,
+    timer: null,
     chunks: [],
     busy: false,
   };
@@ -168,8 +171,9 @@ export const EMBED_JS = `(function () {
       body.appendChild(img);
     }
     if (state.recording) {
-      var rec = el("div", "fbx-rec", '<span class="fbx-dot"></span><span id="fbx-timer">Recording…</span>');
-      body.appendChild(rec);
+      var recInd = el("div", "fbx-rec", '<span class="fbx-dot"></span><span id="fbx-timer">Recording 0:00 / 5:00</span>');
+      recInd.style.display = "flex";
+      body.appendChild(recInd);
     } else if (state.mediaKind === "recording") {
       var saved = el("div", "fbx-rec", "Recording saved (" + Math.round(state.seconds) + "s)");
       saved.style.display = "flex";
@@ -184,6 +188,13 @@ export const EMBED_JS = `(function () {
     cam.title = "Capture screenshot";
     cam.addEventListener("click", function () { annotate(function (blob) { state.media = blob; state.mediaKind = "screenshot"; render(); }); });
     actions.appendChild(cam);
+
+    var rec = el("button", "fbx-cam", ICONS.record);
+    rec.title = "Record screen (max 5:00)";
+    rec.id = "fbx-recbtn";
+    if (state.recording) rec.style.background = "#fee2e2";
+    rec.addEventListener("click", toggleRecord);
+    actions.appendChild(rec);
 
     var send = el("button", "fbx-send", state.busy ? "Sending…" : "Send feedback");
     send.id = "fbx-send";
@@ -244,6 +255,48 @@ export const EMBED_JS = `(function () {
     }
   }
 
+  // Screen recording via getDisplayMedia, hard-capped at 5 minutes.
+  function toggleRecord() {
+    if (state.recording) {
+      if (state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder) return;
+    navigator.mediaDevices
+      .getDisplayMedia({ video: true })
+      .then(function (stream) {
+        state.chunks = [];
+        var mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+        state.recorder = new MediaRecorder(stream, { mimeType: mime });
+        state.recorder.ondataavailable = function (e) { if (e.data && e.data.size) state.chunks.push(e.data); };
+        state.recorder.onstop = function () {
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          clearInterval(state.timer);
+          state.recording = false;
+          state.timer = null;
+          state.media = new Blob(state.chunks, { type: "video/webm" });
+          state.mediaKind = "recording";
+          render();
+        };
+        state.seconds = 0;
+        state.recording = true;
+        state.recorder.start(1000);
+        render();
+        state.timer = setInterval(function () {
+          state.seconds++;
+          var t = document.getElementById("fbx-timer");
+          if (t) t.textContent = "Recording " + fmt(state.seconds) + " / 5:00";
+          if (state.seconds >= 300 && state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
+        }, 1000);
+      })
+      .catch(function () { /* user declined; keep the form quiet */ });
+  }
+
+  function fmt(s) {
+    var m = Math.floor(s / 60), r = s % 60;
+    return m + ":" + (r < 10 ? "0" : "") + r;
+  }
+
   function reset() {
     state.screen = "choose";
     state.kind = null;
@@ -253,6 +306,9 @@ export const EMBED_JS = `(function () {
     state.mediaKind = "none";
     state.seconds = 0;
     state.issueUrl = null;
+    if (state.timer) { clearInterval(state.timer); state.timer = null; }
+    if (state.recording && state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
+    state.recording = false;
     state.busy = false;
     render();
   }
