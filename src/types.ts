@@ -33,6 +33,8 @@ export type FeedbackRow = {
   media_kind: MediaKind;
   media_key: string | null;
   media_seconds: number | null;
+  audio_key: string | null;
+  audio_seconds: number | null;
   app_version: string | null;
   os_name: string | null;
   os_version: string | null;

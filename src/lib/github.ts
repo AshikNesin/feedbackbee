@@ -20,7 +20,7 @@ function row(label: string, value: string | null | undefined): string {
   return `| ${label} | ${value && value !== "" ? value : "—" } |`;
 }
 
-export function issueBody(f: FeedbackRow, mediaUrl: string | null): string {
+export function issueBody(f: FeedbackRow, mediaUrl: string | null, audioUrl: string | null): string {
   const lines: string[] = [];
   lines.push(f.text, "");
   if (mediaUrl) {
@@ -30,6 +30,10 @@ export function issueBody(f: FeedbackRow, mediaUrl: string | null): string {
       const secs = f.media_seconds ? ` (${Math.round(f.media_seconds)}s)` : "";
       lines.push(`[Screen recording${secs}](${mediaUrl})`, "");
     }
+  }
+  if (audioUrl) {
+    const secs = f.audio_seconds ? ` (${Math.round(f.audio_seconds)}s)` : "";
+    lines.push(`[Voice note${secs}](${audioUrl})`, "");
   }
   lines.push("<details><summary>Context</summary>", "");
   lines.push("| | |", "|---|---|");

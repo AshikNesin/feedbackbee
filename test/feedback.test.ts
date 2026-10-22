@@ -155,3 +155,46 @@ test("unknown project 404s", async () => {
   const res = await SELF.fetch("https://example.com/api/feedback", { method: "POST", body: form });
   expect(res.status).toBe(404);
 });
+
+test("feedback with voice note only creates issue with audio link", async () => {
+  const cookie = await login();
+  const slug = `voice-${Date.now()}`;
+  await createProject(cookie, slug);
+
+  const WEBM = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0]);
+  const form = new FormData();
+  form.append("project", slug);
+  form.append("kind", "idea");
+  form.append("text", "Please add dark mode");
+  form.append("audio", new File([WEBM], "voice.webm", { type: "audio/webm" }));
+  form.append("audio_seconds", "31");
+
+  const res = await SELF.fetch("https://example.com/api/feedback", { method: "POST", body: form });
+  expect(res.status).toBe(201);
+  const data: any = await res.json();
+  expect(data.state).toBe("created");
+
+  const gh = ghCalls.at(-1);
+  expect(gh?.body.body).toContain("[Voice note (31s)](");
+
+  const link = gh?.body.body.match(/\]\(([^)]+)\)/)?.[1] ?? "";
+  const audioRes = await SELF.fetch("https://example.com" + new URL(link).pathname);
+  expect(audioRes.status).toBe(200);
+  expect(audioRes.headers.get("content-type")).toBe("audio/webm");
+});
+
+test("audio without seconds is rejected", async () => {
+  const cookie = await login();
+  const slug = `audio-bad-${Date.now()}`;
+  await createProject(cookie, slug);
+
+  const WEBM = new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0]);
+  const form = new FormData();
+  form.append("project", slug);
+  form.append("kind", "bug");
+  form.append("text", "missing seconds");
+  form.append("audio", new File([WEBM], "voice.webm", { type: "audio/webm" }));
+
+  const res = await SELF.fetch("https://example.com/api/feedback", { method: "POST", body: form });
+  expect(res.status).toBe(400);
+});

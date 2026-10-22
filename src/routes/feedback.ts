@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env, FeedbackRow } from "../types.ts";
-import { kind as parseKind, mediaKind, num, sniffMedia, str } from "../lib/validate.ts";
+import { kind as parseKind, mediaKind, num, sniffRole, str } from "../lib/validate.ts";
 import { checkRate } from "../lib/rate.ts";
 import { insertFeedback, markIssueCreated, markIssueError, projectBySlug } from "../db/queries.ts";
 import { createIssueForProject, issueBody, issueLabels, issueTitle } from "../lib/github.ts";
@@ -9,6 +9,7 @@ import { newId } from "../lib/crypto.ts";
 
 const MAX_SCREENSHOT = 10 * 1024 * 1024;
 const MAX_RECORDING = 200 * 1024 * 1024;
+const MAX_AUDIO = 25 * 1024 * 1024;
 const MAX_SECONDS = 300;
 
 export const feedbackRoutes = new Hono<{ Bindings: Env }>();
@@ -60,14 +61,32 @@ feedbackRoutes.post("/api/feedback", async (c) => {
     }
 
     const head = new Uint8Array(await mediaFile.slice(0, 16).arrayBuffer());
-    const sniffed = sniffMedia(head);
-    if (!sniffed || sniffed.media !== declared) return bad("media content does not match media_kind", 415);
+    const sniffed = sniffRole(head, declared);
+    if (!sniffed) return bad("media content does not match media_kind", 415);
 
     mediaKindValue = declared;
     const ext = sniffed.mime.split("/")[1];
     mediaKey = `p/${project.id}/f/${newId()}.${ext}`;
     const bytes = await mediaFile.arrayBuffer();
     await c.env.MEDIA.put(mediaKey, bytes, {
+      httpMetadata: { contentType: sniffed.mime, cacheControl: "public, max-age=31536000, immutable" },
+    });
+  }
+
+  const audioFile = form.get("audio");
+  let audioKey: string | null = null;
+  let audioSeconds: number | null = null;
+  if (audioFile instanceof File && audioFile.size > 0) {
+    const secs = num(form.get("audio_seconds"));
+    if (secs === null || secs < 0 || secs > MAX_SECONDS) return bad("audio_seconds 0-300 required with audio");
+    if (audioFile.size > MAX_AUDIO) return bad(`audio exceeds ${Math.floor(MAX_AUDIO / 1024 / 1024)} MB cap`, 413);
+    const head = new Uint8Array(await audioFile.slice(0, 16).arrayBuffer());
+    const sniffed = sniffRole(head, "audio");
+    if (!sniffed) return bad("audio content not recognized", 415);
+    audioSeconds = secs;
+    const ext = sniffed.mime.split("/")[1];
+    audioKey = `p/${project.id}/f/${newId()}.${ext}`;
+    await c.env.MEDIA.put(audioKey, await audioFile.arrayBuffer(), {
       httpMetadata: { contentType: sniffed.mime, cacheControl: "public, max-age=31536000, immutable" },
     });
   }
@@ -85,6 +104,8 @@ feedbackRoutes.post("/api/feedback", async (c) => {
     media_kind: mediaKindValue,
     media_key: mediaKey,
     media_seconds: mediaSeconds,
+    audio_key: audioKey,
+    audio_seconds: audioSeconds,
     app_version: str(form.get("app_version"), 64),
     os_name: str(form.get("os_name"), 32),
     os_version: str(form.get("os_version"), 64),
@@ -93,12 +114,13 @@ feedbackRoutes.post("/api/feedback", async (c) => {
 
   const base = c.env.MEDIA_BASE || new URL(c.req.url).origin;
   const mediaUrl = mediaKey ? `${base}/f/${mediaKey}` : null;
+  const audioUrl = audioKey ? `${base}/f/${audioKey}` : null;
   const labels = issueLabels(row.kind, project.labels_map);
   const issue = await createIssueForProject(
     c.env,
     project,
     issueTitle(row),
-    issueBody(row, mediaUrl),
+    issueBody(row, mediaUrl, audioUrl),
     labels,
   );
 
