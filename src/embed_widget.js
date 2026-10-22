@@ -67,6 +67,8 @@
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/><line x1="18" y1="2" x2="18" y2="6"/><line x1="16" y1="4" x2="20" y2="4"/></svg>',
     record:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="14" height="14" rx="3"/><path d="M22 8.5v7L16 12z"/></svg>',
+    mic:
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
   };
 
   var KINDS = [
@@ -87,6 +89,12 @@
     recorder: null,
     timer: null,
     chunks: [],
+    audio: null,
+    audioSeconds: 0,
+    audioRecording: false,
+    audioRecorder: null,
+    audioTimer: null,
+    audioChunks: [],
     busy: false,
   };
 
@@ -178,6 +186,15 @@
       saved.style.display = "flex";
       body.appendChild(saved);
     }
+    if (state.audioRecording) {
+      var micInd = el("div", "fbx-rec", '<span class="fbx-dot"></span><span id="fbx-mtimer">Voice 0:00 / 5:00</span>');
+      micInd.style.display = "flex";
+      body.appendChild(micInd);
+    } else if (state.audio) {
+      var savedAudio = el("div", "fbx-rec", "Voice note saved (" + Math.round(state.audioSeconds) + "s)");
+      savedAudio.style.display = "flex";
+      body.appendChild(savedAudio);
+    }
 
     var err = el("div", "fbx-err");
     body.appendChild(err);
@@ -194,6 +211,13 @@
     if (state.recording) rec.style.background = "#fee2e2";
     rec.addEventListener("click", toggleRecord);
     actions.appendChild(rec);
+
+    var mic = el("button", "fbx-cam", ICONS.mic);
+    mic.title = "Record a voice note (max 5:00)";
+    mic.id = "fbx-micbtn";
+    if (state.audioRecording) mic.style.background = "#fee2e2";
+    mic.addEventListener("click", toggleVoice);
+    actions.appendChild(mic);
 
     var send = el("button", "fbx-send", state.busy ? "Sending…" : "Send feedback");
     send.id = "fbx-send";
@@ -228,6 +252,10 @@
         form.append("media", state.media, state.mediaKind === "screenshot" ? "screenshot.png" : "recording.webm");
         form.append("media_kind", state.mediaKind);
         if (state.mediaKind === "recording") form.append("media_seconds", Math.round(state.seconds));
+      }
+      if (state.audio) {
+        form.append("audio", state.audio, "voice.webm");
+        form.append("audio_seconds", Math.round(state.audioSeconds));
       }
 
       fetch(endpoint + "/api/feedback", { method: "POST", body: form })
@@ -296,6 +324,49 @@
     return m + ":" + (r < 10 ? "0" : "") + r;
   }
 
+  // Voice note via getUserMedia(audio), hard-capped at 5 minutes.
+  function toggleVoice() {
+    if (state.audioRecording) {
+      if (state.audioRecorder && state.audioRecorder.state !== "inactive") state.audioRecorder.stop();
+      return;
+    }
+    if (state.audio) { state.audio = null; state.audioSeconds = 0; render(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia || !window.MediaRecorder) return;
+    navigator.mediaDevices
+      .getUserMedia({ audio: true })
+      .then(function (stream) {
+        var mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].filter(function (m) {
+          return MediaRecorder.isTypeSupported(m);
+        })[0] || "";
+        state.audioChunks = [];
+        var rec = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+        state.audioRecorder = rec;
+        rec.ondataavailable = function (e) { if (e.data && e.data.size) state.audioChunks.push(e.data); };
+        rec.onstop = function () {
+          stream.getTracks().forEach(function (t) { t.stop(); });
+          clearInterval(state.audioTimer);
+          state.audioTimer = null;
+          state.audioRecording = false;
+          if (state.audioChunks.length) {
+            state.audio = new Blob(state.audioChunks, { type: mime.split(";")[0] || "audio/webm" });
+            state.audioKindMime = mime;
+          }
+          render();
+        };
+        state.audioSeconds = 0;
+        state.audioRecording = true;
+        rec.start();
+        render();
+        state.audioTimer = setInterval(function () {
+          state.audioSeconds++;
+          var t = document.getElementById("fbx-mtimer");
+          if (t) t.textContent = "Voice " + fmt(state.audioSeconds) + " / 5:00";
+          if (state.audioSeconds >= 300 && state.audioRecorder && state.audioRecorder.state !== "inactive") state.audioRecorder.stop();
+        }, 1000);
+      })
+      .catch(function () { /* mic declined or unavailable; keep the form quiet */ });
+  }
+
   function reset() {
     state.screen = "choose";
     state.kind = null;
@@ -308,6 +379,11 @@
     if (state.timer) { clearInterval(state.timer); state.timer = null; }
     if (state.recording && state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
     state.recording = false;
+    state.audio = null;
+    state.audioSeconds = 0;
+    if (state.audioTimer) { clearInterval(state.audioTimer); state.audioTimer = null; }
+    if (state.audioRecording && state.audioRecorder && state.audioRecorder.state !== "inactive") state.audioRecorder.stop();
+    state.audioRecording = false;
     state.busy = false;
     render();
   }
