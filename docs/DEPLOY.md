@@ -45,6 +45,7 @@ repo. Copy the snippet into your app, or point the Android SDK at
 ## Self-check after deploy
 
 - `GET /api/health` returns `{"ok":true}`.
+- In the dashboard, create a project with slug `demo` (any repo + PAT). `/demo` hardcodes that slug.
 - `GET /demo` renders the demo shop with the widget pill.
 - Send one feedback from `/demo` and watch the issue appear in the repo.
 

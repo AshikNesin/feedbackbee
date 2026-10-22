@@ -52,6 +52,9 @@ apiRoutes.post("/api/projects", async (c) => {
   if (!repoOk(repo)) return c.json({ error: "github_repo must look like owner/repo" }, 400);
   if (pat.length < 20) return c.json({ error: "github_pat looks too short" }, 400);
 
+  const slugTaken = await c.env.DB.prepare("SELECT 1 FROM project WHERE slug = ?").bind(slug).first();
+  if (slugTaken) return c.json({ error: `slug "${slug}" is already used by another project` }, 409);
+
   const labels = body?.labels && Object.keys(body.labels).length > 0 ? body.labels : DEFAULT_LABELS;
   const created = await insertProject(c.env.DB, {
     name,
