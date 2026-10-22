@@ -21,7 +21,7 @@ Paste the `database_id` into the `DB` binding in `wrangler.jsonc`:
 { "binding": "DB", "database_name": "feedbackbee", "database_id": "<your id>", "migrations_dir": "migrations" }
 ```
 
-The config leaves out `database_id` so the one-click button can provision D1. A pinned id makes the remote migration step target your database directly.
+Keep `database_id` pinned to the database in your account so the remote migration step targets it directly. When deploying to a different account, replace it with that account's database id.
 
 ## Option A: deploy from your machine
 
@@ -49,8 +49,7 @@ Two things to check on the first build:
 
 - `GET /api/health` returns `{"ok":true}`.
 - Open the deployed URL and sign up first. The first email and password you submit create the owner account, so do this before anyone else sees the URL.
-- In the dashboard, create a project with slug `demo` (any repo). `/demo` hardcodes that slug.
-- `GET /demo` renders the demo shop with the widget pill.
+- Visit `/demo`. It provisions a `demo` project (repo `octocat/hello-world`) automatically; edit it in the dashboard if you want issues elsewhere.
 - Send one feedback from `/demo` and check that the issue appears in the repo.
 
 ## GITHUB_TOKEN

@@ -1,6 +1,26 @@
 // Demo host page served by the worker so /demo exercises the widget against any deployment.
 import { Hono } from "hono";
 import type { Env } from "../types.ts";
+import { insertProject, projectBySlug } from "../db/queries.ts";
+
+const DEMO_SLUG = "demo";
+const DEMO_REPO = "octocat/hello-world";
+
+async function ensureDemoProject(db: D1Database) {
+  const existing = await projectBySlug(db, DEMO_SLUG);
+  if (existing) return existing;
+  try {
+    return await insertProject(db, {
+      name: "FeedbackBee demo",
+      slug: DEMO_SLUG,
+      github_repo: DEMO_REPO,
+      labels_map: JSON.stringify({ bug: "bug", idea: "enhancement", feedback: "feedback" }),
+    });
+  } catch {
+    // Slug is UNIQUE; a concurrent request seeded it first. Reuse that row.
+    return projectBySlug(db, DEMO_SLUG);
+  }
+}
 
 const DEMO_HTML = `<!doctype html>
 <html lang="en">
@@ -29,4 +49,7 @@ button.big { font-size: 18px; padding: 12px 20px; border-radius: 10px; border: n
 
 export const demoRoutes = new Hono<{ Bindings: Env }>();
 
-demoRoutes.get("/demo", (c) => c.html(DEMO_HTML));
+demoRoutes.get("/demo", async (c) => {
+  await ensureDemoProject(c.env.DB);
+  return c.html(DEMO_HTML);
+});

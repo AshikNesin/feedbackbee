@@ -147,6 +147,21 @@ test("rate limit kicks in at 21 submissions per hour", async () => {
   expect(last).toBe(429);
 });
 
+test("demo page works from a fresh install: slug demo is provisioned", async () => {
+  const demo = await SELF.fetch("https://example.com/demo");
+  expect(demo.status).toBe(200);
+
+  const form = new FormData();
+  form.append("project", "demo");
+  form.append("kind", "bug");
+  form.append("text", "broken checkout from the demo page");
+  const res = await SELF.fetch("https://example.com/api/feedback", { method: "POST", body: form });
+  expect(res.status).not.toBe(404);
+
+  const again = await SELF.fetch("https://example.com/demo");
+  expect(again.status).toBe(200);
+});
+
 test("unknown project 404s", async () => {
   const form = new FormData();
   form.append("project", "ghost");

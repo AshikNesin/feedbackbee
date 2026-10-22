@@ -30,4 +30,4 @@ label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: var(-
 h2 { font-size: 15px; margin: 0 0 12px; color: var(--tile-ink); }
 .list { display: grid; gap: 12px; }
 .item { display: grid; gap: 8px; }
-pre.snippet { background: var(--tile); color: var(--ink); padding: 16px; border-radius: 18px; overflow: auto; font-size: 12.5px; }
+pre.snippet { background: var(--tile); color: var(--ink); padding: 16px; border-radius: 18px; overflow: auto; font-size: 12.5px; white-space: pre-wrap; word-break: break-all; }

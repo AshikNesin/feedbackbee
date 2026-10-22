@@ -33,4 +33,4 @@ pnpm run dev       # API at http://localhost:8787, dashboard at /
 pnpm test          # workerd integration tests
 ```
 
-`GET /demo` hosts a demo page with the widget. Create a project with slug `demo` first.
+`GET /demo` hosts a demo page with the widget. The `demo` project is provisioned automatically on first visit.
