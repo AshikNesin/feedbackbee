@@ -17,6 +17,8 @@ import io.nesin.feedbackbee.FeedbackState.Uploading
 import io.nesin.feedbackbee.FeedbackState.WithScreenshot
 import io.nesin.feedbackbee.annotate.Shape
 import io.nesin.feedbackbee.capture.ScreenshotEncoder
+import io.nesin.feedbackbee.record.VoiceRecording
+import io.nesin.feedbackbee.upload.Audio
 import io.nesin.feedbackbee.upload.DeviceInfo
 import io.nesin.feedbackbee.upload.FeedbackUploader
 import io.nesin.feedbackbee.upload.Media
@@ -31,6 +33,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayInputStream
+import java.io.FileInputStream
 
 /** Activity-scoped so the draft, screenshot and in-flight upload survive rotation and fold/unfold. */
 internal class FeedbackViewModel : ViewModel() {
@@ -66,6 +69,38 @@ internal class FeedbackViewModel : ViewModel() {
         if (current is Annotating) WithScreenshot(current.from.draft, annotated) else current
     }
 
+    fun beginVoiceRecording(startedAtElapsedMs: Long) = _state.update { current ->
+        val editable = current.editable() ?: return@update current
+        FeedbackState.RecordingAudio(editable, startedAtElapsedMs)
+    }
+
+    fun finishVoiceRecording(recording: VoiceRecording) = _state.update { current ->
+        if (current !is FeedbackState.RecordingAudio) {
+            recording.file.delete()
+            return@update current
+        }
+        val previous = current.from.draft.audio
+        if (previous?.file != recording.file) previous?.file?.delete()
+        current.from.withDraft(current.from.draft.copy(audio = AudioNote(recording.file, recording.seconds)))
+    }
+
+    fun failVoiceRecording(message: String) = _state.update { current ->
+        current.editable()?.let { Failed(message, it) } ?: current
+    }
+
+    fun cancelVoiceRecording() = _state.update { current ->
+        if (current is FeedbackState.RecordingAudio) current.from else current
+    }
+
+    fun removeVoiceNote() {
+        val audio = _state.value.form?.draft?.audio
+        _state.update { current ->
+            val editable = current.editable() ?: return@update current
+            editable.withDraft(editable.draft.copy(audio = null))
+        }
+        audio?.file?.delete()
+    }
+
     fun cancelAnnotation() = _state.update { current ->
         if (current is Annotating) current.from else current
     }
@@ -81,6 +116,7 @@ internal class FeedbackViewModel : ViewModel() {
 
     fun send(device: DeviceInfo, config: FeedbackConfig) {
         val from = _state.value.editable() ?: return
+        if (_state.value is FeedbackState.RecordingAudio) return
         if (!from.draft.canSend) return
         _state.value = Uploading(from)
         viewModelScope.launch {
@@ -108,6 +144,15 @@ internal class FeedbackViewModel : ViewModel() {
             email = draft.email,
             device = device,
             media = media,
+            audio = draft.audio?.let { audio ->
+                Audio(
+                    filename = audio.file.name,
+                    mimeType = "audio/mp4",
+                    length = audio.file.length(),
+                    seconds = audio.seconds,
+                    open = { FileInputStream(audio.file) },
+                )
+            },
         )
         return FeedbackUploader.upload(config, request)
     }
@@ -120,6 +165,7 @@ internal class FeedbackViewModel : ViewModel() {
 
     private fun FeedbackState.editable(): Editable? = when (this) {
         is Editable -> this
+        is FeedbackState.RecordingAudio -> from
         is Failed -> resume
         else -> null
     }

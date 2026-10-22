@@ -20,6 +20,17 @@ internal class Media(
     val withinLimit: Boolean get() = length <= kind.maxBytes
 }
 
+internal class Audio(
+    val filename: String,
+    val mimeType: String,
+    val length: Long,
+    val seconds: Int,
+    val open: () -> InputStream,
+) {
+    val withinLimit: Boolean get() = length <= FeedbackLimits.MAX_AUDIO_BYTES
+    val secondsWithinLimit: Boolean get() = seconds in 0..FeedbackLimits.MAX_AUDIO_SECONDS
+}
+
 internal data class DeviceInfo(
     val appVersion: String?,
     val osVersion: String,
@@ -35,6 +46,7 @@ internal class UploadRequest(
     val email: String?,
     val device: DeviceInfo,
     val media: Media?,
+    val audio: Audio? = null,
 )
 
 internal sealed interface UploadOutcome {

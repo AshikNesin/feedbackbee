@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.StateListDrawable
+import android.os.SystemClock
 import android.text.Editable
 import android.text.InputFilter
 import android.text.InputType
@@ -37,6 +38,7 @@ import io.nesin.feedbackbee.FeedbackLimits
 import io.nesin.feedbackbee.FeedbackState
 import io.nesin.feedbackbee.R
 import io.nesin.feedbackbee.form
+import io.nesin.feedbackbee.record.formatVoiceDuration
 import io.nesin.feedbackbee.ui.Theme
 import io.nesin.feedbackbee.ui.dp
 import io.nesin.feedbackbee.ui.dpF
@@ -51,6 +53,9 @@ internal interface SheetActions {
     fun onEmailChanged(email: String)
     fun onAttachScreenshot()
     fun onRemoveScreenshot()
+    fun onVoiceClicked()
+    fun onStopVoice()
+    fun onRemoveVoice()
     fun onSend()
     fun onClose()
     fun onOpenIssue(url: String)
@@ -104,6 +109,39 @@ internal class FeedbackSheetView(
         background = context.ripple(context.roundedRect(Theme.Tile, 15))
         setOnClickListener { actions.onAttachScreenshot() }
     }
+    private val micButton = ImageButton(context).apply {
+        setImageResource(R.drawable.fbb_ic_mic)
+        scaleType = ImageView.ScaleType.FIT_CENTER
+        setPadding(context.dp(13), context.dp(13), context.dp(13), context.dp(13))
+        background = context.ripple(context.roundedRect(Theme.Tile, 15))
+        contentDescription = "Record voice note"
+        setOnClickListener { actions.onVoiceClicked() }
+    }
+    private val voiceTimer = context.label("0:00", 14f, Theme.Ink, bold = true)
+    private val stopVoiceButton = compactButton("Stop").apply { setOnClickListener { actions.onStopVoice() } }
+    private val voiceRecordingBlock = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        visibility = View.GONE
+        addView(voiceTimer, LinearLayout.LayoutParams(0, context.dp(44), 1f))
+        addView(stopVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, context.dp(44)))
+    }
+    private val voiceDuration = context.label("", 13.5f, Theme.TileInk, bold = true)
+    private val rerecordVoiceButton = compactButton("Re-record").apply { setOnClickListener { actions.onVoiceClicked() } }
+    private val removeVoiceButton = compactButton("Delete").apply { setOnClickListener { actions.onRemoveVoice() } }
+    private val voiceAttachmentBlock = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        visibility = View.GONE
+        addView(voiceDuration, LinearLayout.LayoutParams(0, context.dp(44), 1f))
+        addView(rerecordVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, context.dp(44)))
+        addView(removeVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, context.dp(44)).apply { marginStart = context.dp(4) })
+    }
+    private val voiceHint = context.label("", 12f, Theme.TileInk).apply {
+        visibility = View.GONE
+        setPadding(context.dp(4), context.dp(5), context.dp(4), 0)
+    }
+    private var voicePermissionDenied = false
     private val sendButton = buildSendButton()
     private val formGroup = buildFormGroup()
 
@@ -192,11 +230,43 @@ internal class FeedbackSheetView(
         cameraButton.contentDescription = if (screenshot == null) "Attach screenshot" else "Retake screenshot"
         cameraButton.isEnabled = interactive
         cameraButton.alpha = if (interactive) 1f else DISABLED_ALPHA
+        val audio = draft.audio
+        micButton.isEnabled = interactive && !voicePermissionDenied
+        micButton.alpha = if (micButton.isEnabled) 1f else DISABLED_ALPHA
+        voiceRecordingBlock.visibility = if (state is FeedbackState.RecordingAudio) View.VISIBLE else View.GONE
+        voiceAttachmentBlock.visibility = if (audio != null && state !is FeedbackState.RecordingAudio) View.VISIBLE else View.GONE
+        micButton.visibility = if (audio == null && state !is FeedbackState.RecordingAudio) View.VISIBLE else View.GONE
+        if (state is FeedbackState.RecordingAudio) {
+            updateVoiceTimer(state.startedAtElapsedMs)
+        } else {
+            removeCallbacks(updateTimer)
+        }
+        voiceDuration.text = audio?.let { "Voice note · ${formatVoiceDuration(it.seconds)}" }.orEmpty()
+        val controlsEnabled = interactive && state !is FeedbackState.RecordingAudio
+        rerecordVoiceButton.isEnabled = controlsEnabled
+        removeVoiceButton.isEnabled = controlsEnabled
+        rerecordVoiceButton.alpha = if (controlsEnabled) 1f else DISABLED_ALPHA
+        removeVoiceButton.alpha = if (controlsEnabled) 1f else DISABLED_ALPHA
+        stopVoiceButton.isEnabled = state is FeedbackState.RecordingAudio
+        stopVoiceButton.alpha = if (stopVoiceButton.isEnabled) 1f else DISABLED_ALPHA
 
         errorLine.visibility = if (state is FeedbackState.Failed) View.VISIBLE else View.GONE
         if (state is FeedbackState.Failed) errorLine.text = state.error
         sendButton.text = if (state is FeedbackState.Uploading) "Sending…" else "Send feedback"
         sendButton.isEnabled = interactive && draft.canSend
+    }
+
+    fun setVoicePermissionDenied(denied: Boolean) {
+        voicePermissionDenied = denied
+        voiceHint.visibility = if (denied) View.VISIBLE else View.GONE
+        voiceHint.text = if (denied) "Microphone access is off. Enable it in Settings to record a voice note." else ""
+        if (denied) {
+            micButton.isEnabled = false
+            micButton.alpha = DISABLED_ALPHA
+            micButton.contentDescription = "Voice notes unavailable: microphone permission denied"
+        } else {
+            micButton.contentDescription = "Record voice note"
+        }
     }
 
     private fun showOnly(group: View) {
@@ -247,11 +317,28 @@ internal class FeedbackSheetView(
         addView(noteField, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         addView(emailField, spaced(top = 10))
         addView(screenshotBlock, spaced(top = 10))
+        addView(voiceRecordingBlock, spaced(top = 10))
+        addView(voiceAttachmentBlock, spaced(top = 10))
+        addView(voiceHint, spaced(top = 2))
         addView(errorLine, spaced(top = 10))
         addView(LinearLayout(context).apply {
-            addView(cameraButton, LinearLayout.LayoutParams(context.dp(72), context.dp(48)))
-            addView(sendButton, LinearLayout.LayoutParams(0, context.dp(48), 1f).apply { marginStart = context.dp(10) })
+            addView(cameraButton, LinearLayout.LayoutParams(context.dp(52), context.dp(48)))
+            addView(micButton, LinearLayout.LayoutParams(context.dp(52), context.dp(48)).apply { marginStart = context.dp(8) })
+            addView(sendButton, LinearLayout.LayoutParams(0, context.dp(48), 1f).apply { marginStart = context.dp(8) })
         }, spaced(top = 12))
+    }
+
+    private fun compactButton(label: String) = Button(context).apply {
+        text = label
+        isAllCaps = false
+        stateListAnimator = null
+        minWidth = 0
+        minHeight = 0
+        setPadding(context.dp(8), 0, context.dp(8), 0)
+        textSize = 12f
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        setTextColor(Theme.TileInk)
+        background = context.ripple(context.roundedRect(Theme.Tile, 12))
     }
 
     private fun buildSendButton() = Button(context).apply {
@@ -342,6 +429,24 @@ internal class FeedbackSheetView(
         override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) = onChange(s.toString())
         override fun afterTextChanged(s: Editable?) = Unit
+    }
+
+    private val updateTimer = object : Runnable {
+        override fun run() {
+            if (voiceRecordingBlock.visibility != View.VISIBLE) return
+            val startedAt = recordingStartedAt ?: return
+            voiceTimer.text = formatVoiceDuration(((SystemClock.elapsedRealtime() - startedAt) / 1_000L).toInt())
+            postDelayed(this, 1_000L)
+        }
+    }
+
+    private var recordingStartedAt: Long? = null
+
+    private fun updateVoiceTimer(startedAt: Long) {
+        recordingStartedAt = startedAt
+        voiceTimer.text = formatVoiceDuration(((SystemClock.elapsedRealtime() - startedAt) / 1_000L).toInt())
+        removeCallbacks(updateTimer)
+        post(updateTimer)
     }
 
     private companion object {
