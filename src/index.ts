@@ -5,6 +5,7 @@ import { feedbackRoutes } from "./routes/feedback.ts";
 import { mediaRoutes } from "./routes/media.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { apiRoutes } from "./routes/api.ts";
+import { demoRoutes } from "./routes/demo.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -15,6 +16,7 @@ app.route("/", feedbackRoutes);
 app.route("/", mediaRoutes);
 app.route("/", authRoutes);
 app.route("/", apiRoutes);
+app.route("/", demoRoutes);
 
 export default app;
 
