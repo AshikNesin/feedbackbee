@@ -16,8 +16,8 @@ import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
-import androidx.activity.ComponentActivity
 import androidx.fragment.app.DialogFragment
+import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -27,8 +27,6 @@ import io.nesin.feedbackbee.FeedbackState
 import io.nesin.feedbackbee.FeedbackViewModel
 import io.nesin.feedbackbee.annotate.AnnotationDialogFragment
 import io.nesin.feedbackbee.capture.ScreenshotCapture
-import io.nesin.feedbackbee.record.ScreenRecorder
-import io.nesin.feedbackbee.record.UnavailableScreenRecorder
 import io.nesin.feedbackbee.ui.dp
 import io.nesin.feedbackbee.upload.collectDeviceInfo
 import kotlinx.coroutines.launch
@@ -37,7 +35,6 @@ import kotlin.math.min
 internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
 
     private val viewModel by lazy { FeedbackViewModel.of(requireActivity()) }
-    private val recorder: ScreenRecorder = UnavailableScreenRecorder
     private var sheet: FeedbackSheetView? = null
 
     // Deprecated for edge-to-edge windows only; a floating dialog still needs it to rise above the keyboard.
@@ -47,12 +44,13 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
             window?.apply {
                 setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
                 setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+                setDimAmount(DIM)
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             }
         }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        val view = FeedbackSheetView(requireContext(), this, recorder.isAvailable)
+        val view = FeedbackSheetView(requireContext(), this)
         sheet = view
         if (savedInstanceState == null) slideIn(view)
         return view
@@ -96,7 +94,9 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
         }
     }
 
-    override fun onKindSelected(kind: FeedbackKind) = viewModel.editDraft { it.copy(kind = kind) }
+    override fun onKindSelected(kind: FeedbackKind) = viewModel.chooseKind(kind)
+
+    override fun onBack() = viewModel.backToKindPicker()
 
     override fun onTextChanged(text: String) = viewModel.editDraft { it.copy(text = text) }
 
@@ -112,12 +112,6 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     }
 
     override fun onRemoveScreenshot() = viewModel.removeScreenshot()
-
-    override fun onRecordScreen() {
-        recorder.start(requireActivity() as ComponentActivity) { result ->
-            result.onFailure { viewModel.reportProblem(it.message ?: "Couldn't start recording.") }
-        }
-    }
 
     override fun onSend() {
         val config = FeedbackBee.configOrNull() ?: return viewModel.reportProblem("FeedbackBee.init() was not called.")
@@ -148,9 +142,18 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     }
 
     companion object {
-        const val TAG = "io.nesin.feedbackbee.sheet"
+        private const val TAG = "io.nesin.feedbackbee.sheet"
         private const val ANNOTATOR_TAG = "io.nesin.feedbackbee.annotator"
-        private const val MAX_SHEET_WIDTH_DP = 560
+        private const val MAX_SHEET_WIDTH_DP = 360
         private const val SLIDE_MS = 240L
+        private const val DIM = 0.4f
+
+        /** Does nothing while a sheet is already open, so a shake can never stack a second one. */
+        fun open(activity: FragmentActivity) {
+            val fragments = activity.supportFragmentManager
+            if (fragments.isStateSaved || fragments.isDestroyed) return
+            if (fragments.findFragmentByTag(TAG) != null) return
+            FeedbackSheetFragment().show(fragments, TAG)
+        }
     }
 }

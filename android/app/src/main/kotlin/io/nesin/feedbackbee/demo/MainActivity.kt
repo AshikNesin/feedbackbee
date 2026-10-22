@@ -10,23 +10,21 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        FeedbackBee.register(this)
         setContent {
             DemoTheme {
                 DemoScreen(
-                    initial = DemoSettings.load(this),
-                    onSave = ::applySettings,
-                    onOpenSheet = { FeedbackBee.showFeedbackSheet(this) },
+                    initialProjectId = DemoSettings.projectId(this),
+                    endpoint = BuildConfig.FEEDBACKBEE_ENDPOINT.ifEmpty { FeedbackBee.DEFAULT_ENDPOINT },
+                    onProjectIdChange = ::applyProjectId,
+                    onOpenSheet = { FeedbackBee.show() },
                 )
             }
         }
     }
 
-    private fun applySettings(settings: DemoSettings): String? = try {
-        FeedbackBee.init(application, settings.projectSlug, settings.endpoint)
-        settings.save(this)
-        null
-    } catch (e: IllegalArgumentException) {
-        e.message
+    private fun applyProjectId(projectId: String) {
+        if (projectId.isBlank()) return
+        DemoSettings.saveProjectId(this, projectId.trim())
+        application.startFeedbackBee(projectId)
     }
 }

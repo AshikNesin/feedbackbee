@@ -1,8 +1,6 @@
 package io.nesin.feedbackbee.upload
 
-import io.nesin.feedbackbee.FeedbackConfig
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -35,19 +33,5 @@ class UploadResponseTest {
         assertTrue((parseUploadResponse(429, "") as UploadOutcome.Rejected).message.contains("Too many"))
         assertTrue((parseUploadResponse(500, "") as UploadOutcome.Rejected).message.contains("HTTP 500"))
         assertTrue((parseUploadResponse(301, "") as UploadOutcome.Rejected).message.contains("redirected"))
-    }
-
-    @Test
-    fun endpointIsTrimmedAndTrailingSlashesRemoved() {
-        val config = FeedbackConfig.create(" myapp ", " http://10.0.2.2:8787// ")
-        assertEquals("myapp", config.projectSlug)
-        assertEquals("http://10.0.2.2:8787/api/feedback", config.feedbackUrl)
-    }
-
-    @Test
-    fun badConfigFailsFast() {
-        assertThrows(IllegalArgumentException::class.java) { FeedbackConfig.create(" ", "https://x.dev") }
-        assertThrows(IllegalArgumentException::class.java) { FeedbackConfig.create("a", "x.dev") }
-        assertThrows(IllegalArgumentException::class.java) { FeedbackConfig.create("a", "https://") }
     }
 }

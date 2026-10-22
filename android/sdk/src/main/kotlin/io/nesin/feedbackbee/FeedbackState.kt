@@ -3,10 +3,10 @@ package io.nesin.feedbackbee
 import android.graphics.Bitmap
 import io.nesin.feedbackbee.annotate.Shape
 
-internal enum class FeedbackKind(val wire: String, val label: String) {
-    Feedback("feedback", "Feedback"),
-    Bug("bug", "Bug"),
-    Idea("idea", "Idea"),
+internal enum class FeedbackKind(val wire: String, val label: String, val formTitle: String) {
+    Issue("bug", "Issue", "Report an issue"),
+    Idea("idea", "Idea", "Share an idea"),
+    Other("feedback", "Other", "Tell us more"),
 }
 
 internal object FeedbackLimits {
@@ -30,13 +30,16 @@ internal sealed interface FeedbackState {
 
     data class Draft(
         val text: String = "",
-        val kind: FeedbackKind = FeedbackKind.Feedback,
+        val kind: FeedbackKind = FeedbackKind.Other,
         val email: String = "",
     ) : Editable {
         override val draft: Draft get() = this
         override fun withDraft(draft: Draft): Editable = draft
         val canSend: Boolean get() = text.isNotBlank()
     }
+
+    /** The kind picker. [from] keeps the draft and screenshot so Back from the form loses nothing. */
+    data class Choosing(val from: Editable = Draft()) : FeedbackState
 
     /** [from] is where Cancel returns to, so retaking never loses an existing screenshot. */
     class Annotating(
@@ -57,10 +60,11 @@ internal sealed interface FeedbackState {
     class Failed(val error: String, val resume: Editable) : FeedbackState
 }
 
-/** The form to draw for this state, or null once the submission is done. */
+/** The form behind this state, or null once the submission is done. */
 internal val FeedbackState.form: FeedbackState.Editable?
     get() = when (this) {
         is FeedbackState.Editable -> this
+        is FeedbackState.Choosing -> from
         is FeedbackState.Annotating -> from
         is FeedbackState.Uploading -> from
         is FeedbackState.Failed -> resume

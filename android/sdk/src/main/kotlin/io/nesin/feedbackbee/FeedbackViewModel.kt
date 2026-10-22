@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import io.nesin.feedbackbee.FeedbackState.Annotating
+import io.nesin.feedbackbee.FeedbackState.Choosing
 import io.nesin.feedbackbee.FeedbackState.Draft
 import io.nesin.feedbackbee.FeedbackState.Editable
 import io.nesin.feedbackbee.FeedbackState.Failed
@@ -34,8 +35,18 @@ import java.io.ByteArrayInputStream
 /** Activity-scoped so the draft, screenshot and in-flight upload survive rotation and fold/unfold. */
 internal class FeedbackViewModel : ViewModel() {
 
-    private val _state = MutableStateFlow<FeedbackState>(Draft())
+    private val _state = MutableStateFlow<FeedbackState>(Choosing())
     val state: StateFlow<FeedbackState> = _state.asStateFlow()
+
+    fun chooseKind(kind: FeedbackKind) = _state.update { current ->
+        if (current !is Choosing) return@update current
+        current.from.withDraft(current.from.draft.copy(kind = kind))
+    }
+
+    fun backToKindPicker() = _state.update { current ->
+        val editable = current.editable() ?: return@update current
+        Choosing(editable)
+    }
 
     fun editDraft(transform: (Draft) -> Draft) = _state.update { current ->
         val editable = current.editable() ?: return@update current
@@ -82,7 +93,7 @@ internal class FeedbackViewModel : ViewModel() {
     }
 
     fun reset() {
-        if (_state.value !is Uploading) _state.value = Draft()
+        if (_state.value !is Uploading) _state.value = Choosing()
     }
 
     private suspend fun submit(from: Editable, device: DeviceInfo, config: FeedbackConfig): UploadOutcome {
@@ -91,7 +102,7 @@ internal class FeedbackViewModel : ViewModel() {
         } else null
         val draft = from.draft
         val request = UploadRequest(
-            project = config.projectSlug,
+            project = config.projectId,
             kind = draft.kind,
             text = draft.text,
             email = draft.email,

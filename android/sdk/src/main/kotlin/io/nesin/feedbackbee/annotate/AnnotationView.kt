@@ -3,11 +3,11 @@ package io.nesin.feedbackbee.annotate
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.RectF
 import android.view.MotionEvent
 import android.view.View
+import io.nesin.feedbackbee.ui.Theme
 import kotlin.math.min
 
 internal class AnnotationView(
@@ -53,7 +53,7 @@ internal class AnnotationView(
     }
 
     override fun onDraw(canvas: Canvas) {
-        canvas.drawColor(Color.BLACK)
+        canvas.drawColor(Theme.Overlay)
         canvas.save()
         canvas.concat(toView)
         canvas.drawBitmap(source, 0f, 0f, null)

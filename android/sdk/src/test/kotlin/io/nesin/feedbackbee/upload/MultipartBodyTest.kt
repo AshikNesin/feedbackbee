@@ -51,7 +51,7 @@ class MultipartBodyTest {
         val png = byteArrayOf(1, 2, 3)
         val request = UploadRequest(
             project = "myapp",
-            kind = FeedbackKind.Bug,
+            kind = FeedbackKind.Issue,
             text = "  It crashed  ",
             email = "a@b.co",
             device = device,
@@ -90,7 +90,7 @@ class MultipartBodyTest {
     @Test
     fun mediaFieldsComeAfterTextFieldsSoServersCanStream() {
         val request = UploadRequest(
-            "p", FeedbackKind.Feedback, "t", null, device,
+            "p", FeedbackKind.Other, "t", null, device,
             Media(MediaKind.Recording, "r.mp4", "video/mp4", 2, seconds = 42) { ByteArrayInputStream(byteArrayOf(0, 0)) },
         )
         val out = render(FeedbackUploader.buildBody(request))

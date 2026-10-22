@@ -1,88 +1,74 @@
 package io.nesin.feedbackbee
 
 import android.app.Application
-import android.content.pm.PackageManager
-import android.util.Log
-import androidx.activity.ComponentActivity
-import androidx.fragment.app.FragmentActivity
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import io.nesin.feedbackbee.shake.ShakeDetector
-import io.nesin.feedbackbee.sheet.FeedbackSheetFragment
-import java.lang.ref.WeakReference
+import android.os.Handler
+import android.os.Looper
 
 /**
- * Shake-to-feedback for Android. Call every function on the main thread.
+ * Feedback for Android: a bottom sheet with an optional annotated screenshot, sent to a FeedbackBee Worker.
  *
- * Privacy: the SDK only ever reads its host app's own window, and only when the user taps
- * "Attach screenshot". It never touches notifications, SMS or system logs, and nothing
- * leaves the device until the user presses Send.
+ * Set it up once in your [Application]; nothing else is needed per activity:
+ *
+ * ```kotlin
+ * class MyApp : Application() {
+ *     override fun onCreate() {
+ *         super.onCreate()
+ *         FeedbackBee.init(this, projectId = "myapp")
+ *     }
+ * }
+ * ```
+ *
+ * The sheet is a DialogFragment, so the foreground activity must be a `FragmentActivity`
+ * (`AppCompatActivity` is one; for Compose extend `FragmentActivity` instead of `ComponentActivity`).
+ *
+ * Privacy: the SDK only reads its host app's own window, and only when the user taps the camera button.
+ * It never touches notifications, SMS or system logs, and nothing leaves the device until the user presses Send.
  */
 object FeedbackBee {
-    private const val TAG = "FeedbackBee"
 
-    private var config: FeedbackConfig? = null
-    private var registration: Registration? = null
+    /** The hosted FeedbackBee Worker. Override `endpoint` in [init] when you self-host. */
+    const val DEFAULT_ENDPOINT = "https://feedbackbee.ashik.workers.dev"
 
-    /** Throws [IllegalArgumentException] for a blank slug or an endpoint that is not an http(s) URL. */
-    fun init(app: Application, projectSlug: String, endpoint: String) {
-        config = FeedbackConfig.create(projectSlug, endpoint)
-        if (!app.packageManager.hasSystemFeature(PackageManager.FEATURE_SENSOR_ACCELEROMETER)) {
-            Log.i(TAG, "No accelerometer on this device; call showFeedbackSheet() from your own button.")
-        }
+    private val mainThread = Handler(Looper.getMainLooper())
+    private var installation: Installation? = null
+
+    /**
+     * Starts FeedbackBee. Call it from `Application.onCreate`. Calling it again replaces the previous setup.
+     *
+     * ```kotlin
+     * FeedbackBee.init(this, projectId = "myapp")                          // shake to open the sheet
+     * FeedbackBee.init(this, projectId = "myapp", shake = false)           // open it yourself with show()
+     * FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev")  // self-hosted
+     * ```
+     *
+     * @param projectId the project id from your FeedbackBee dashboard.
+     * @param shake when true (the default), three firm jolts within 1.5 seconds open the sheet.
+     * @param endpoint base URL of the Worker. Defaults to [DEFAULT_ENDPOINT]; override it when self-hosting.
+     * @throws IllegalArgumentException if [projectId] is blank or [endpoint] is not an http(s) URL.
+     */
+    @JvmStatic
+    @JvmOverloads
+    fun init(application: Application, projectId: String, shake: Boolean = true, endpoint: String = DEFAULT_ENDPOINT) {
+        val config = FeedbackConfig.create(projectId, endpoint)
+        val previous = installation
+        val resumed = previous?.resumedActivity
+        previous?.uninstall()
+        installation = Installation(application, config, shake).also { it.install(resumed) }
     }
 
     /**
-     * Starts shake detection while [activity] is resumed. The activity must be a
-     * [FragmentActivity] (AppCompatActivity and most Compose templates are); the sheet is a DialogFragment.
+     * Opens the feedback sheet over the foreground activity, for example from a "Send feedback" button.
+     * Does nothing while a sheet is already open. Safe to call from any thread.
      */
-    fun register(activity: ComponentActivity) {
-        unregister()
-        if (activity !is FragmentActivity) {
-            Log.w(TAG, "register() needs a FragmentActivity; ${activity.javaClass.name} is not one.")
-            return
-        }
-        val detector = ShakeDetector(activity, onShake = { showFeedbackSheet(activity) })
-        val observer = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_RESUME -> detector.start()
-                Lifecycle.Event.ON_PAUSE -> detector.stop()
-                Lifecycle.Event.ON_DESTROY -> if (registration?.activity?.get() === activity) unregister()
-                else -> Unit
-            }
-        }
-        registration = Registration(WeakReference(activity), detector, observer)
-        activity.lifecycle.addObserver(observer)
+    @JvmStatic
+    fun show() {
+        if (Looper.myLooper() == Looper.getMainLooper()) showNow() else mainThread.post(::showNow)
     }
 
-    fun unregister() {
-        val current = registration ?: return
-        registration = null
-        current.detector.stop()
-        current.activity.get()?.lifecycle?.removeObserver(current.observer)
+    internal fun configOrNull(): FeedbackConfig? = installation?.config
+
+    private fun showNow() {
+        val current = installation ?: return Installation.warn("show() ignored: call FeedbackBee.init() first.")
+        current.show()
     }
-
-    /** Does nothing while a sheet is already open, so a shake can never stack a second one. */
-    fun showFeedbackSheet(activity: ComponentActivity) {
-        if (config == null) {
-            Log.w(TAG, "showFeedbackSheet() ignored: call FeedbackBee.init() first.")
-            return
-        }
-        if (activity !is FragmentActivity) {
-            Log.w(TAG, "showFeedbackSheet() needs a FragmentActivity.")
-            return
-        }
-        val fragments = activity.supportFragmentManager
-        if (fragments.isStateSaved || fragments.isDestroyed) return
-        if (fragments.findFragmentByTag(FeedbackSheetFragment.TAG) != null) return
-        FeedbackSheetFragment().show(fragments, FeedbackSheetFragment.TAG)
-    }
-
-    internal fun configOrNull(): FeedbackConfig? = config
-
-    private class Registration(
-        val activity: WeakReference<ComponentActivity>,
-        val detector: ShakeDetector,
-        val observer: LifecycleEventObserver,
-    )
 }

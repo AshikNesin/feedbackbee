@@ -6,8 +6,12 @@ import io.nesin.feedbackbee.FeedbackBee
 class DemoApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        val settings = DemoSettings.load(this)
-        runCatching { FeedbackBee.init(this, settings.projectSlug, settings.endpoint) }
-            .onFailure { FeedbackBee.init(this, DemoSettings.DEFAULT_SLUG, DemoSettings.EMULATOR_ENDPOINT) }
+        startFeedbackBee(DemoSettings.projectId(this))
     }
+}
+
+/** The whole integration. Shake is on by default; the endpoint is only overridden for local debugging. */
+fun Application.startFeedbackBee(projectId: String) {
+    val endpoint = BuildConfig.FEEDBACKBEE_ENDPOINT.ifEmpty { FeedbackBee.DEFAULT_ENDPOINT }
+    FeedbackBee.init(this, projectId = projectId, endpoint = endpoint)
 }
