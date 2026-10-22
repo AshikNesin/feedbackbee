@@ -1,0 +1,2 @@
+-keep class io.nesin.feedbackbarn.sheet.FeedbackSheetFragment { <init>(); }
+-keep class io.nesin.feedbackbarn.annotate.AnnotationDialogFragment { <init>(); }
