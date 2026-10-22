@@ -1,4 +1,4 @@
-# FeedbackBarn — engineering guide
+# FeedbackBee — engineering guide
 
 Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflare free tier.
 
@@ -9,7 +9,7 @@ Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflar
 - The GitHub PAT is encrypted at rest (`src/lib/crypto.ts`, AES-GCM under APP_SECRET) and never leaves the worker except to api.github.com. Never return it in an API response.
 - Tests run inside workerd via `@cloudflare/vitest-plugin` with `SELF.fetch()`; outbound GitHub calls are stubbed with MSW (`test/gh-server.ts`).
 - The web widget is hand-written vanilla JS. Edit `src/embed_widget.js`, then run `python3 scripts/build-embed.py` to regenerate `src/embed_js.ts`. Never edit the generated file.
-- Android SDK lives in `android/` (namespace io.nesin.feedbackbarn, no third-party deps beyond coroutines). Keep the upload contract in `docs/CONTRACT.md` in sync with any API change.
+- Android SDK lives in `android/` (namespace io.nesin.feedbackbee, no third-party deps beyond coroutines). Keep the upload contract in `docs/CONTRACT.md` in sync with any API change.
 - Free-tier ceilings matter: no queues, no Durable Objects, batch D1 where possible, media caps enforced in code.
 
 ## Dev

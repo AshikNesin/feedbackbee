@@ -43,7 +43,7 @@ export function issueBody(f: FeedbackRow, mediaUrl: string | null): string {
   lines.push(row("User agent", f.user_agent));
   lines.push("");
   lines.push("</details>");
-  lines.push("", "<sub>via FeedbackBarn</sub>");
+  lines.push("", "<sub>via FeedbackBee</sub>");
   return lines.join("\n");
 }
 
@@ -76,7 +76,7 @@ export async function createIssue(
       Authorization: `Bearer ${secret}`,
       Accept: "application/vnd.github+json",
       "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "feedbackbarn",
+      "User-Agent": "feedbackbee",
     },
     body: JSON.stringify({ title, body, labels }),
   });

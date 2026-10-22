@@ -12,7 +12,7 @@ src = root / "src" / "embed_widget.js"
 out = root / "src" / "embed_js.ts"
 
 js = src.read_text()
-if "feedbackbarn" not in js.lower() and "fb-" not in js:
+if "feedbackbee" not in js.lower() and "fb-" not in js:
     sys.exit("refusing: file does not look like the widget")
 
 escaped = js.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")

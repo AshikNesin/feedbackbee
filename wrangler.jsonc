@@ -1,16 +1,16 @@
 {
-  // FeedbackBarn — self-hostable feedback widget on the Cloudflare free tier.
+  // FeedbackBee — self-hostable feedback widget on the Cloudflare free tier.
   // Run once per account, then paste the database id:
-  //   npx wrangler d1 create feedbackbarn
-  //   npx wrangler r2 bucket create feedbackbarn-media
-  "name": "feedbackbarn",
+  //   npx wrangler d1 create feedbackbee
+  //   npx wrangler r2 bucket create feedbackbee-media
+  "name": "feedbackbee",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "d1_databases": [
-    { "binding": "DB", "database_name": "feedbackbarn", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "feedbackbee", "database_id": "REPLACE_WITH_D1_ID", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [
-    { "binding": "MEDIA", "bucket_name": "feedbackbarn-media" }
+    { "binding": "MEDIA", "bucket_name": "feedbackbee-media" }
   ],
   "assets": {
     "directory": "./dist/web",

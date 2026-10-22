@@ -1,12 +1,12 @@
-# Deploying FeedbackBarn
+# Deploying FeedbackBee
 
 One Cloudflare account, three commands. Everything fits the free tier.
 
 ## 1. Create resources
 
 ```bash
-npx wrangler d1 create feedbackbarn
-npx wrangler r2 bucket create feedbackbarn-media
+npx wrangler d1 create feedbackbee
+npx wrangler r2 bucket create feedbackbee-media
 ```
 
 Paste the printed `database_id` into `wrangler.jsonc` (the `REPLACE_WITH_D1_ID` slot).
@@ -50,7 +50,7 @@ repo. Copy the snippet into your app, or point the Android SDK at
 
 ## Free-tier ceilings
 
-| Resource | Free limit | FeedbackBarn pressure |
+| Resource | Free limit | FeedbackBee pressure |
 |---|---|---|
 | Workers | 100k req/day | Widget + API + media reads |
 | D1 | 5M rows read/day | Rate-limit rows dominate; prune monthly |

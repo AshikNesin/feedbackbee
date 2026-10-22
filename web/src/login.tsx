@@ -24,7 +24,7 @@ export function Login() {
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
       <form onSubmit={submit} className="card" style={{ width: 340, display: "grid", gap: 12 }}>
-        <h1 style={{ margin: 0, fontSize: 20 }}>FeedbackBarn</h1>
+        <h1 style={{ margin: 0, fontSize: 20 }}>FeedbackBee</h1>
         <p style={{ margin: 0, color: "#6b7280", fontSize: 13 }}>
           First login creates the owner account.
         </p>

@@ -7,7 +7,7 @@ const DEMO_HTML = `<!doctype html>
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>FeedbackBarn demo</title>
+<title>FeedbackBee demo</title>
 <style>
 body { font: 16px/1.6 -apple-system, sans-serif; max-width: 640px; margin: 60px auto; padding: 0 20px; color: #111; }
 .box { background: #eef2ff; border-radius: 12px; padding: 24px; margin: 20px 0; }
@@ -16,7 +16,7 @@ button.big { font-size: 18px; padding: 12px 20px; border-radius: 10px; border: n
 </head>
 <body>
 <h1>Demo shop</h1>
-<p>This page hosts the FeedbackBarn widget. Click the pill in the corner to send feedback.</p>
+<p>This page hosts the FeedbackBee widget. Click the pill in the corner to send feedback.</p>
 <div class="box">
 <h2>Checkout total</h2>
 <p id="total">$42.00</p>
