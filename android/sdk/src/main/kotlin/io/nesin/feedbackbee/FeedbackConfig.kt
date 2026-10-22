@@ -1,5 +1,8 @@
 package io.nesin.feedbackbee
 
+import java.net.URI
+import java.net.URISyntaxException
+
 internal data class FeedbackConfig(val projectId: String, val endpoint: String) {
     val feedbackUrl: String get() = "$endpoint/api/feedback"
 
@@ -11,14 +14,23 @@ internal data class FeedbackConfig(val projectId: String, val endpoint: String) 
         }
 
         fun normalizeEndpoint(raw: String): String {
-            val url = raw.trim().trimEnd('/')
-            require(url.startsWith("https://") || url.startsWith("http://")) {
-                "FeedbackBee: endpoint must start with http:// or https:// (got \"$raw\")"
+            val url = raw.trim()
+            require(url.isNotEmpty()) { "FeedbackBee: endpoint must not be blank" }
+            val uri = try {
+                URI(url)
+            } catch (_: URISyntaxException) {
+                throw IllegalArgumentException("FeedbackBee: endpoint must be a valid http:// or https:// URL with a host")
             }
-            require(url.substringAfter("://").isNotEmpty()) {
-                "FeedbackBee: endpoint has no host (got \"$raw\")"
+            require(uri.scheme?.lowercase() in listOf("http", "https") && !uri.host.isNullOrBlank()) {
+                "FeedbackBee: endpoint must be a valid http:// or https:// URL with a host"
             }
-            return url
+            require(uri.rawUserInfo == null && uri.rawQuery == null && uri.rawFragment == null) {
+                "FeedbackBee: endpoint must not include credentials, query parameters, or a fragment"
+            }
+            require(uri.port == -1 || uri.port in 1..65535) {
+                "FeedbackBee: endpoint port must be between 1 and 65535"
+            }
+            return url.trimEnd('/')
         }
     }
 }

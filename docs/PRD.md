@@ -78,8 +78,10 @@ Captures standard context automatically: URL, browser, OS, viewport size, and sc
 A tiny Kotlin library (`io.nesin:feedbackbee`) an app installs in one call.
 
 ```kotlin
-FeedbackBee.init(this, projectSlug = "myapp", endpoint = "https://your-barn.workers.dev")
+FeedbackBee.init(this, projectId = "myapp", endpoint = "https://your-barn.workers.dev")
 ```
+
+The website or Worker base URL (`endpoint`) is required; the SDK never selects a default server.
 
 Features:
 

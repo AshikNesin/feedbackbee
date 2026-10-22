@@ -8,7 +8,7 @@ One click provisions D1 + R2, applies migrations, builds, and deploys. Open the 
 
 - **PRD**: [docs/PRD.md](docs/PRD.md)
 - **Deploy runbook**: [docs/DEPLOY.md](docs/DEPLOY.md)
-- **Android SDK**: `android/` (Kotlin, `FeedbackBee.init(app, projectId)`, shake-to-feedback)
+- **Android SDK**: `android/` (Kotlin, `FeedbackBee.init(app, projectId, endpoint)`, shake-to-feedback)
 
 ## Embed in any web app
 
@@ -19,9 +19,11 @@ One click provisions D1 + R2, applies migrations, builds, and deploys. Open the 
 ## Android
 
 ```kotlin
-FeedbackBee.init(this, projectId = "myapp")   // shake opens the sheet
-FeedbackBee.show()                            // or your own button
+FeedbackBee.init(this, projectId = "myapp", endpoint = "https://your-bee.workers.dev")
+FeedbackBee.show() // or your own button
 ```
+
+The Android `endpoint` is required: use your FeedbackBee website or Worker base URL. There is no default server.
 
 ## Local dev
 

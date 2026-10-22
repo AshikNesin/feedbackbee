@@ -11,15 +11,15 @@ import android.widget.TextView
 
 /** Same tokens as the web widget, so the two feel like one product. Light only, like the web panel. */
 internal object Theme {
-    val Ink = Color.parseColor("#2D3E50")
-    val Muted = Color.parseColor("#91A4BE")
-    val Tile = Color.parseColor("#EDF3F8")
-    val TileInk = Color.parseColor("#5B7186")
-    val Focus = Color.parseColor("#3B82F6")
-    val Accent = Color.parseColor("#F5B940")
+    val Ink = Color.parseColor("#18181B")
+    val Muted = Color.parseColor("#71717A")
+    val Tile = Color.parseColor("#F4F4F5")
+    val Border = Color.parseColor("#E4E4E7")
+    val TileInk = Color.parseColor("#52525B")
+    val Focus = Color.parseColor("#2563EB")
     val Error = Color.parseColor("#DC2626")
     val Panel = Color.WHITE
-    val Overlay = Color.parseColor("#1C2632")
+    val Overlay = Color.parseColor("#18181B")
 }
 
 internal fun Context.dp(value: Int): Int = dpF(value.toFloat()).toInt()
@@ -34,14 +34,14 @@ internal fun Context.roundedRect(fill: Int, radiusDp: Int, strokeDp: Float = 0f,
     }
 
 internal fun Context.ripple(content: GradientDrawable): RippleDrawable =
-    RippleDrawable(ColorStateList.valueOf(Color.argb(36, 45, 62, 80)), content, null)
+    RippleDrawable(ColorStateList.valueOf(Color.argb(24, 113, 113, 122)), content, null)
 
 internal fun Context.label(text: CharSequence, sizeSp: Float, color: Int, bold: Boolean = false): TextView =
     TextView(this).apply {
         this.text = text
         textSize = sizeSp
         setTextColor(color)
-        if (bold) typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        if (bold) typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
     }
 
 /** Buttons on the dark annotation overlay. The sheet draws its own controls. */
@@ -62,8 +62,8 @@ internal fun Context.actionButton(label: String, style: ButtonStyle = ButtonStyl
 
 internal fun Button.applyStyle(style: ButtonStyle) {
     val (fill, text) = when (style) {
-        ButtonStyle.Primary -> Theme.Accent to Theme.Ink
-        ButtonStyle.Selected -> Theme.Focus to Color.WHITE
+        ButtonStyle.Primary -> Theme.Ink to Color.WHITE
+        ButtonStyle.Selected -> Theme.Border to Theme.Ink
         ButtonStyle.Secondary -> Color.WHITE to Theme.Ink
     }
     setTextColor(text)
