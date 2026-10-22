@@ -14,10 +14,11 @@ Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflar
 
 ## Dev
 
-- `npm run dev` — wrangler dev at :8787 (migrations apply automatically). Copy `.dev.vars.example` to `.dev.vars` and set `GITHUB_TOKEN` first.
-- `npm run dev:web` — Vite dashboard at :5173, proxies to :8787.
-- `npm test` — vitest in workerd, no account needed.
-- `npm run typecheck`
+- Use pnpm for installs and scripts, not npm or npx. Lockfiles are `pnpm-lock.yaml` at the root and in `web/`.
+- `pnpm run dev` — wrangler dev at :8787 (migrations apply automatically). Copy `.dev.vars.example` to `.dev.vars` and set `GITHUB_TOKEN` first.
+- `pnpm run dev:web` — Vite dashboard at :5173, proxies to :8787.
+- `pnpm test` — vitest in workerd, no account needed.
+- `pnpm run typecheck`
 - Android: `cd android && ./gradlew :sdk:assembleRelease :app:assembleDebug :sdk:testReleaseUnitTest`
 
 ## Surfaces
