@@ -23,9 +23,9 @@ export function Login() {
 
   return (
     <div style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
-      <form onSubmit={submit} className="card" style={{ width: 340, display: "grid", gap: 12 }}>
+      <form onSubmit={submit} className="card" style={{ width: 360, display: "grid", gap: 14 }}>
         <h1 style={{ margin: 0, fontSize: 20 }}>FeedbackBee</h1>
-        <p style={{ margin: 0, color: "#6b7280", fontSize: 13 }}>
+        <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
           First login creates the owner account.
         </p>
         <label>
@@ -36,7 +36,7 @@ export function Login() {
           Password
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
-        {error && <div style={{ color: "#dc2626", fontSize: 13 }}>{error}</div>}
+        {error && <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>}
         <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
       </form>
     </div>
