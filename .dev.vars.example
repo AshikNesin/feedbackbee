@@ -1,0 +1,2 @@
+# Optional. When set (16+ chars), overrides the D1-stored APP_SECRET.
+APP_SECRET=
