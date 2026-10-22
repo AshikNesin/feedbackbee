@@ -1,13 +1,13 @@
 {
   // FeedbackBee — self-hostable feedback widget on the Cloudflare free tier.
-  // database_id is intentionally omitted so the Deploy to Cloudflare button
-  // auto-provisions D1 and R2 in the target account. For manual deploys run:
-  //   pnpm exec wrangler d1 create feedbackbee   (paste the id below to pin it)
+  // database_id pins this deployment's D1 database. For another account, run:
+  //   pnpm exec wrangler d1 create feedbackbee
+  // and replace database_id below with the new database's id.
   "name": "feedbackbee",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   "d1_databases": [
-    { "binding": "DB", "database_name": "feedbackbee", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "feedbackbee", "database_id": "c415d47c-ece2-44ee-b296-1408b96b92ee", "migrations_dir": "migrations" }
   ],
   "r2_buckets": [
     { "binding": "MEDIA", "bucket_name": "feedbackbee-media" }
