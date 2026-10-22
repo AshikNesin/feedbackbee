@@ -3,16 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@11.18.0",
   "scripts": {
     "dev": "wrangler d1 migrations apply DB --local && wrangler dev",
-    "deploy": "npm run build:web && npx wrangler d1 migrations apply DB --remote && wrangler deploy",
+    "deploy": "pnpm run build:web && wrangler d1 migrations apply DB --remote && wrangler deploy",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dev:web": "npm --prefix web run dev",
-    "build:web": "npm --prefix web run build",
-    "build:cf": "npm ci --no-fund && npm --prefix web ci --no-fund && npm run build:web",
-    "build": "npm run build:cf"
+    "dev:web": "pnpm --dir web run dev",
+    "build:web": "pnpm --dir web run build",
+    "build:cf": "pnpm install --frozen-lockfile && pnpm --dir web install --frozen-lockfile && pnpm run build:web",
+    "build": "pnpm run build:cf"
   },
   "dependencies": {
     "drizzle-orm": "^0.44.0",

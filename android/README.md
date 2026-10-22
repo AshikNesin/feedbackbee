@@ -145,7 +145,7 @@ The demo (`app/`, `io.nesin.feedbackbee.demo`) has required **Project id** and *
 Tap **Save configuration** to validate and save both on the device. Feedback stays disabled until setup is saved.
 The app restores this configuration on relaunch. Unsaved edits do not change the SDK's saved destination.
 
-1. Start the Worker from the repo root: `npm run dev` (listens on `http://localhost:8787`).
+1. Start the Worker from the repo root: `pnpm run dev` (listens on `http://localhost:8787`).
 2. Create a project in the dashboard.
 3. `cd android && ./gradlew :app:installDebug` with an emulator running.
 4. Enter the project id and set **Website host** to `http://10.0.2.2:8787` (the emulator's alias for your computer's
@@ -154,7 +154,7 @@ The app restores this configuration on relaunch. Unsaved edits do not change the
 
 Neither build has a default website host. You can optionally prefill the field for either build using the
 `feedbackbee.endpoint` Gradle property; a saved in-app host takes precedence. For a real device, use a reachable
-LAN address (start the Worker with `npx wrangler dev --ip 0.0.0.0`):
+LAN address (start the Worker with `pnpm exec wrangler dev --ip 0.0.0.0`):
 
 ```bash
 ./gradlew :app:installDebug -Pfeedbackbee.endpoint=http://192.168.1.20:8787

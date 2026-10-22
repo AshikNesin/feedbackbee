@@ -4,7 +4,7 @@ Lightweight, self-hostable user feedback on the Cloudflare free tier. Visitors c
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee)
 
-One click provisions D1 + R2, applies migrations, builds, and deploys. Open the deployed URL and the first login creates your owner account. Then set one secret: `npx wrangler secret put GITHUB_TOKEN` (fine-grained PAT, Issues: Read and Write).
+One click provisions D1 + R2, applies migrations, builds, and deploys. Open the deployed URL and the first login creates your owner account. Then set one secret: `pnpm exec wrangler secret put GITHUB_TOKEN` (fine-grained PAT, Issues: Read and Write).
 
 - **PRD**: [docs/PRD.md](docs/PRD.md)
 - **Deploy runbook**: [docs/DEPLOY.md](docs/DEPLOY.md)
@@ -28,9 +28,9 @@ The Android `endpoint` is required: use your FeedbackBee website or Worker base 
 ## Local dev
 
 ```bash
-npm install
-npm run dev        # API at http://localhost:8787, dashboard at /
-npm test           # workerd integration tests
+pnpm install
+pnpm run dev       # API at http://localhost:8787, dashboard at /
+pnpm test          # workerd integration tests
 ```
 
 `GET /demo` hosts a demo page with the widget. Create a project with slug `demo` first.
