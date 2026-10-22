@@ -5,8 +5,8 @@
         android:name=".DemoApp"
         android:allowBackup="false"
         android:icon="@mipmap/ic_launcher"
-        android:label="FeedbackBarn Demo"
-        android:theme="@style/Theme.FeedbackBarnDemo"
+        android:label="FeedbackBee Demo"
+        android:theme="@style/Theme.FeedbackBeeDemo"
         android:usesCleartextTraffic="true">
 
         <activity
