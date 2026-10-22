@@ -1,12 +1,12 @@
-# FeedbackBarn for Android
+# FeedbackBee for Android
 
 Shake the phone, circle the problem, tap Send. The SDK uploads a screenshot and the user's note to your
-FeedbackBarn Worker, which turns it into a GitHub issue.
+FeedbackBee Worker, which turns it into a GitHub issue.
 
-- `sdk/` is the library (`io.nesin.feedbackbarn`). No OkHttp, no Coil, no annotation library: just
+- `sdk/` is the library (`io.nesin.feedbackbee`). No OkHttp, no Coil, no annotation library: just
   `HttpURLConnection`, a hand-rolled multipart body and raw `Canvas`. Its one non-AndroidX dependency is
   `kotlinx-coroutines-android`.
-- `app/` is a demo app (`io.nesin.feedbackbarn.demo`) with a settings card for the project slug and endpoint.
+- `app/` is a demo app (`io.nesin.feedbackbee.demo`) with a settings card for the project slug and endpoint.
 
 Requires minSdk 26. Built with AGP 8.7, Kotlin 2.0, compileSdk and targetSdk 35.
 
@@ -17,19 +17,19 @@ The SDK is not published yet. Include it from a checkout.
 `settings.gradle.kts` of your app:
 
 ```kotlin
-include(":feedbackbarn-sdk")
-project(":feedbackbarn-sdk").projectDir = file("../feedbackbarn/android/sdk")
+include(":feedbackbee-sdk")
+project(":feedbackbee-sdk").projectDir = file("../feedbackbee/android/sdk")
 ```
 
 `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
-    implementation(project(":feedbackbarn-sdk"))
+    implementation(project(":feedbackbee-sdk"))
 }
 ```
 
-Once the AAR is on a Maven repository this becomes `implementation("io.nesin:feedbackbarn:<version>")`.
+Once the AAR is on a Maven repository this becomes `implementation("io.nesin:feedbackbee:<version>")`.
 
 ## Set up
 
@@ -39,24 +39,24 @@ Initialize once, then register each activity that should react to shakes.
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        FeedbackBarn.init(this, projectSlug = "myapp", endpoint = "https://your-barn.workers.dev")
+        FeedbackBee.init(this, projectSlug = "myapp", endpoint = "https://your-bee.workers.dev")
     }
 }
 
 class MainActivity : AppCompatActivity() {   // any FragmentActivity
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        FeedbackBarn.register(this)
+        FeedbackBee.register(this)
     }
 }
 ```
 
 | Call | Does |
 |---|---|
-| `FeedbackBarn.init(app, projectSlug, endpoint)` | Stores the config. Throws `IllegalArgumentException` for a blank slug or an endpoint that is not `http(s)://`. A trailing `/` is trimmed. |
-| `FeedbackBarn.register(activity)` | Listens for shakes while the activity is resumed and remembers it for capture. Unregisters itself when the activity is destroyed. |
-| `FeedbackBarn.unregister()` | Stops shake detection now. |
-| `FeedbackBarn.showFeedbackSheet(activity)` | Opens the sheet from your own button. No-op if a sheet is already open. |
+| `FeedbackBee.init(app, projectSlug, endpoint)` | Stores the config. Throws `IllegalArgumentException` for a blank slug or an endpoint that is not `http(s)://`. A trailing `/` is trimmed. |
+| `FeedbackBee.register(activity)` | Listens for shakes while the activity is resumed and remembers it for capture. Unregisters itself when the activity is destroyed. |
+| `FeedbackBee.unregister()` | Stops shake detection now. |
+| `FeedbackBee.showFeedbackSheet(activity)` | Opens the sheet from your own button. No-op if a sheet is already open. |
 
 Call everything on the main thread. `register` and `showFeedbackSheet` need a `FragmentActivity`
 (`AppCompatActivity` is one; for Compose, extend `FragmentActivity` instead of `ComponentActivity`). A plain
@@ -140,8 +140,8 @@ cd android
 ## Module layout
 
 ```
-sdk/src/main/kotlin/io/nesin/feedbackbarn/
-  FeedbackBarn.kt            public API
+sdk/src/main/kotlin/io/nesin/feedbackbee/
+  FeedbackBee.kt            public API
   FeedbackState.kt           sealed submission state machine
   FeedbackViewModel.kt       transitions + upload orchestration
   shake/                     ShakeAnalyzer (pure) and ShakeDetector (SensorManager)

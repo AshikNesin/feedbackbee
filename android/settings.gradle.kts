@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "feedbackbarn-android"
+rootProject.name = "feedbackbee-android"
 
 include(":sdk", ":app")

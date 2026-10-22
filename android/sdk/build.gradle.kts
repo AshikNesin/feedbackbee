@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "io.nesin.feedbackbarn"
+    namespace = "io.nesin.feedbackbee"
     compileSdk = 35
 
     defaultConfig {

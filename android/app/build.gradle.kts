@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "io.nesin.feedbackbarn.demo"
+    namespace = "io.nesin.feedbackbee.demo"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.nesin.feedbackbarn.demo"
+        applicationId = "io.nesin.feedbackbee.demo"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
