@@ -354,15 +354,20 @@ export const EMBED_JS = `(function () {
       }
 
       fetch(endpoint + "/api/feedback", { method: "POST", body: form })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
+        .then(function (r) {
+          return r.json().then(
+            function (data) { return { status: r.status, data: data }; },
+            function () { return { status: r.status, data: { error: "Couldn't read the server response." } }; },
+          );
+        })
+        .then(function (result) {
           if (requestGeneration !== generation) return;
           state.busy = false;
-          if (data.error && !data.id) {
-            failed(data.error);
+          if (result.data.error && !result.data.id) {
+            failed(result.status === 404 ? "This feedback board isn\\u2019t set up yet. Please try again later." : result.data.error);
             return;
           }
-          state.issueUrl = data.issueUrl || null;
+          state.issueUrl = result.data.issueUrl || null;
           state.screen = "done";
           render();
           closeBtn.focus({ preventScroll: true });
