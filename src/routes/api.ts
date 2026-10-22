@@ -1,10 +1,8 @@
 import { Hono } from "hono";
 import type { Env, LabelsMap } from "../types.ts";
-import { encryptSecret } from "../lib/crypto.ts";
 import { repoOk, slugOk } from "../lib/validate.ts";
 import { insertProject, listFeedback, listProjects, projectById } from "../db/queries.ts";
 import { readCookie, requireAdmin } from "./auth.ts";
-import { getAppSecret } from "../lib/secret.ts";
 
 export const apiRoutes = new Hono<{ Bindings: Env }>();
 
@@ -23,7 +21,6 @@ function publicProject(p: {
   github_repo: string;
   labels_map: string;
   created_at: number;
-  has_pat?: boolean;
 }) {
   return {
     id: p.id,
@@ -42,27 +39,24 @@ apiRoutes.get("/api/projects", async (c) => {
 
 apiRoutes.post("/api/projects", async (c) => {
   const body = await c.req.json().catch(() => null) as
-    | { name?: string; slug?: string; github_repo?: string; github_pat?: string; labels?: LabelsMap }
+    | { name?: string; slug?: string; github_repo?: string; labels?: LabelsMap }
     | null;
   const name = body?.name?.trim();
   const slug = body?.slug?.trim().toLowerCase();
   const repo = body?.github_repo?.trim();
-  const pat = body?.github_pat?.trim();
-  if (!name || !slug || !repo || !pat) return c.json({ error: "name, slug, github_repo, github_pat required" }, 400);
+  if (!name || !slug || !repo) return c.json({ error: "name, slug, github_repo required" }, 400);
   if (!slugOk(slug)) return c.json({ error: "slug must be 3-40 chars, a-z 0-9 and hyphens" }, 400);
   if (!repoOk(repo)) return c.json({ error: "github_repo must look like owner/repo" }, 400);
-  if (pat.length < 20) return c.json({ error: "github_pat looks too short" }, 400);
+  if (!c.env.GITHUB_TOKEN) return c.json({ error: "GITHUB_TOKEN secret is not set on the worker" }, 500);
 
   const slugTaken = await c.env.DB.prepare("SELECT 1 FROM project WHERE slug = ?").bind(slug).first();
   if (slugTaken) return c.json({ error: `slug "${slug}" is already used by another project` }, 409);
 
   const labels = body?.labels && Object.keys(body.labels).length > 0 ? body.labels : DEFAULT_LABELS;
-  const appSecret = await getAppSecret(c.env.DB, c.env.APP_SECRET);
   const created = await insertProject(c.env.DB, {
     name,
     slug,
     github_repo: repo,
-    github_pat_enc: await encryptSecret(pat, appSecret),
     labels_map: JSON.stringify(labels),
   });
   return c.json({ project: publicProject(created) }, 201);
@@ -74,25 +68,16 @@ apiRoutes.patch("/api/projects/:id", async (c) => {
   if (!existing) return c.json({ error: "not found" }, 404);
 
   const body = await c.req.json().catch(() => null) as
-    | { name?: string; github_repo?: string; github_pat?: string; labels?: LabelsMap }
+    | { name?: string; github_repo?: string; labels?: LabelsMap }
     | null;
   const name = body?.name?.trim() ?? existing.name;
   const repo = body?.github_repo?.trim() ?? existing.github_repo;
   if (!repoOk(repo)) return c.json({ error: "github_repo must look like owner/repo" }, 400);
   const labelsMap = body?.labels && Object.keys(body.labels).length > 0 ? body.labels : null;
-  const appSecret = await getAppSecret(c.env.DB, c.env.APP_SECRET);
 
   await c.env.DB
-    .prepare(
-      "UPDATE project SET name = ?, github_repo = ?, labels_map = ?, github_pat_enc = ? WHERE id = ?",
-    )
-    .bind(
-      name,
-      repo,
-      labelsMap ? JSON.stringify(labelsMap) : existing.labels_map,
-      body?.github_pat?.trim() ? await encryptSecret(body.github_pat.trim(), appSecret) : existing.github_pat_enc,
-      id,
-    )
+    .prepare("UPDATE project SET name = ?, github_repo = ?, labels_map = ? WHERE id = ?")
+    .bind(name, repo, labelsMap ? JSON.stringify(labelsMap) : existing.labels_map, id)
     .run();
   const updated = await projectById(c.env.DB, id);
   if (!updated) return c.json({ error: "not found" }, 404);

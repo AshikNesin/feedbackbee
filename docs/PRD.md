@@ -49,7 +49,7 @@ The unit of tenancy. Creating a project captures the GitHub wiring up front.
 | `name` | text | Human name, e.g. "myapp.dev" |
 | `slug` | text | URL-safe, unique, used in the embed snippet |
 | `github_repo` | text | `owner/repo`, required to create issues |
-| `github_pat` | text | Encrypted at rest with `APP_SECRET`; never returned by any API |
+| `github_repo` | text | `owner/repo` the issues are created in. Auth comes from the global `GITHUB_TOKEN` secret |
 | `labels_map` | json | Feedback kind to GitHub label. Defaults: bug→`bug`, idea→`enhancement`, other→`feedback` |
 | `created_at` | timestamp | |
 
@@ -96,7 +96,7 @@ Email and password login for the owner. Single owner in v1 (no team seats).
 
 Pages:
 
-- **Projects.** Create, edit, rotate PAT, regenerate nothing (slug is stable).
+- **Projects.** Create, edit, regenerate nothing (slug is stable). No per-project tokens.
 - **Project detail.** Recent feedback list with media thumbnails, GitHub issue links and states, and the embed snippet with a copy button.
 - **Settings.** Change password. That is all.
 
@@ -107,15 +107,15 @@ On each feedback submission:
 1. Upload media (if any) to R2 under `p/<project>/f/<feedback-id>/<filename>`.
 2. Insert the feedback row in D1 with state `pending`.
 3. Create the GitHub issue via REST (`POST /repos/{owner}/{repo}/issues`) with a body template: reporter text, context block (key/value table), media links (the R2 public URLs), and the recorder's email if given.
-4. Attach media to the issue via the issue-comment upload path if the PAT scope allows; otherwise the body links to R2 URLs. On failure, retry once, then mark `issue_error` with the GitHub API error text.
+4. Attach media to the issue via the issue-comment upload path if the token scope allows; otherwise the body links to R2 URLs. On failure, retry once, then mark `issue_error` with the GitHub API error text.
 5. Update the row with `issue_number`, `issue_url`, and state `created`.
 
-Labels: the project's `labels_map` maps the widget kind to repo labels. GitHub auto-creates labels it does not find when the PAT has push access; otherwise the issue is created unlabeled and the state records the label failure.
+Labels: the project's `labels_map` maps the widget kind to repo labels. GitHub auto-creates labels it does not find when the token has push access; otherwise the issue is created unlabeled and the state records the label failure.
 
 ### 6. Data model (D1)
 
 ```sql
-project(id, name, slug, github_repo, github_pat_enc, labels_map, created_at)
+project(id, name, slug, github_repo, labels_map, created_at)
 feedback(
   id, project_id, kind, text, reporter_email,
   url, user_agent, viewport_w, viewport_h, screen_w, screen_h,
@@ -149,14 +149,14 @@ Authenticated (session cookie):
 | POST | `/auth/logout` | |
 | GET | `/api/projects` | List |
 | POST | `/api/projects` | Create |
-| PATCH | `/api/projects/:id` | Edit (name, repo, PAT, labels) |
+| PATCH | `/api/projects/:id` | Edit (name, repo, labels) |
 | DELETE | `/api/projects/:id` | Delete project + feedback rows (media kept) |
 | GET | `/api/projects/:id/feedback` | Paged list |
 | GET | `/api/projects/:id/feedback/:fid` | One item with media URL |
 
 ### 8. Security
 
-- The GitHub PAT is encrypted at rest with AES-GCM under `APP_SECRET` and decrypted only inside the Worker for the GitHub call. It is never returned by any API response.
+- GitHub auth is one fine-grained PAT held as the `GITHUB_TOKEN` Worker secret, set once per deployment. Projects store only `owner/repo`. Rotating the token is one `wrangler secret put`, no project edits. The token never appears in any API response.
 - Media uploads are capped (screenshot 10 MB, recording 200 MB, 5 min). Type sniffed at the boundary by magic bytes, not extension.
 - `embed.js` sets `rendered` state only after the project slug resolves. Unknown slugs render a friendly "project not found" note, never an error.
 - Rate limit: 20 submissions per IP per hour per project, tracked in D1. Excess returns 429 with a plain message.
@@ -182,11 +182,11 @@ Sequenced as verifiable units. Each milestone ends in a state you can run and ch
 3. **M3 Widget.** `embed.js` with panel, screenshot + annotate, recording with cap, upload. Verified by driving it in a real browser against the local Worker.
 4. **M4 Dashboard.** Login, projects, feedback list, snippet copy. Verified in the browser.
 5. **M5 Android SDK.** Init, shake detect, screenshot + annotate, upload. Verified by compiling the AAR and driving the demo app in an emulator.
-6. **M6 Deploy + docs.** `wrangler deploy` green, README complete, PAT rotation documented.
+6. **M6 Deploy + docs.** `wrangler deploy` green, README complete, token rotation documented.
 
 ## Open decisions
 
 - **In-app annotation library for Android.** Build pen/box/arrow on raw `Canvas` (chosen) versus wrapping a third-party annotation lib. Raw Canvas keeps the SDK dependency-free.
 - **Recording codec.** WebM/VP9 everywhere (chosen). H.264 would need a transcode path, which is a non-goal.
-- **Issue media attach.** Try the upload-then-embed path when the PAT allows; always include R2 links. The fallback is the contract.
+- **Issue media attach.** Try the upload-then-embed path when the token allows; always include R2 links. The fallback is the contract.
 - **Multi-owner teams.** Deferred. The schema anticipates it (owner id on project) but v1 ships single-owner.

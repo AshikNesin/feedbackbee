@@ -1,2 +1,4 @@
-# Optional. When set (16+ chars), overrides the D1-stored APP_SECRET.
-APP_SECRET=
+# Required. Fine-grained PAT with Issues: Read and Write on every repo your
+# projects point at. Set once per deployment, never per project.
+# Local dev: copy to .dev.vars. Cloudflare: npx wrangler secret put GITHUB_TOKEN
+GITHUB_TOKEN=

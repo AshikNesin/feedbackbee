@@ -1,4 +1,4 @@
-import { SELF } from "cloudflare:test";
+import { SELF, env } from "cloudflare:test";
 import { expect, test, beforeAll, afterEach, afterAll } from "vitest";
 import { ghCalls, network, stubGithub } from "./gh-server.ts";
 
@@ -34,7 +34,6 @@ async function createProject(cookie: string, slug: string) {
       name: "My App",
       slug,
       github_repo: "ashik/myapp",
-      github_pat: "ghp_testtoken1234567890abcdefgh",
     }),
   });
 }
@@ -53,7 +52,7 @@ test("project create requires auth", async () => {
   const res = await SELF.fetch("https://example.com/api/projects", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ name: "x", slug: "x", github_repo: "a/b", github_pat: "ghp_whatever_token_12345" }),
+    body: JSON.stringify({ name: "x", slug: "x", github_repo: "a/b" }),
   });
   expect(res.status).toBe(401);
 });
@@ -94,7 +93,7 @@ test("feedback with screenshot creates issue and stores media", async () => {
 
   const gh = ghCalls.at(-1);
   expect(gh?.path).toBe("/repos/ashik/myapp/issues");
-  expect(gh?.auth).toBe("Bearer ghp_testtoken1234567890abcdefgh");
+  expect(gh?.auth).toBe(`Bearer ${env.GITHUB_TOKEN}`);
   expect(gh?.body.labels).toEqual(["bug"]);
   expect(gh?.body.body).toContain("![screenshot](");
 

@@ -5,7 +5,6 @@ export type NewProject = {
   name: string;
   slug: string;
   github_repo: string;
-  github_pat_enc: string;
   labels_map: string;
 };
 
@@ -15,16 +14,15 @@ export async function insertProject(db: D1Database, p: NewProject): Promise<Proj
     name: p.name,
     slug: p.slug,
     github_repo: p.github_repo,
-    github_pat_enc: p.github_pat_enc,
     labels_map: p.labels_map,
     created_at: Date.now(),
   };
   await db
     .prepare(
-      "INSERT INTO project (id, name, slug, github_repo, github_pat_enc, labels_map, created_at) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?)",
+      "INSERT INTO project (id, name, slug, github_repo, labels_map, created_at) " +
+        "VALUES (?, ?, ?, ?, ?, ?)",
     )
-    .bind(row.id, row.name, row.slug, row.github_repo, row.github_pat_enc, row.labels_map, row.created_at)
+    .bind(row.id, row.name, row.slug, row.github_repo, row.labels_map, row.created_at)
     .run();
   return row;
 }

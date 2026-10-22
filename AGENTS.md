@@ -6,7 +6,7 @@ Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflar
 
 - Thin Hono routes: parse/validate at the boundary, delegate to `src/db/queries.ts` or `src/lib/`, map errors to status codes.
 - Validate untrusted input once, in `src/lib/validate.ts` and route parsers. Trust internal types.
-- The GitHub PAT is encrypted at rest (`src/lib/crypto.ts`, AES-GCM under APP_SECRET) and never leaves the worker except to api.github.com. Never return it in an API response.
+- GitHub auth is one global fine-grained PAT held as the `GITHUB_TOKEN` Worker secret. It never leaves the worker except to api.github.com, never lives in D1, and never appears in an API response. Projects store only `owner/repo`.
 - Tests run inside workerd via `@cloudflare/vitest-plugin` with `SELF.fetch()`; outbound GitHub calls are stubbed with MSW (`test/gh-server.ts`).
 - The web widget is hand-written vanilla JS. Edit `src/embed_widget.js`, then run `python3 scripts/build-embed.py` to regenerate `src/embed_js.ts`. Never edit the generated file.
 - Android SDK lives in `android/` (namespace io.nesin.feedbackbee, no third-party deps beyond coroutines). Keep the upload contract in `docs/CONTRACT.md` in sync with any API change.
@@ -14,7 +14,7 @@ Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflar
 
 ## Dev
 
-- `npm run dev` — wrangler dev at :8787 (migrations apply automatically). Set `APP_SECRET` env var first.
+- `npm run dev` — wrangler dev at :8787 (migrations apply automatically). Copy `.dev.vars.example` to `.dev.vars` and set `GITHUB_TOKEN` first.
 - `npm run dev:web` — Vite dashboard at :5173, proxies to :8787.
 - `npm test` — vitest in workerd, no account needed.
 - `npm run typecheck`
