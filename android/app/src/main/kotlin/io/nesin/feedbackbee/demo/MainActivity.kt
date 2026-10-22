@@ -14,17 +14,25 @@ class MainActivity : FragmentActivity() {
             DemoTheme {
                 DemoScreen(
                     initialProjectId = DemoSettings.projectId(this),
-                    endpoint = BuildConfig.FEEDBACKBEE_ENDPOINT.ifEmpty { FeedbackBee.DEFAULT_ENDPOINT },
-                    onProjectIdChange = ::applyProjectId,
+                    initialEndpoint = DemoSettings.endpoint(this),
+                    initiallyConfigured = DemoSettings.isConfigured(this),
+                    onSaveConfiguration = ::applyConfiguration,
                     onOpenSheet = { FeedbackBee.show() },
                 )
             }
         }
     }
 
-    private fun applyProjectId(projectId: String) {
-        if (projectId.isBlank()) return
-        DemoSettings.saveProjectId(this, projectId.trim())
-        application.startFeedbackBee(projectId)
+    private fun applyConfiguration(projectId: String, endpoint: String): String? {
+        val wasConfigured = DemoSettings.isConfigured(this)
+        try {
+            application.startFeedbackBee(projectId, endpoint)
+        } catch (error: IllegalArgumentException) {
+            return error.message?.removePrefix("FeedbackBee: ") ?: "Check the project id and website host."
+        }
+        DemoSettings.saveConfiguration(this, projectId, endpoint)
+        // First-time setup registers SDK lifecycle callbacks after this activity already resumed.
+        if (!wasConfigured) recreate()
+        return null
     }
 }

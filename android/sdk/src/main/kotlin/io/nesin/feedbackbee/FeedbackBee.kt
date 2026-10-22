@@ -13,7 +13,7 @@ import android.os.Looper
  * class MyApp : Application() {
  *     override fun onCreate() {
  *         super.onCreate()
- *         FeedbackBee.init(this, projectId = "myapp")
+ *         FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev")
  *     }
  * }
  * ```
@@ -26,9 +26,6 @@ import android.os.Looper
  */
 object FeedbackBee {
 
-    /** The hosted FeedbackBee Worker. Override `endpoint` in [init] when you self-host. */
-    const val DEFAULT_ENDPOINT = "https://feedbackbee.ashik.workers.dev"
-
     private val mainThread = Handler(Looper.getMainLooper())
     private var installation: Installation? = null
 
@@ -36,19 +33,18 @@ object FeedbackBee {
      * Starts FeedbackBee. Call it from `Application.onCreate`. Calling it again replaces the previous setup.
      *
      * ```kotlin
-     * FeedbackBee.init(this, projectId = "myapp")                          // shake to open the sheet
-     * FeedbackBee.init(this, projectId = "myapp", shake = false)           // open it yourself with show()
-     * FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev")  // self-hosted
+     * FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev")
+     * FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)
      * ```
      *
      * @param projectId the project id from your FeedbackBee dashboard.
+     * @param endpoint required base URL of your FeedbackBee website or Worker. There is no default server.
      * @param shake when true (the default), three firm jolts within 1.5 seconds open the sheet.
-     * @param endpoint base URL of the Worker. Defaults to [DEFAULT_ENDPOINT]; override it when self-hosting.
      * @throws IllegalArgumentException if [projectId] is blank or [endpoint] is not an http(s) URL.
      */
     @JvmStatic
     @JvmOverloads
-    fun init(application: Application, projectId: String, shake: Boolean = true, endpoint: String = DEFAULT_ENDPOINT) {
+    fun init(application: Application, projectId: String, endpoint: String, shake: Boolean = true) {
         val config = FeedbackConfig.create(projectId, endpoint)
         val previous = installation
         val resumed = previous?.resumedActivity

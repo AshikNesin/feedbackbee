@@ -1,6 +1,7 @@
 package io.nesin.feedbackbee.sheet
 
 import android.app.Dialog
+import android.animation.ValueAnimator
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.DialogInterface
@@ -16,7 +17,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
-import android.view.animation.DecelerateInterpolator
+import android.view.animation.PathInterpolator
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.DialogFragment
@@ -196,11 +197,12 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     }
 
     private fun slideIn(view: View) {
+        if (!ValueAnimator.areAnimatorsEnabled()) return
         view.viewTreeObserver.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
             override fun onPreDraw(): Boolean {
                 view.viewTreeObserver.removeOnPreDrawListener(this)
                 view.translationY = view.height.toFloat()
-                view.animate().translationY(0f).setDuration(SLIDE_MS).setInterpolator(DecelerateInterpolator()).start()
+                view.animate().translationY(0f).setDuration(SLIDE_MS).setInterpolator(PathInterpolator(0.32f, 0.72f, 0f, 1f)).start()
                 return true
             }
         })

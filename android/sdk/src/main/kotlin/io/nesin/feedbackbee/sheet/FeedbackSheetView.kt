@@ -33,6 +33,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
+import androidx.core.view.ViewCompat
 import io.nesin.feedbackbee.FeedbackKind
 import io.nesin.feedbackbee.FeedbackLimits
 import io.nesin.feedbackbee.FeedbackState
@@ -71,71 +72,91 @@ internal class FeedbackSheetView(
 
     private val backButton = iconButton(R.drawable.fbb_ic_back, "Back").apply { setOnClickListener { actions.onBack() } }
     private val closeButton = iconButton(R.drawable.fbb_ic_close, "Close").apply { setOnClickListener { actions.onClose() } }
-    private val title = context.label("", 17f, Theme.Ink, bold = true).apply {
-        gravity = Gravity.CENTER
-        maxLines = 1
+    private val title = context.label("", 18f, Theme.Ink, bold = true).apply {
+        gravity = Gravity.CENTER_VERTICAL
+        maxLines = 2
+        letterSpacing = -0.02f
+        ViewCompat.setAccessibilityHeading(this, true)
     }
+    private val subtitle = context.label("", 13f, Theme.Muted)
 
     private val chooseGroup = buildChooseGroup()
 
-    private val noteField = field(hint = "I noticed that...", multiline = true)
-    private val emailField = field(hint = "Email (optional)", multiline = false)
+    private val noteField = field(hint = "What happened? What did you expect?", multiline = true)
+    private val emailField = field(hint = "you@example.com", multiline = false)
     private val screenshotImage = ImageView(context).apply {
         scaleType = ImageView.ScaleType.FIT_CENTER
         contentDescription = "Annotated screenshot"
-        background = context.roundedRect(Theme.Tile, 16)
-        clipRounded(16)
+        background = context.roundedRect(Theme.Tile, 10, strokeDp = 1f, stroke = Theme.Border)
+        clipRounded(10)
     }
     private val removeScreenshot = ImageButton(context).apply {
         setImageResource(R.drawable.fbb_ic_close)
-        setColorFilter(Color.WHITE)
-        setPadding(context.dp(7), context.dp(7), context.dp(7), context.dp(7))
-        background = context.roundedRect(Color.argb(210, 45, 62, 80), 14)
+        setColorFilter(Theme.TileInk)
+        setPadding(context.dp(14), context.dp(14), context.dp(14), context.dp(14))
+        background = context.ripple(context.roundedRect(Theme.Panel, 10))
         contentDescription = "Remove screenshot"
         setOnClickListener { actions.onRemoveScreenshot() }
     }
     private val screenshotBlock = FrameLayout(context).apply {
         visibility = View.GONE
         addView(screenshotImage, FrameLayout.LayoutParams(MATCH_PARENT, context.dp(SCREENSHOT_HEIGHT_DP)))
-        addView(removeScreenshot, FrameLayout.LayoutParams(context.dp(28), context.dp(28), Gravity.TOP or Gravity.END).apply {
-            setMargins(0, context.dp(8), context.dp(8), 0)
+        addView(removeScreenshot, FrameLayout.LayoutParams(context.dp(48), context.dp(48), Gravity.TOP or Gravity.END).apply {
+            setMargins(0, context.dp(4), context.dp(4), 0)
         })
     }
-    private val errorLine = context.label("", 13f, Theme.Error).apply { visibility = View.GONE }
+    private val errorLine = context.label("", 13f, Theme.Error).apply {
+        visibility = View.GONE
+        accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+    }
     private val cameraButton = ImageButton(context).apply {
         setImageResource(R.drawable.fbb_ic_camera)
         scaleType = ImageView.ScaleType.FIT_CENTER
-        setPadding(context.dp(25), context.dp(13), context.dp(25), context.dp(13))
-        background = context.ripple(context.roundedRect(Theme.Tile, 15))
+        setPadding(context.dp(14), context.dp(14), context.dp(14), context.dp(14))
+        setColorFilter(Theme.TileInk)
+        background = context.ripple(context.roundedRect(Theme.Panel, 10, strokeDp = 1f, stroke = Theme.Border))
+        contentDescription = "Attach a screenshot"
         setOnClickListener { actions.onAttachScreenshot() }
     }
     private val micButton = ImageButton(context).apply {
         setImageResource(R.drawable.fbb_ic_mic)
         scaleType = ImageView.ScaleType.FIT_CENTER
-        setPadding(context.dp(13), context.dp(13), context.dp(13), context.dp(13))
-        background = context.ripple(context.roundedRect(Theme.Tile, 15))
+        setPadding(context.dp(14), context.dp(14), context.dp(14), context.dp(14))
+        setColorFilter(Theme.TileInk)
+        background = context.ripple(context.roundedRect(Theme.Panel, 10, strokeDp = 1f, stroke = Theme.Border))
         contentDescription = "Record voice note"
         setOnClickListener { actions.onVoiceClicked() }
     }
-    private val voiceTimer = context.label("0:00", 14f, Theme.Ink, bold = true)
-    private val stopVoiceButton = compactButton("Stop").apply { setOnClickListener { actions.onStopVoice() } }
+    private val voiceTimer = context.label("Voice note · 0:00 / 5:00", 12f, Theme.TileInk).apply { fontFeatureSettings = "tnum" }
+    private val stopVoiceButton = compactButton("Stop").apply {
+        setTextColor(Theme.Error)
+        setOnClickListener { actions.onStopVoice() }
+    }
     private val voiceRecordingBlock = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
-        addView(voiceTimer, LinearLayout.LayoutParams(0, context.dp(44), 1f))
-        addView(stopVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, context.dp(44)))
+        background = context.roundedRect(Theme.Tile, 10)
+        setPadding(context.dp(12), context.dp(4), context.dp(4), context.dp(4))
+        addView(View(context).apply { background = context.roundedRect(Theme.Error, 4) },
+            LinearLayout.LayoutParams(context.dp(7), context.dp(7)).apply { marginEnd = context.dp(8) })
+        addView(voiceTimer, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(stopVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
     }
-    private val voiceDuration = context.label("", 13.5f, Theme.TileInk, bold = true)
+    private val voiceDuration = context.label("", 12f, Theme.TileInk)
     private val rerecordVoiceButton = compactButton("Re-record").apply { setOnClickListener { actions.onVoiceClicked() } }
-    private val removeVoiceButton = compactButton("Delete").apply { setOnClickListener { actions.onRemoveVoice() } }
+    private val removeVoiceButton = iconButton(R.drawable.fbb_ic_close, "Remove voice note").apply {
+        setOnClickListener { actions.onRemoveVoice() }
+    }
     private val voiceAttachmentBlock = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
         visibility = View.GONE
-        addView(voiceDuration, LinearLayout.LayoutParams(0, context.dp(44), 1f))
-        addView(rerecordVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, context.dp(44)))
-        addView(removeVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, context.dp(44)).apply { marginStart = context.dp(4) })
+        background = context.roundedRect(Theme.Tile, 10)
+        setPadding(context.dp(12), context.dp(4), context.dp(4), context.dp(4))
+        addView(voiceDuration, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(rerecordVoiceButton, LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT))
+        addView(removeVoiceButton, LinearLayout.LayoutParams(context.dp(48), context.dp(48)))
     }
     private val voiceHint = context.label("", 12f, Theme.TileInk).apply {
         visibility = View.GONE
@@ -145,15 +166,29 @@ internal class FeedbackSheetView(
     private val sendButton = buildSendButton()
     private val formGroup = buildFormGroup()
 
-    private val doneHeadline = context.label("Thank you!", 16f, Theme.Ink, bold = true).apply { gravity = Gravity.CENTER }
-    private val doneDetail = context.label("", 13.5f, Theme.TileInk).apply {
+    private val doneHeadline = context.label("Feedback sent", 18f, Theme.Ink, bold = true).apply {
         gravity = Gravity.CENTER
+        ViewCompat.setAccessibilityHeading(this, true)
+    }
+    private val doneDetail = context.label("", 13f, Theme.Muted).apply {
+        gravity = Gravity.CENTER
+        minimumHeight = context.dp(48)
         setPadding(0, context.dp(6), 0, context.dp(6))
     }
     private val doneGroup = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         visibility = View.GONE
-        setPadding(0, context.dp(10), 0, context.dp(4))
+        setPadding(0, context.dp(8), 0, context.dp(16))
+        accessibilityLiveRegion = View.ACCESSIBILITY_LIVE_REGION_POLITE
+        addView(ImageView(context).apply {
+            setImageResource(R.drawable.fbb_ic_check)
+            setColorFilter(Theme.Ink)
+            setPadding(context.dp(12), context.dp(12), context.dp(12), context.dp(12))
+            background = context.roundedRect(Theme.Tile, 24)
+        }, LinearLayout.LayoutParams(context.dp(48), context.dp(48)).apply {
+            gravity = Gravity.CENTER_HORIZONTAL
+            bottomMargin = context.dp(16)
+        })
         addView(doneHeadline, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         addView(doneDetail, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
     }
@@ -162,17 +197,18 @@ internal class FeedbackSheetView(
         clipToPadding = false
         background = GradientDrawable().apply {
             setColor(Theme.Panel)
-            val r = context.dpF(28f)
+            val r = context.dpF(20f)
             cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
         }
         addView(LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(context.dp(22), context.dp(14), context.dp(22), context.dp(22))
-            addView(buildHeader(), LinearLayout.LayoutParams(MATCH_PARENT, context.dp(40)))
-            addView(chooseGroup, spaced(top = 6))
-            addView(formGroup, spaced(top = 6))
-            addView(doneGroup, spaced(top = 6))
-            addView(buildFooter(), spaced(top = 14))
+            setPadding(context.dp(20), context.dp(12), context.dp(20), context.dp(22))
+            addView(buildHeader(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
+            addView(subtitle, spaced(top = 2).apply { bottomMargin = context.dp(20) })
+            addView(chooseGroup, spaced(top = 0))
+            addView(formGroup, spaced(top = 0))
+            addView(doneGroup, spaced(top = 0))
+            addView(buildFooter(), spaced(top = 18))
         })
         noteField.addTextChangedListener(watcher { actions.onTextChanged(it) })
         emailField.addTextChangedListener(watcher { actions.onEmailChanged(it) })
@@ -190,19 +226,22 @@ internal class FeedbackSheetView(
 
     private fun renderChoose() {
         showOnly(chooseGroup)
-        title.text = "What's on your mind?"
-        backButton.visibility = View.INVISIBLE
+        title.text = "Share feedback"
+        subtitle.text = "A little feedback goes a long way."
+        subtitle.visibility = View.VISIBLE
+        backButton.visibility = View.GONE
         dismissKeyboard()
     }
 
     private fun renderDone(state: FeedbackState.Sent) {
         showOnly(doneGroup)
-        title.text = ""
-        backButton.visibility = View.INVISIBLE
+        title.text = "Share feedback"
+        subtitle.visibility = View.GONE
+        backButton.visibility = View.GONE
         dismissKeyboard()
         val url = state.issueUrl
-        doneDetail.text = if (url != null) "Tracked on GitHub →" else "We received your report."
-        doneDetail.setTextColor(if (url != null) Theme.Focus else Theme.TileInk)
+        doneDetail.text = if (url != null) "View on GitHub ↗" else "Thanks for helping us make things better."
+        doneDetail.setTextColor(if (url != null) Theme.Ink else Theme.Muted)
         doneDetail.setOnClickListener(if (url != null) View.OnClickListener { actions.onOpenIssue(url) } else null)
         doneDetail.isClickable = url != null
     }
@@ -213,6 +252,13 @@ internal class FeedbackSheetView(
         val interactive = state is FeedbackState.Editable || state is FeedbackState.Failed
         showOnly(formGroup)
         title.text = draft.kind.formTitle
+        subtitle.text = "We're listening. Tell us a little more."
+        subtitle.visibility = View.VISIBLE
+        noteField.hint = when (draft.kind) {
+            FeedbackKind.Issue -> "What happened? What did you expect?"
+            FeedbackKind.Idea -> "What would make this better for you?"
+            FeedbackKind.Other -> "What's on your mind?"
+        }
         backButton.visibility = View.VISIBLE
         backButton.isEnabled = interactive
         backButton.alpha = if (interactive) 1f else DISABLED_ALPHA
@@ -275,57 +321,82 @@ internal class FeedbackSheetView(
         doneGroup.visibility = if (group === doneGroup) View.VISIBLE else View.GONE
     }
 
-    private fun buildHeader() = FrameLayout(context).apply {
+    private fun buildHeader() = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = context.dp(48)
         val side = context.dp(HEADER_BUTTON_DP)
-        val bleed = -context.dp(8)
-        addView(title, FrameLayout.LayoutParams(MATCH_PARENT, MATCH_PARENT).apply {
-            marginStart = side
-            marginEnd = side
-        })
-        addView(backButton, FrameLayout.LayoutParams(side, side, Gravity.CENTER_VERTICAL or Gravity.START).apply { marginStart = bleed })
-        addView(closeButton, FrameLayout.LayoutParams(side, side, Gravity.CENTER_VERTICAL or Gravity.END).apply { marginEnd = bleed })
+        addView(backButton, LinearLayout.LayoutParams(side, side))
+        addView(title, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+        addView(closeButton, LinearLayout.LayoutParams(side, side))
     }
 
     private fun buildChooseGroup() = LinearLayout(context).apply {
-        orientation = LinearLayout.HORIZONTAL
+        orientation = LinearLayout.VERTICAL
         val tiles = listOf(
-            kindTile(FeedbackKind.Issue, R.drawable.fbb_ic_issue),
-            kindTile(FeedbackKind.Idea, R.drawable.fbb_ic_idea),
-            kindTile(FeedbackKind.Other, R.drawable.fbb_ic_other),
+            kindTile(FeedbackKind.Issue, R.drawable.fbb_ic_issue, "Something isn't working as expected"),
+            kindTile(FeedbackKind.Idea, R.drawable.fbb_ic_idea, "A small improvement or a big idea"),
+            kindTile(FeedbackKind.Other, R.drawable.fbb_ic_other, "Anything else on your mind"),
         )
         tiles.forEachIndexed { index, tile ->
-            addView(tile, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { if (index > 0) marginStart = context.dp(10) })
+            addView(tile, spaced(top = if (index > 0) 8 else 0))
         }
     }
 
-    private fun kindTile(kind: FeedbackKind, icon: Int) = LinearLayout(context).apply {
-        orientation = LinearLayout.VERTICAL
-        gravity = Gravity.CENTER_HORIZONTAL
-        setPadding(context.dp(6), context.dp(16), context.dp(6), context.dp(14))
-        background = context.ripple(context.roundedRect(Theme.Tile, 18))
+    private fun kindTile(kind: FeedbackKind, icon: Int, detail: String) = LinearLayout(context).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = context.dp(72)
+        setPadding(context.dp(12), context.dp(12), context.dp(12), context.dp(12))
+        background = context.ripple(context.roundedRect(Theme.Panel, 12, strokeDp = 1f, stroke = Theme.Border))
         isClickable = true
         isFocusable = true
+        val heading = if (kind == FeedbackKind.Other) "Something else" else kind.formTitle
+        contentDescription = "$heading. $detail"
         setOnClickListener { actions.onKindSelected(kind) }
-        addView(ImageView(context).apply { setImageResource(icon) }, LinearLayout.LayoutParams(context.dp(26), context.dp(26)))
-        addView(context.label(kind.label, 14f, Theme.TileInk, bold = true), LinearLayout.LayoutParams(WRAP_CONTENT, WRAP_CONTENT).apply {
-            topMargin = context.dp(8)
+        addView(ImageView(context).apply {
+            setImageResource(icon)
+            setColorFilter(Theme.Ink)
+            setPadding(context.dp(8), context.dp(8), context.dp(8), context.dp(8))
+            background = context.roundedRect(Theme.Tile, 9)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(context.dp(36), context.dp(36)))
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            addView(context.label(heading, 14f, Theme.Ink, bold = true))
+            addView(context.label(detail, 12f, Theme.Muted), spaced(top = 2))
+        }, LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f).apply { marginStart = context.dp(12) })
+        addView(ImageView(context).apply {
+            setImageResource(R.drawable.fbb_ic_chevron)
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }, LinearLayout.LayoutParams(context.dp(16), context.dp(16)).apply {
+            marginStart = context.dp(8)
         })
     }
 
     private fun buildFormGroup() = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
+        addView(fieldLabel("Your feedback", noteField), spaced(top = 0).apply { bottomMargin = context.dp(7) })
         addView(noteField, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        addView(emailField, spaced(top = 10))
-        addView(screenshotBlock, spaced(top = 10))
-        addView(voiceRecordingBlock, spaced(top = 10))
-        addView(voiceAttachmentBlock, spaced(top = 10))
+        addView(fieldLabel("Email (optional)", emailField), spaced(top = 14).apply { bottomMargin = context.dp(7) })
+        addView(emailField, spaced(top = 0))
+        addView(screenshotBlock, spaced(top = 12))
+        addView(voiceRecordingBlock, spaced(top = 12))
+        addView(voiceAttachmentBlock, spaced(top = 12))
         addView(voiceHint, spaced(top = 2))
         addView(errorLine, spaced(top = 10))
         addView(LinearLayout(context).apply {
-            addView(cameraButton, LinearLayout.LayoutParams(context.dp(52), context.dp(48)))
-            addView(micButton, LinearLayout.LayoutParams(context.dp(52), context.dp(48)).apply { marginStart = context.dp(8) })
-            addView(sendButton, LinearLayout.LayoutParams(0, context.dp(48), 1f).apply { marginStart = context.dp(8) })
+            gravity = Gravity.CENTER_VERTICAL
+            addView(context.label("Add context", 12f, Theme.Muted), LinearLayout.LayoutParams(0, WRAP_CONTENT, 1f))
+            addView(cameraButton, LinearLayout.LayoutParams(context.dp(48), context.dp(48)))
+            addView(micButton, LinearLayout.LayoutParams(context.dp(48), context.dp(48)).apply { marginStart = context.dp(6) })
         }, spaced(top = 12))
+        addView(sendButton, spaced(top = 14))
+    }
+
+    private fun fieldLabel(text: String, field: EditText) = context.label(text, 12f, Theme.TileInk, bold = true).apply {
+        labelFor = field.id
     }
 
     private fun compactButton(label: String) = Button(context).apply {
@@ -333,73 +404,72 @@ internal class FeedbackSheetView(
         isAllCaps = false
         stateListAnimator = null
         minWidth = 0
-        minHeight = 0
+        minimumHeight = context.dp(48)
         setPadding(context.dp(8), 0, context.dp(8), 0)
         textSize = 12f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setTextColor(Theme.TileInk)
-        background = context.ripple(context.roundedRect(Theme.Tile, 12))
+        background = context.ripple(context.roundedRect(Theme.Tile, 8))
     }
 
     private fun buildSendButton() = Button(context).apply {
         isAllCaps = false
         stateListAnimator = null
         minWidth = 0
-        minHeight = 0
-        setPadding(0, 0, 0, 0)
-        textSize = 14.5f
-        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        minHeight = context.dp(48)
+        setPadding(context.dp(12), context.dp(10), context.dp(12), context.dp(10))
+        textSize = 14f
+        typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
         setTextColor(ColorStateList(arrayOf(intArrayOf(android.R.attr.state_enabled), intArrayOf()), intArrayOf(Color.WHITE, Theme.Muted)))
         background = StateListDrawable().apply {
-            addState(intArrayOf(android.R.attr.state_enabled), context.ripple(context.roundedRect(Theme.Ink, 15)))
-            addState(intArrayOf(), context.roundedRect(Theme.Tile, 15))
+            addState(intArrayOf(android.R.attr.state_enabled), context.ripple(context.roundedRect(Theme.Ink, 10)))
+            addState(intArrayOf(), context.roundedRect(Theme.Tile, 10))
         }
         setOnClickListener { actions.onSend() }
     }
 
-    private fun buildFooter(): TextView = context.label(footerText(), 11.5f, Theme.Muted).apply { gravity = Gravity.CENTER }
+    private fun buildFooter(): TextView = context.label(footerText(), 11f, Theme.Muted).apply { gravity = Gravity.CENTER }
 
-    private fun footerText() = SpannableString("Widget by FeedbackBee").apply {
+    private fun footerText() = SpannableString("Powered by FeedbackBee").apply {
         val start = indexOf("FeedbackBee")
         setSpan(ForegroundColorSpan(Theme.TileInk), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
         setSpan(StyleSpan(Typeface.BOLD), start, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
     }
 
     private fun field(hint: CharSequence, multiline: Boolean): EditText = EditText(context).apply {
-        this.hint = if (multiline) boldHint(hint) else hint
+        id = View.generateViewId()
+        this.hint = hint
         setHintTextColor(Theme.Muted)
         setTextColor(Theme.Ink)
         background = fieldBackground()
         if (multiline) {
-            textSize = 15f
-            setPadding(context.dp(16), context.dp(14), context.dp(16), context.dp(14))
-            minHeight = context.dp(96)
+            textSize = 16f
+            setPadding(context.dp(12), context.dp(11), context.dp(12), context.dp(11))
+            minHeight = context.dp(128)
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
             maxLines = 6
             gravity = Gravity.TOP or Gravity.START
             filters = arrayOf(InputFilter.LengthFilter(FeedbackLimits.MAX_TEXT_CHARS))
         } else {
-            textSize = 14f
-            setPadding(context.dp(16), context.dp(11), context.dp(16), context.dp(11))
+            textSize = 16f
+            minimumHeight = context.dp(48)
+            setPadding(context.dp(12), context.dp(11), context.dp(12), context.dp(11))
             inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS
-            maxLines = 1
+            setSingleLine(true)
         }
     }
 
-    private fun boldHint(text: CharSequence) = SpannableString(text).apply {
-        setSpan(StyleSpan(Typeface.BOLD), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
-    }
-
     private fun fieldBackground(): Drawable = StateListDrawable().apply {
-        addState(intArrayOf(android.R.attr.state_focused), context.roundedRect(Theme.Tile, 22, strokeDp = 2.5f, stroke = Theme.Focus))
-        addState(intArrayOf(), context.roundedRect(Theme.Tile, 22))
+        addState(intArrayOf(android.R.attr.state_focused), context.roundedRect(Theme.Panel, 10, strokeDp = 2f, stroke = Theme.Focus))
+        addState(intArrayOf(), context.roundedRect(Theme.Panel, 10, strokeDp = 1f, stroke = Theme.Border))
     }
 
     private fun iconButton(icon: Int, description: String) = ImageButton(context).apply {
         setImageResource(icon)
+        setColorFilter(Theme.Muted)
         contentDescription = description
         scaleType = ImageView.ScaleType.FIT_CENTER
-        setPadding(context.dp(9), context.dp(9), context.dp(9), context.dp(9))
+        setPadding(context.dp(14), context.dp(14), context.dp(14), context.dp(14))
         val ripple = TypedValue()
         context.theme.resolveAttribute(android.R.attr.selectableItemBackgroundBorderless, ripple, true)
         setBackgroundResource(ripple.resourceId)
@@ -435,7 +505,7 @@ internal class FeedbackSheetView(
         override fun run() {
             if (voiceRecordingBlock.visibility != View.VISIBLE) return
             val startedAt = recordingStartedAt ?: return
-            voiceTimer.text = formatVoiceDuration(((SystemClock.elapsedRealtime() - startedAt) / 1_000L).toInt())
+            voiceTimer.text = voiceTimerText(startedAt)
             postDelayed(this, 1_000L)
         }
     }
@@ -444,13 +514,21 @@ internal class FeedbackSheetView(
 
     private fun updateVoiceTimer(startedAt: Long) {
         recordingStartedAt = startedAt
-        voiceTimer.text = formatVoiceDuration(((SystemClock.elapsedRealtime() - startedAt) / 1_000L).toInt())
+        voiceTimer.text = voiceTimerText(startedAt)
         removeCallbacks(updateTimer)
         post(updateTimer)
     }
 
+    private fun voiceTimerText(startedAt: Long): String =
+        "Voice note · ${formatVoiceDuration(((SystemClock.elapsedRealtime() - startedAt) / 1_000L).toInt())} / 5:00"
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(updateTimer)
+        super.onDetachedFromWindow()
+    }
+
     private companion object {
-        const val HEADER_BUTTON_DP = 40
+        const val HEADER_BUTTON_DP = 48
         const val SCREENSHOT_HEIGHT_DP = 160
         const val DISABLED_ALPHA = 0.4f
     }

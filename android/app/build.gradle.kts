@@ -17,11 +17,11 @@ android {
     }
 
     buildTypes {
-        // Debug talks to a Worker on the host machine (10.0.2.2 is the emulator's alias for localhost).
-        // Point it elsewhere with -Pfeedbackbee.endpoint=https://...; release uses FeedbackBee.DEFAULT_ENDPOINT.
-        val localWorker = providers.gradleProperty("feedbackbee.endpoint").orElse("http://10.0.2.2:8787").get()
-        debug { buildConfigField("String", "FEEDBACKBEE_ENDPOINT", "\"$localWorker\"") }
-        release { buildConfigField("String", "FEEDBACKBEE_ENDPOINT", "\"\"") }
+        // Optional initial value; otherwise the demo requires a website host on its setup screen.
+        val endpoint = providers.gradleProperty("feedbackbee.endpoint").orElse("").get()
+            .replace("\\", "\\\\").replace("\"", "\\\"")
+        debug { buildConfigField("String", "FEEDBACKBEE_ENDPOINT", "\"$endpoint\"") }
+        release { buildConfigField("String", "FEEDBACKBEE_ENDPOINT", "\"$endpoint\"") }
     }
 
     buildFeatures {
