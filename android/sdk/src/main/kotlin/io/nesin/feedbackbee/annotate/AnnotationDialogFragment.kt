@@ -2,7 +2,6 @@ package io.nesin.feedbackbee.annotate
 
 import android.app.Dialog
 import android.content.DialogInterface
-import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.Gravity
@@ -22,10 +21,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import io.nesin.feedbackbee.FeedbackState
 import io.nesin.feedbackbee.FeedbackViewModel
 import io.nesin.feedbackbee.ui.ButtonStyle
+import io.nesin.feedbackbee.ui.Theme
 import io.nesin.feedbackbee.ui.actionButton
 import io.nesin.feedbackbee.ui.applyStyle
 import io.nesin.feedbackbee.ui.dp
-import io.nesin.feedbackbee.ui.palette
 import io.nesin.feedbackbee.ui.setEnabledDimmed
 import kotlinx.coroutines.launch
 
@@ -80,7 +79,7 @@ internal class AnnotationDialogFragment : DialogFragment() {
 
         val root = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(Color.BLACK)
+            setBackgroundColor(Theme.Overlay)
         }
         root.addView(topBar(), LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
         root.addView(canvas, LinearLayout.LayoutParams(MATCH_PARENT, 0, 1f))
@@ -129,9 +128,8 @@ internal class AnnotationDialogFragment : DialogFragment() {
 
     private fun selectTool(tool: Tool) {
         canvasView?.tool = tool
-        val palette = requireContext().palette()
         toolButtons.forEach { (t, button) ->
-            button.applyStyle(if (t == tool) ButtonStyle.Selected else ButtonStyle.Secondary, palette)
+            button.applyStyle(if (t == tool) ButtonStyle.Selected else ButtonStyle.Secondary)
         }
     }
 

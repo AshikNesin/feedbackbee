@@ -1,27 +1,18 @@
 # FeedbackBee for Android
 
-Shake the phone, circle the problem, tap Send. The SDK uploads a screenshot and the user's note to your
+Shake the phone, say what's wrong, optionally circle it on a screenshot. The SDK sends it to your
 FeedbackBee Worker, which turns it into a GitHub issue.
 
-- `sdk/` is the library (`io.nesin.feedbackbee`). No OkHttp, no Coil, no annotation library: just
-  `HttpURLConnection`, a hand-rolled multipart body and raw `Canvas`. Its one non-AndroidX dependency is
-  `kotlinx-coroutines-android`.
-- `app/` is a demo app (`io.nesin.feedbackbee.demo`) with a settings card for the project slug and endpoint.
+## 1. Add it
 
-Requires minSdk 26. Built with AGP 8.7, Kotlin 2.0, compileSdk and targetSdk 35.
-
-## Install
-
-The SDK is not published yet. Include it from a checkout.
-
-`settings.gradle.kts` of your app:
+The SDK is not published yet, so include it from a checkout. In your app's `settings.gradle.kts`:
 
 ```kotlin
 include(":feedbackbee-sdk")
 project(":feedbackbee-sdk").projectDir = file("../feedbackbee/android/sdk")
 ```
 
-`app/build.gradle.kts`:
+In `app/build.gradle.kts`:
 
 ```kotlin
 dependencies {
@@ -29,63 +20,85 @@ dependencies {
 }
 ```
 
-Once the AAR is on a Maven repository this becomes `implementation("io.nesin:feedbackbee:<version>")`.
+Requires minSdk 26. Once the AAR is on Maven this becomes `implementation("io.nesin:feedbackbee:<version>")`.
 
-## Set up
+## 2. Init it
 
-Initialize once, then register each activity that should react to shakes.
+In your `Application` class:
 
 ```kotlin
 class MyApp : Application() {
     override fun onCreate() {
         super.onCreate()
-        FeedbackBee.init(this, projectSlug = "myapp", endpoint = "https://your-bee.workers.dev")
-    }
-}
-
-class MainActivity : AppCompatActivity() {   // any FragmentActivity
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        FeedbackBee.register(this)
+        FeedbackBee.init(this, projectId = "myapp")
     }
 }
 ```
 
-| Call | Does |
+That is the whole setup. Shake is on, the sheet opens over whatever activity is in front, and there is no
+per-activity code. Put `android:name=".MyApp"` on `<application>` if you haven't already.
+
+The one requirement: the foreground activity must be a `FragmentActivity` (`AppCompatActivity` is one; with
+Compose, extend `FragmentActivity` instead of `ComponentActivity`). The sheet is a `DialogFragment`. If it isn't,
+`show()` and shakes log one warning under the `FeedbackBee` tag and do nothing.
+
+### The whole API
+
+```kotlin
+FeedbackBee.init(application, projectId = "myapp")                                   // shake on
+FeedbackBee.init(application, projectId = "myapp", shake = false)                    // shake off
+FeedbackBee.init(application, projectId = "myapp", endpoint = "https://bee.example.dev")  // self-hosted
+FeedbackBee.show()                                                                   // open the sheet yourself
+FeedbackBee.DEFAULT_ENDPOINT                                                         // "https://feedbackbee.ashik.workers.dev"
+```
+
+| Parameter | Default | Notes |
+|---|---|---|
+| `projectId` | required | From your dashboard. A blank id throws `IllegalArgumentException`. |
+| `shake` | `true` | `false` removes the accelerometer listener entirely. |
+| `endpoint` | `FeedbackBee.DEFAULT_ENDPOINT` | **Override when self-hosting.** Must be `http(s)://`; a trailing `/` is trimmed. |
+
+`init` is idempotent: call it again (say, after the user switches workspace) and the new config replaces the old one;
+the old lifecycle callbacks are unregistered first. `show()` can be called from any thread and does nothing
+while a sheet is already open.
+
+## Shake
+
+| | |
 |---|---|
-| `FeedbackBee.init(app, projectSlug, endpoint)` | Stores the config. Throws `IllegalArgumentException` for a blank slug or an endpoint that is not `http(s)://`. A trailing `/` is trimmed. |
-| `FeedbackBee.register(activity)` | Listens for shakes while the activity is resumed and remembers it for capture. Unregisters itself when the activity is destroyed. |
-| `FeedbackBee.unregister()` | Stops shake detection now. |
-| `FeedbackBee.showFeedbackSheet(activity)` | Opens the sheet from your own button. No-op if a sheet is already open. |
+| Triggers | Three firm jolts (above 15 m/s², gravity included) within 1.5 seconds. A long push counts once; peaks under 120 ms apart count once. |
+| Runs | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz). Nothing runs in the background. |
+| Can't stack | Shakes are ignored while a sheet is open, and the counter resets after each trigger. |
+| Turn it off | `FeedbackBee.init(this, projectId = "myapp", shake = false)` |
+| Open manually | `FeedbackBee.show()`, for example from a "Send feedback" menu item. |
+| No accelerometer | Logged once at init. Use `show()`. |
 
-Call everything on the main thread. `register` and `showFeedbackSheet` need a `FragmentActivity`
-(`AppCompatActivity` is one; for Compose, extend `FragmentActivity` instead of `ComponentActivity`). A plain
-`ComponentActivity` logs a warning and does nothing, because the sheet is a `DialogFragment`.
-
-## Shake behavior
-
-- Reads the accelerometer at `SENSOR_DELAY_GAME` (about 50 Hz) only while a registered activity is resumed.
-- Three peaks above 15 m/s² (gravity included, so a firm jolt) inside 1.5 s open the sheet. One long
-  push counts as one peak; peaks closer than 120 ms count once.
-- The sheet cannot stack: shakes are ignored while a sheet exists, and the peak counter resets after each trigger.
-- The detection logic is plain Kotlin (`ShakeAnalyzer`) with JUnit tests for a shake and several non-shakes.
+The detection logic is plain Kotlin (`ShakeAnalyzer`) with JUnit tests for a shake and several non-shakes.
 
 ## What the user sees
 
-1. Bottom sheet: Feedback / Bug / Idea, a note (1 to 5000 characters), optional email, **Attach screenshot**, **Record screen**, **Send**.
-2. **Attach screenshot** copies the host activity's window with `PixelCopy` and opens a full-screen
-   annotator: pen, box, arrow, undo, cancel, save. Saving exports an annotated PNG (10 MB cap; larger captures are
-   shrunk until they fit).
-3. **Send** posts multipart to `{endpoint}/api/feedback` exactly as described in
-   [docs/CONTRACT.md](../docs/CONTRACT.md): `project`, `kind`, `text`, optional `email`, `app_version`,
-   `os_name=android`, `os_version` (API level), `device_model`, `screen_w`, `screen_h`, and the PNG as `media` with `media_kind=screenshot`.
-4. A `201` shows "Thank you! Tracked on GitHub" with the issue link. A `202` shows a plain thank-you.
-   `429`, `400`, network and capture errors appear inside the sheet with a **Try again** button; the draft is kept.
+The sheet mirrors the web widget: a white panel, 360dp wide at most, rounded top corners.
 
-The sheet is driven by one sealed state: `Draft → Annotating → WithScreenshot → Uploading → Sent | Failed`.
-It lives in an activity-scoped `ViewModel`, so rotation and fold/unfold keep the draft, the screenshot and an in-flight upload.
+1. **What's on your mind?** Three tiles: Issue, Idea, Other. A close button top-right.
+2. **Report an issue / Share an idea / Tell us more.** A back arrow, a note field ("I noticed that..."), an optional
+   email field, a camera button and **Send feedback**, which stays disabled until the note has text.
+   The camera button copies the host activity's window with `PixelCopy` and opens a full-screen annotator
+   (pen, box, arrow, undo, cancel, save). The annotated PNG appears as a thumbnail with a small x to remove it.
+3. **Thank you!** with "Tracked on GitHub →" when the Worker returns an issue URL, otherwise "We received your report."
 
-## Permissions for the host app's manifest
+Errors (rate limit, bad input, no network, a capture that failed) show inside the sheet above the Send button and the
+draft is kept. Back keeps the note too.
+
+Send posts multipart to `{endpoint}/api/feedback` exactly as in [docs/CONTRACT.md](../docs/CONTRACT.md):
+`project`, `kind` (`bug`, `idea` or `feedback` for Issue, Idea, Other), `text`, optional `email`, `app_version`,
+`os_name=android`, `os_version` (API level), `device_model`, `screen_w`, `screen_h`, and the PNG as `media` with
+`media_kind=screenshot` (10 MB cap; larger captures are shrunk until they fit).
+
+The sheet renders from one sealed state, not scattered flags:
+`Choosing → Draft → Annotating → WithScreenshot → Uploading → Sent | Failed`. It lives in an activity-scoped
+`ViewModel`, so rotation and fold/unfold keep the draft, the screenshot and an in-flight upload.
+
+## Manifest permissions for the host app
 
 The SDK's manifest already merges this into your app:
 
@@ -93,46 +106,51 @@ The SDK's manifest already merges this into your app:
 <uses-permission android:name="android.permission.INTERNET" />
 ```
 
-Nothing else. No storage, camera, microphone or notification permission is needed. The accelerometer needs none.
+That is all. No storage, camera, microphone or notification permission. The accelerometer needs none.
 
-If your endpoint is plain `http://` (local development only), your app must also allow cleartext traffic,
-either `android:usesCleartextTraffic="true"` or a network security config. The demo app does the first.
+A plain `http://` endpoint (local development only) also needs cleartext traffic allowed in your app:
+`android:usesCleartextTraffic="true"` or a network security config. The default endpoint is HTTPS.
 
 ## Privacy
 
-The SDK never reads notifications, SMS or system logs. The only pixels it can read are those of the host app's own window,
-and only after the user taps **Attach screenshot**. Nothing leaves the device until the user presses **Send**,
-and what leaves is the text, the email they typed, the annotated screenshot and the device context fields above.
+The SDK never reads notifications, SMS or system logs. The only pixels it can read are those of the host app's own
+window, and only after the user taps the camera button. Nothing leaves the device until the user presses **Send**,
+and what leaves is the note, the email they typed, the annotated screenshot and the device context fields above.
 
-## Screen recording: stubbed in v0.1
+## Screen recording: not in this version
 
 Recording (MediaProjection, `MediaRecorder`, a foreground-service notification with
-`FOREGROUND_SERVICE_MEDIA_PROJECTION`, 5 minute hard cap) is not implemented. The MediaProjection consent and
-foreground-service ordering rules are easy to get subtly wrong and could not be verified on a device here, so
-the SDK ships the seam instead of half-working permission code:
+`FOREGROUND_SERVICE_MEDIA_PROJECTION`, 5 minute hard cap) is stubbed. The MediaProjection consent and
+foreground-service rules are easy to get subtly wrong, so the SDK ships the seam instead of half-working permission code:
 
-- `record/ScreenRecorder.kt` defines the interface and `UnavailableScreenRecorder`.
-- The sheet shows **Record screen (soon)** disabled, because `isAvailable` is false.
+- `record/ScreenRecorder.kt` defines the interface and `UnavailableScreenRecorder`. Nothing in the sheet calls it yet,
+  so the sheet has no record button.
 - The upload path already accepts a `recording` media kind with the 200 MB cap and `media_seconds`, with tests.
 - No `FOREGROUND_SERVICE*` permissions are declared. They arrive with the implementation.
 
-## Try the demo app against a local Worker
+## Run the demo app against a local Worker
+
+The demo (`app/`, `io.nesin.feedbackbee.demo`) is one screen: a project-id field, a "Shake to feedback (on)" note and
+a button that calls `FeedbackBee.show()`. Its `Application` is the two-line integration above.
 
 1. Start the Worker from the repo root: `npm run dev` (listens on `http://localhost:8787`).
-2. In the dashboard create a project and note its slug (the demo defaults to `demo`).
-3. Build and install: `./gradlew :app:installDebug` with an emulator running.
-4. In the app's **Settings** card set the endpoint to `http://10.0.2.2:8787` (the emulator's alias for your computer's
-   `localhost`; the **Emulator URL** button fills it in) and the slug, then **Save**.
-5. Shake. In the emulator open **⋮ → Virtual sensors → Move** and drag, or tap **Open the feedback sheet**.
+2. Create a project in the dashboard and type its id into the demo (it starts as `demo`).
+3. `cd android && ./gradlew :app:installDebug` with an emulator running.
+4. Shake: in the emulator open **⋮ → Virtual sensors → Move** and drag, or tap **Open feedback sheet**.
 
-On a physical device use your computer's LAN address (for example `http://192.168.1.20:8787`) and start the Worker with
-`npx wrangler dev --ip 0.0.0.0`.
+The **debug** build sends to `http://10.0.2.2:8787`, the emulator's alias for your computer's `localhost`. The
+**release** build uses `FeedbackBee.DEFAULT_ENDPOINT`. To aim the debug build elsewhere, for example your LAN address when using a
+real device (start the Worker with `npx wrangler dev --ip 0.0.0.0`):
+
+```bash
+./gradlew :app:installDebug -Pfeedbackbee.endpoint=http://192.168.1.20:8787
+```
 
 ## Build and test
 
 ```bash
 cd android
-./gradlew :sdk:assembleRelease :app:assembleDebug :sdk:testDebugUnitTest
+./gradlew :sdk:assembleRelease :sdk:testReleaseUnitTest :app:assembleDebug
 ```
 
 `local.properties` (git-ignored) should contain `sdk.dir=/path/to/android-sdk`; Gradle also reads `ANDROID_HOME`.
@@ -141,13 +159,18 @@ cd android
 
 ```
 sdk/src/main/kotlin/io/nesin/feedbackbee/
-  FeedbackBee.kt            public API
-  FeedbackState.kt           sealed submission state machine
-  FeedbackViewModel.kt       transitions + upload orchestration
-  shake/                     ShakeAnalyzer (pure) and ShakeDetector (SensorManager)
-  capture/                   PixelCopy screenshot, PNG encoder with size cap
-  annotate/                  Shape model, ShapeRenderer, AnnotationView, AnnotationDialogFragment
-  sheet/                     FeedbackSheetFragment and FeedbackSheetView
-  upload/                    MultipartBody, FeedbackUploader, response parsing, device info
-  record/                    ScreenRecorder seam (unavailable in v0.1)
+  FeedbackBee.kt            public API: init, show, DEFAULT_ENDPOINT
+  Installation.kt           one init(): foreground-activity tracking + shake lifecycle
+  FeedbackConfig.kt         validated projectId + endpoint
+  FeedbackState.kt          sealed submission state machine
+  FeedbackViewModel.kt      transitions + upload orchestration
+  shake/                    ShakeAnalyzer (pure) and ShakeDetector (SensorManager)
+  capture/                  PixelCopy screenshot, PNG encoder with size cap
+  annotate/                 Shape model, ShapeRenderer, AnnotationView, AnnotationDialogFragment
+  sheet/                    FeedbackSheetFragment and FeedbackSheetView
+  upload/                   MultipartBody, FeedbackUploader, response parsing, device info
+  record/                   ScreenRecorder seam (unavailable)
+  ui/                       Theme tokens shared with the web widget
+sdk/src/main/res/drawable/  fbb_ic_*.xml vector icons (resourcePrefix = "fbb_")
+app/                        demo app
 ```

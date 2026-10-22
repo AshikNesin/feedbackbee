@@ -1,13 +1,13 @@
 package io.nesin.feedbackbee
 
-internal data class FeedbackConfig(val projectSlug: String, val endpoint: String) {
+internal data class FeedbackConfig(val projectId: String, val endpoint: String) {
     val feedbackUrl: String get() = "$endpoint/api/feedback"
 
     companion object {
-        fun create(projectSlug: String, endpoint: String): FeedbackConfig {
-            val slug = projectSlug.trim()
-            require(slug.isNotEmpty()) { "FeedbackBee: projectSlug must not be blank" }
-            return FeedbackConfig(slug, normalizeEndpoint(endpoint))
+        fun create(projectId: String, endpoint: String): FeedbackConfig {
+            val id = projectId.trim()
+            require(id.isNotEmpty()) { "FeedbackBee: projectId must not be blank" }
+            return FeedbackConfig(id, normalizeEndpoint(endpoint))
         }
 
         fun normalizeEndpoint(raw: String): String {

@@ -6,6 +6,7 @@ plugins {
 android {
     namespace = "io.nesin.feedbackbee"
     compileSdk = 35
+    resourcePrefix = "fbb_"
 
     defaultConfig {
         minSdk = 26
