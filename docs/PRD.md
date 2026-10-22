@@ -62,16 +62,14 @@ The embed snippet is generated per project.
 
 ### 2. Web widget (`embed.js`)
 
-Vanilla JS, one IIFE, zero dependencies, served by the Worker. No framework assumptions on the host page.
+Vanilla JS, one IIFE, zero dependencies, served by the Worker. No framework assumptions on the host page. Minimal two-screen flow:
 
-Flow on click:
-
-1. Launcher pill appears bottom-right (position configurable).
-2. Panel opens with three options: give feedback, report a bug, share an idea.
-3. Optional screenshot of the current page via `html2canvas`-style DOM snapshot. This is the one accepted third-party dependency, lazily loaded from the Worker itself (self-hosted, ~45 KB, not counted against the widget's < 10 KB budget). Annotation happens on a canvas overlay: pen, box, and arrow tools, plus undo.
+1. Launcher pill bottom-right (position configurable). Click opens the panel: "What's on your mind?" with three tiles, Issue, Idea, Other.
+2. A tile opens the form screen: a borderless note field ("I noticed that..."), an optional email field, a camera button, and a "Send feedback" button that stays disabled until there is text.
+3. The camera button opens the annotation overlay: capture the tab via `getDisplayMedia` or draw on a note card. Tools are pen, box, arrow, and undo.
 4. Optional screen recording via `getDisplayMedia`, capped at 5 minutes (300 s) with a visible timer. WebM only, client-side enforced.
-5. Submit sends multipart form data: project slug, kind, text, optional email, and media files. Anonymous by default.
-6. The panel shows a link to the created GitHub issue and a "powered by FeedbackBee" footer.
+5. Submit sends multipart form data: project id, kind, text, optional email, and media. Anonymous by default.
+6. The done screen thanks the user and links the created GitHub issue. Footer: "Widget by FeedbackBee".
 
 Captures standard context automatically: URL, browser, OS, viewport size, and screen resolution.
 
