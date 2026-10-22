@@ -134,7 +134,7 @@ export function Dashboard() {
   return (
     <div className="app">
       <div className="row" style={{ justifyContent: "space-between", marginBottom: 24 }}>
-        <h1>FeedbackBarn</h1>
+        <h1>FeedbackBee</h1>
         <button className="secondary" onClick={api.logout}>Sign out</button>
       </div>
 

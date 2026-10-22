@@ -1,4 +1,4 @@
-# FeedbackBarn PRD
+# FeedbackBee PRD
 
 Status: v1.0 (build target). Owner: Ashik Nesin.
 
@@ -6,11 +6,11 @@ Status: v1.0 (build target). Owner: Ashik Nesin.
 
 Shipping a feedback button into a web or Android app today means either a heavy SaaS widget, a form that emails a mailbox nobody reads, or nothing at all. The feedback that matters most arrives with context: the screen the user was on, what they circled, what they saw happen. That context is exactly what a GitHub issue needs to be actionable, and exactly what existing lightweight tools drop.
 
-FeedbackBarn gives any project a five-minute feedback loop. Embed one script tag (or one Gradle dependency), let users annotate and record, and every submission becomes a labeled GitHub issue with the media attached.
+FeedbackBee gives any project a five-minute feedback loop. Embed one script tag (or one Gradle dependency), let users annotate and record, and every submission becomes a labeled GitHub issue with the media attached.
 
 ## Goals
 
-1. One `feedbackbarn()` call renders a working feedback widget in any web app.
+1. One `feedbackbee()` call renders a working feedback widget in any web app.
 2. Feedback becomes a GitHub issue within seconds, tagged by kind, with screenshot or recording attached.
 3. A dashboard to create projects, define target repos and labels, and read everything that arrived.
 4. An Android SDK with shake-to-feedback that captures a screenshot and uploads to the same endpoint.
@@ -71,16 +71,16 @@ Flow on click:
 3. Optional screenshot of the current page via `html2canvas`-style DOM snapshot. This is the one accepted third-party dependency, lazily loaded from the Worker itself (self-hosted, ~45 KB, not counted against the widget's < 10 KB budget). Annotation happens on a canvas overlay: pen, box, and arrow tools, plus undo.
 4. Optional screen recording via `getDisplayMedia`, capped at 5 minutes (300 s) with a visible timer. WebM only, client-side enforced.
 5. Submit sends multipart form data: project slug, kind, text, optional email, and media files. Anonymous by default.
-6. The panel shows a link to the created GitHub issue and a "powered by FeedbackBarn" footer.
+6. The panel shows a link to the created GitHub issue and a "powered by FeedbackBee" footer.
 
 Captures standard context automatically: URL, browser, OS, viewport size, and screen resolution.
 
 ### 3. Android SDK
 
-A tiny Kotlin library (`io.nesin:feedbackbarn`) an app installs in one call.
+A tiny Kotlin library (`io.nesin:feedbackbee`) an app installs in one call.
 
 ```kotlin
-FeedbackBarn.init(this, projectSlug = "myapp", endpoint = "https://your-barn.workers.dev")
+FeedbackBee.init(this, projectSlug = "myapp", endpoint = "https://your-barn.workers.dev")
 ```
 
 Features:
@@ -166,7 +166,7 @@ Authenticated (session cookie):
 
 ## Free-tier fit
 
-| Resource | Free ceiling | FeedbackBarn use |
+| Resource | Free ceiling | FeedbackBee use |
 |---|---|---|
 | Workers | 100k req/day | Widget + API calls |
 | D1 | 5 GB, 5M rows read/day | Projects, feedback, rate limits |

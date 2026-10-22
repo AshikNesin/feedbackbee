@@ -1,4 +1,4 @@
-# FeedbackBarn
+# FeedbackBee
 
 Lightweight, self-hostable user feedback on the Cloudflare free tier. Visitors click a widget in your app, annotate a screenshot or record the screen, and the feedback lands as a labeled GitHub issue. Think feedback.fish that you own.
 
@@ -16,8 +16,8 @@ npm run dev                  # API at http://localhost:8787, dashboard at / (Vit
 Create the D1/R2 resources once per Cloudflare account:
 
 ```bash
-npx wrangler d1 create feedbackbarn       # paste database_id into wrangler.jsonc
-npx wrangler r2 bucket create feedbackbarn-media
+npx wrangler d1 create feedbackbee       # paste database_id into wrangler.jsonc
+npx wrangler r2 bucket create feedbackbee-media
 npm run deploy
 ```
 
