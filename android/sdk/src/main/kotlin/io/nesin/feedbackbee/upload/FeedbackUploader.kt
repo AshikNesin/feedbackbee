@@ -17,6 +17,10 @@ internal object FeedbackUploader {
         request.media?.let { media ->
             if (!media.withinLimit) return UploadOutcome.Rejected(tooLargeMessage(media))
         }
+        request.audio?.let { audio ->
+            if (!audio.withinLimit) return UploadOutcome.Rejected("That audio is over the 25 MB limit.")
+            if (!audio.secondsWithinLimit) return UploadOutcome.Rejected("Audio duration must be between 0 and 300 seconds.")
+        }
         return withContext(Dispatchers.IO) {
             try {
                 post(config, buildBody(request))
@@ -43,6 +47,10 @@ internal object FeedbackUploader {
                 add(Part.Text("media_kind", media.kind.wire))
                 media.seconds?.let { add(Part.Text("media_seconds", it.toString())) }
                 add(Part.File("media", media.filename, media.mimeType, media.length, media.open))
+            }
+            request.audio?.let { audio ->
+                add(Part.Text("audio_seconds", audio.seconds.toString()))
+                add(Part.File("audio", audio.filename, audio.mimeType, audio.length, audio.open))
             }
         }
         return MultipartBody(parts)

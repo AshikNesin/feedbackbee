@@ -52,6 +52,7 @@ fun DemoScreen(
                 )
             }
             Button(onClick = onOpenSheet, modifier = Modifier.fillMaxWidth()) { Text("Open feedback sheet") }
+            Button(onClick = onOpenSheet, modifier = Modifier.fillMaxWidth()) { Text("Try a voice note") }
         }
     }
 }

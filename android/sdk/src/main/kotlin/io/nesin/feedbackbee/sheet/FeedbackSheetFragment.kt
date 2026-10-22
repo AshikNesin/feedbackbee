@@ -1,6 +1,7 @@
 package io.nesin.feedbackbee.sheet
 
 import android.app.Dialog
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.DialogInterface
 import android.content.Intent
@@ -8,6 +9,7 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
@@ -16,8 +18,10 @@ import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.view.animation.DecelerateInterpolator
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -27,6 +31,7 @@ import io.nesin.feedbackbee.FeedbackState
 import io.nesin.feedbackbee.FeedbackViewModel
 import io.nesin.feedbackbee.annotate.AnnotationDialogFragment
 import io.nesin.feedbackbee.capture.ScreenshotCapture
+import io.nesin.feedbackbee.record.VoiceRecorder
 import io.nesin.feedbackbee.ui.dp
 import io.nesin.feedbackbee.upload.collectDeviceInfo
 import kotlinx.coroutines.launch
@@ -36,6 +41,16 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
 
     private val viewModel by lazy { FeedbackViewModel.of(requireActivity()) }
     private var sheet: FeedbackSheetView? = null
+    private var voiceRecorder: VoiceRecorder? = null
+    private var voicePermissionDenied = false
+    private val recordAudioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            startVoiceRecording()
+        } else {
+            voicePermissionDenied = true
+            sheet?.setVoicePermissionDenied(true)
+        }
+    }
 
     // Deprecated for edge-to-edge windows only; a floating dialog still needs it to rise above the keyboard.
     @Suppress("DEPRECATION")
@@ -52,6 +67,7 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val view = FeedbackSheetView(requireContext(), this)
         sheet = view
+        view.setVoicePermissionDenied(voicePermissionDenied)
         if (savedInstanceState == null) slideIn(view)
         return view
     }
@@ -72,6 +88,9 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     }
 
     override fun onDestroyView() {
+        if (voiceRecorder != null) viewModel.cancelVoiceRecording()
+        voiceRecorder?.cancel()
+        voiceRecorder = null
         sheet = null
         super.onDestroyView()
     }
@@ -113,12 +132,58 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
 
     override fun onRemoveScreenshot() = viewModel.removeScreenshot()
 
+    override fun onVoiceClicked() {
+        if (!hasRecordAudioPermission()) {
+            recordAudioPermission.launch(Manifest.permission.RECORD_AUDIO)
+            return
+        }
+        startVoiceRecording()
+    }
+
+    override fun onStopVoice() {
+        stopVoiceRecording()
+    }
+
+    override fun onRemoveVoice() = viewModel.removeVoiceNote()
+
     override fun onSend() {
         val config = FeedbackBee.configOrNull() ?: return viewModel.reportProblem("FeedbackBee.init() was not called.")
         viewModel.send(collectDeviceInfo(requireContext()), config)
     }
 
     override fun onClose() = dismissAllowingStateLoss()
+
+    private fun hasRecordAudioPermission(): Boolean =
+        ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.RECORD_AUDIO) ==
+            android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    private fun startVoiceRecording() {
+        if (voiceRecorder?.isRecording == true) return
+        val recorder = VoiceRecorder()
+        voiceRecorder = recorder
+        val started = recorder.start(requireContext().cacheDir) {
+            activity?.runOnUiThread { stopVoiceRecording() }
+        }
+        started.fold(
+            onSuccess = {
+                viewModel.beginVoiceRecording(SystemClock.elapsedRealtime())
+            },
+            onFailure = {
+                voiceRecorder = null
+                recorder.cancel()
+                viewModel.failVoiceRecording("Couldn't start voice recording. Check microphone access and try again.")
+            },
+        )
+    }
+
+    private fun stopVoiceRecording() {
+        val recorder = voiceRecorder ?: return
+        voiceRecorder = null
+        recorder.stop().fold(
+            onSuccess = viewModel::finishVoiceRecording,
+            onFailure = { viewModel.failVoiceRecording("Couldn't save that voice note. Please try again.") },
+        )
+    }
 
     override fun onOpenIssue(url: String) {
         val uri = Uri.parse(url)

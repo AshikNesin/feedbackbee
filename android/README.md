@@ -1,6 +1,6 @@
 # FeedbackBee for Android
 
-Shake the phone, say what's wrong, optionally circle it on a screenshot. The SDK sends it to your
+Shake the phone, say what's wrong, optionally record a voice note or circle it on a screenshot. The SDK sends it to your
 FeedbackBee Worker, which turns it into a GitHub issue.
 
 ## 1. Add it
@@ -81,7 +81,9 @@ The sheet mirrors the web widget: a white panel, 360dp wide at most, rounded top
 
 1. **What's on your mind?** Three tiles: Issue, Idea, Other. A close button top-right.
 2. **Report an issue / Share an idea / Tell us more.** A back arrow, a note field ("I noticed that..."), an optional
-   email field, a camera button and **Send feedback**, which stays disabled until the note has text.
+   email field, screenshot and microphone buttons, and **Send feedback**, which stays disabled until the note has text.
+   The microphone asks for `RECORD_AUDIO` only when tapped, records AAC in an `.m4a` container for at most five minutes,
+   and lets the user stop, re-record, or delete the note before sending.
    The camera button copies the host activity's window with `PixelCopy` and opens a full-screen annotator
    (pen, box, arrow, undo, cancel, save). The annotated PNG appears as a thumbnail with a small x to remove it.
 3. **Thank you!** with "Tracked on GitHub →" when the Worker returns an issue URL, otherwise "We received your report."
@@ -91,22 +93,25 @@ draft is kept. Back keeps the note too.
 
 Send posts multipart to `{endpoint}/api/feedback` exactly as in [docs/CONTRACT.md](../docs/CONTRACT.md):
 `project`, `kind` (`bug`, `idea` or `feedback` for Issue, Idea, Other), `text`, optional `email`, `app_version`,
-`os_name=android`, `os_version` (API level), `device_model`, `screen_w`, `screen_h`, and the PNG as `media` with
-`media_kind=screenshot` (10 MB cap; larger captures are shrunk until they fit).
+`os_name=android`, `os_version` (API level), `device_model`, `screen_w`, `screen_h`, and optional independent
+`media`/`media_kind`/`media_seconds` plus `audio`/`audio_seconds`. Screenshots have a 10 MB cap; voice notes use
+an `.m4a` file with a 25 MB and 300-second cap.
 
 The sheet renders from one sealed state, not scattered flags:
-`Choosing → Draft → Annotating → WithScreenshot → Uploading → Sent | Failed`. It lives in an activity-scoped
-`ViewModel`, so rotation and fold/unfold keep the draft, the screenshot and an in-flight upload.
+`Choosing → Draft → Annotating | RecordingAudio → WithScreenshot → Uploading → Sent | Failed`. It lives in an
+activity-scoped `ViewModel`, so rotation and fold/unfold keep the draft, attachments and an in-flight upload.
 
 ## Manifest permissions for the host app
 
-The SDK's manifest already merges this into your app:
+The SDK's manifest already merges these into your app:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
+<uses-permission android:name="android.permission.RECORD_AUDIO" />
 ```
 
-That is all. No storage, camera, microphone or notification permission. The accelerometer needs none.
+The microphone permission is requested only after the user taps the microphone button. If it is denied, the button is
+disabled with a hint and the host app continues normally. No storage, camera or notification permission is needed.
 
 A plain `http://` endpoint (local development only) also needs cleartext traffic allowed in your app:
 `android:usesCleartextTraffic="true"` or a network security config. The default endpoint is HTTPS.
@@ -114,8 +119,9 @@ A plain `http://` endpoint (local development only) also needs cleartext traffic
 ## Privacy
 
 The SDK never reads notifications, SMS or system logs. The only pixels it can read are those of the host app's own
-window, and only after the user taps the camera button. Nothing leaves the device until the user presses **Send**,
-and what leaves is the note, the email they typed, the annotated screenshot and the device context fields above.
+window, and only after the user taps the camera button. Audio is recorded only after the user taps the microphone
+button. Nothing leaves the device until the user presses **Send**, and what leaves is the note, the email they typed,
+any attached screenshot or voice note, and the device context fields above.
 
 ## Screen recording: not in this version
 
@@ -130,8 +136,8 @@ foreground-service rules are easy to get subtly wrong, so the SDK ships the seam
 
 ## Run the demo app against a local Worker
 
-The demo (`app/`, `io.nesin.feedbackbee.demo`) is one screen: a project-id field, a "Shake to feedback (on)" note and
-a button that calls `FeedbackBee.show()`. Its `Application` is the two-line integration above.
+The demo (`app/`, `io.nesin.feedbackbee.demo`) is one screen: a project-id field, a "Shake to feedback (on)" note,
+and buttons to open the sheet or try the voice-note flow. Its `Application` is the two-line integration above.
 
 1. Start the Worker from the repo root: `npm run dev` (listens on `http://localhost:8787`).
 2. Create a project in the dashboard and type its id into the demo (it starts as `demo`).
@@ -169,7 +175,7 @@ sdk/src/main/kotlin/io/nesin/feedbackbee/
   annotate/                 Shape model, ShapeRenderer, AnnotationView, AnnotationDialogFragment
   sheet/                    FeedbackSheetFragment and FeedbackSheetView
   upload/                   MultipartBody, FeedbackUploader, response parsing, device info
-  record/                   ScreenRecorder seam (unavailable)
+  record/                   VoiceRecorder plus ScreenRecorder seam (unavailable)
   ui/                       Theme tokens shared with the web widget
 sdk/src/main/res/drawable/  fbb_ic_*.xml vector icons (resourcePrefix = "fbb_")
 app/                        demo app

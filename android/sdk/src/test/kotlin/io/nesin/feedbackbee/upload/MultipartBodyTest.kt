@@ -82,9 +82,43 @@ class MultipartBodyTest {
             device = device.copy(appVersion = null), media = null,
         )
         val out = render(FeedbackUploader.buildBody(request))
-        listOf("name=\"email\"", "name=\"app_version\"", "name=\"media\"", "name=\"media_kind\"").forEach {
+        listOf("name=\"email\"", "name=\"app_version\"", "name=\"media\"", "name=\"media_kind\"", "name=\"audio\"", "name=\"audio_seconds\"").forEach {
             assertTrue("unexpected $it", !out.contains(it))
         }
+    }
+
+    @Test
+    fun audioIsUploadedIndependentlyOfVisualMedia() {
+        val request = UploadRequest(
+            project = "p",
+            kind = FeedbackKind.Other,
+            text = "t",
+            email = null,
+            device = device,
+            media = null,
+            audio = Audio("voice.m4a", "audio/mp4", 4, 12) { ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)) },
+        )
+        val out = render(FeedbackUploader.buildBody(request))
+        assertTrue(out.contains("name=\"audio_seconds\"\r\n\r\n12"))
+        assertTrue(out.contains("name=\"audio\"; filename=\"voice.m4a\"\r\nContent-Type: audio/mp4"))
+        assertTrue(!out.contains("name=\"media\""))
+        assertTrue(!out.contains("name=\"media_kind\""))
+    }
+
+    @Test
+    fun audioAndVisualMediaCanShareOneRequest() {
+        val request = UploadRequest(
+            project = "p",
+            kind = FeedbackKind.Other,
+            text = "t",
+            email = null,
+            device = device,
+            media = Media(MediaKind.Screenshot, "s.png", "image/png", 1) { ByteArrayInputStream(byteArrayOf(1)) },
+            audio = Audio("voice.m4a", "audio/mp4", 1, 7) { ByteArrayInputStream(byteArrayOf(2)) },
+        )
+        val out = render(FeedbackUploader.buildBody(request))
+        assertTrue(out.contains("name=\"media\"; filename=\"s.png\""))
+        assertTrue(out.contains("name=\"audio\"; filename=\"voice.m4a\""))
     }
 
     @Test
@@ -105,5 +139,16 @@ class MultipartBodyTest {
         assertTrue(!media(MediaKind.Screenshot, 10 * mb + 1).withinLimit)
         assertTrue(media(MediaKind.Recording, 200 * mb).withinLimit)
         assertTrue(!media(MediaKind.Recording, 200 * mb + 1).withinLimit)
+    }
+
+    @Test
+    fun audioLimitsMatchTheContract() {
+        fun audio(length: Long, seconds: Int) = Audio("f.m4a", "audio/mp4", length, seconds) { ByteArrayInputStream(ByteArray(0)) }
+        val mb = 1024L * 1024
+        assertTrue(audio(25 * mb, 300).withinLimit)
+        assertTrue(!audio(25 * mb + 1, 300).withinLimit)
+        assertTrue(audio(1, 0).secondsWithinLimit)
+        assertTrue(audio(1, 300).secondsWithinLimit)
+        assertTrue(!audio(1, 301).secondsWithinLimit)
     }
 }
