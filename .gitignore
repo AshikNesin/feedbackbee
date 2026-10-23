@@ -9,3 +9,4 @@ dist
 /android/**/build
 /android/local.properties
 .taste/
+.hallmark/
