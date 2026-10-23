@@ -58,6 +58,14 @@
     ".fbx-done p{margin:0;font-size:13px;color:var(--fb-muted)}" +
     ".fbx-done a{display:inline-flex;align-items:center;min-height:44px;color:var(--fb-ink);text-underline-offset:3px}" +
     ".fbx-err{margin-top:12px;font-size:13px;color:#b91c1c;display:none}" +
+    ".fbx-launch.fbx-away{visibility:hidden}" +
+    ".fbx-recbar{position:fixed;" + position + ":max(20px,env(safe-area-inset-" + position + "));bottom:max(20px,env(safe-area-inset-bottom));z-index:2147483001;display:flex;align-items:center;gap:8px;padding:6px 6px 6px 16px;border-radius:999px;background:rgba(24,24,27,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#fff;box-shadow:0 8px 24px #0000002e;animation:fbx-rise 200ms cubic-bezier(.23,1,.32,1)}" +
+    ".fbx-recbar .fbx-dot{background:#ef4444;animation:fbx-pulse 1.4s ease-in-out infinite}" +
+    ".fbx-rectime{min-width:36px;font-size:13px;font-weight:500;font-variant-numeric:tabular-nums}" +
+    ".fbx .fbx-recstop{display:flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:0;border-radius:999px;background:#fff;color:#18181b;font-size:13px;font-weight:600;cursor:pointer}" +
+    ".fbx-sq{width:9px;height:9px;border-radius:2px;background:#dc2626}" +
+    ".fbx-recx{width:34px;height:34px;padding:9px;border:0;border-radius:999px;background:transparent;color:rgba(255,255,255,.7);cursor:pointer;display:flex;align-items:center;justify-content:center}" +
+    ".fbx-recx svg{width:16px;height:16px}" +
     ".fbx-panel.fbx-open.fbx-away{visibility:hidden;opacity:0;transition:none;pointer-events:none}" +
     ".fbx-shot-btn{display:block;width:100%;padding:0;border:0;background:var(--fb-tile);cursor:pointer}" +
     ".fbx-preview .fbx-edit{right:52px}" +
@@ -105,11 +113,12 @@
     "@keyframes fbx-pop{from{opacity:0;transform:scale(.97)}}" +
     "@keyframes fbx-rise{from{opacity:0;transform:translateY(8px) scale(.98)}}" +
     "@keyframes fbx-flash{from{opacity:.6}to{opacity:0}}" +
+    "@keyframes fbx-pulse{50%{opacity:.3}}" +
     "@keyframes fbx-spin{to{transform:rotate(360deg)}}" +
     "@media(hover:hover) and (pointer:fine){.fbx .fbx-kind:not([aria-checked=true]):hover,.fbx-cam:hover:not(:disabled),.fbx-close:hover,.fbx-remove:hover,.fbx-qa-x:hover,.fbx .fbx-qa-btn:not(.fbx-qa-primary):hover{background:var(--fb-tile)}.fbx-send:hover:not(:disabled),.fbx-launch:hover,.fbx .fbx-qa-primary:hover{background:#27272a}" +
     ".fbx-qa-thumb:hover .fbx-qa-hover{opacity:1}.fbx-tb button:hover:not(:disabled):not([aria-pressed=true]),.fbx-pop button:hover{background:rgba(255,255,255,.08);color:#fff}.fbx .fbx-tb .fbx-tb-done:hover{background:#e4e4e7}" +
-    ".fbx-tb [data-tip]:hover::after{opacity:1;transform:translate(-50%,0);transition-delay:450ms}}" +
-    "@media(prefers-reduced-motion:reduce){.fbx-panel,.fbx button{transition:none}.fbx button:active:not(:disabled){transform:none}.fbx-flash{display:none}.fbx-snap,.fbx-qa,.fbx-ed,.fbx-stage,.fbx-pop{animation:none}}" +
+    ".fbx-recx:hover{background:rgba(255,255,255,.1);color:#fff}.fbx .fbx-recstop:hover{background:#e4e4e7}.fbx-tb [data-tip]:hover::after{opacity:1;transform:translate(-50%,0);transition-delay:450ms}}" +
+    "@media(prefers-reduced-motion:reduce){.fbx-panel,.fbx button{transition:none}.fbx button:active:not(:disabled){transform:none}.fbx-flash{display:none}.fbx-recbar .fbx-dot{animation:none}.fbx-snap,.fbx-recbar,.fbx-qa,.fbx-ed,.fbx-stage,.fbx-pop{animation:none}}" +
     "@media(max-width:640px){.fbx-tb{top:auto;bottom:max(12px,env(safe-area-inset-bottom));flex-wrap:wrap;justify-content:center;row-gap:4px;width:max-content}.fbx-sep{display:none}.fbx-tb button{width:38px;height:38px;padding:10px}.fbx-tb [data-tip]::after,.fbx-ed-hint{display:none}.fbx-snap,.fbx-qa{left:12px;right:12px;width:auto;max-width:none}.fbx-snap{justify-content:center}}" +
     "@media(pointer:coarse){.fbx .fbx-note,.fbx .fbx-mail{font-size:16px}.fbx .fbx-kind{min-height:40px}.fbx-send kbd{display:none}}" +
     "@media(max-width:400px){.fbx-panel{" + position + ":12px;max-width:calc(100vw - 24px)}.fbx-launch{" + position + ":16px}}";
@@ -159,9 +168,8 @@
     mediaKind: "none",
     seconds: 0,
     recording: false,
-    recorder: null,
+    rec: null,
     timer: null,
-    chunks: [],
     audio: null,
     audioSeconds: 0,
     audioRecording: false,
@@ -185,7 +193,6 @@
 
   function render() {
     var focusId = body.contains(document.activeElement) ? document.activeElement.id : null;
-    if (focusId === "fbx-stop-screen") focusId = "fbx-recbtn";
     if (focusId === "fbx-stop-voice") focusId = "fbx-micbtn";
     if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
     body.innerHTML = "";
@@ -306,13 +313,9 @@
       preview.appendChild(removeButton("Remove screenshot", function () { state.media = null; state.shot = null; state.mediaKind = "none"; render(); }, "fbx-cambtn"));
       body.appendChild(preview);
     }
-    if (state.recording) {
-      var recInd = el("div", "fbx-rec", '<span class="fbx-dot"></span><span id="fbx-timer">Screen recording · ' + fmt(state.seconds) + ' / 5:00</span>');
-      recInd.appendChild(stopButton(toggleRecord));
-      body.appendChild(recInd);
-    } else if (state.mediaKind === "recording") {
-      var saved = el("div", "fbx-rec", ICONS.record + "<span>Screen recording · " + fmt(state.seconds) + "</span>");
-      saved.appendChild(removeButton("Remove screen recording", function () { state.media = null; state.mediaKind = "none"; render(); }, "fbx-recbtn"));
+    if (state.mediaKind === "recording" && state.media) {
+      var saved = el("div", "fbx-rec", ICONS.record + "<span>Page recording · " + fmt(state.seconds) + "</span>");
+      saved.appendChild(removeButton("Remove page recording", function () { state.media = null; state.mediaKind = "none"; render(); }, "fbx-recbtn"));
       body.appendChild(saved);
     }
     if (state.audioRecording) {
@@ -342,12 +345,13 @@
     tools.appendChild(cam);
 
     var rec = el("button", "fbx-cam", ICONS.record);
-    rec.title = state.recording ? "Stop screen recording" : "Record your screen (up to 5 minutes)";
+    rec.title = state.mediaKind === "recording" ? "Record this page again" : "Record this page (up to 5 minutes)";
     rec.setAttribute("aria-label", rec.title);
-    rec.setAttribute("aria-pressed", String(state.recording));
-    rec.disabled = state.busy || !navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder;
+    rec.disabled = state.busy || !canRecord();
     rec.id = "fbx-recbtn";
     rec.addEventListener("click", toggleRecord);
+    rec.addEventListener("pointerenter", loadRecorder);
+    rec.addEventListener("focus", loadRecorder);
     tools.appendChild(rec);
 
     var mic = el("button", "fbx-cam", ICONS.mic);
@@ -409,7 +413,7 @@
       form.append("screen_h", screen.height);
       form.append("user_agent", navigator.userAgent);
       if (state.media) {
-        form.append("media", state.media, state.mediaKind === "screenshot" ? "screenshot.png" : "recording.webm");
+        form.append("media", state.media, state.mediaKind === "screenshot" ? "screenshot.png" : "replay.json.gz");
         form.append("media_kind", state.mediaKind);
         if (state.mediaKind === "recording") form.append("media_seconds", Math.round(state.seconds));
       }
@@ -459,52 +463,130 @@
 
   function stopButton(action) {
     var button = el("button", "fbx-stop", "Stop");
-    button.id = action === toggleRecord ? "fbx-stop-screen" : "fbx-stop-voice";
+    button.id = "fbx-stop-voice";
     button.addEventListener("click", action);
     return button;
   }
 
-  // Screen recording via getDisplayMedia, hard-capped at 5 minutes.
+  // Page recording without a screen-share prompt: rrweb (lazy-loaded from
+  // /embed-record.js) records the page's DOM, mutations and input; the worker
+  // replays it at /replay/<key>. The widget's own nodes carry the `fbx` class
+  // and are blocked from the recording. Hard-capped at 5 minutes.
+  var recordLib = null;
+  function loadRecorder() {
+    if (window.rrwebRecord) return Promise.resolve(window.rrwebRecord);
+    if (!recordLib) {
+      recordLib = new Promise(function (ok, fail) {
+        var s = document.createElement("script");
+        s.src = endpoint + "/embed-record.js";
+        s.async = true;
+        s.onload = function () { window.rrwebRecord ? ok(window.rrwebRecord) : fail(new Error("recorder unavailable")); };
+        s.onerror = function () { recordLib = null; fail(new Error("recorder unavailable")); };
+        document.head.appendChild(s);
+      });
+      recordLib.catch(function () {});
+    }
+    return recordLib;
+  }
+
+  function canRecord() {
+    return typeof CompressionStream === "function" && typeof MutationObserver === "function";
+  }
+
   function toggleRecord() {
-    if (state.recording) {
-      if (state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
+    if (state.recording) return stopRecording(true);
+    if (state.busy || layer || !canRecord()) return;
+    var gen = generation;
+    loadRecorder().then(function (lib) {
+      if (gen !== generation || state.recording || layer) return;
+      var events = [];
+      var stop = (lib.record || lib.default.record)({
+        emit: function (event) { events.push(event); },
+        blockClass: "fbx",
+        maskInputOptions: { password: true },
+        slimDOMOptions: "all",
+        sampling: { mousemove: 50, scroll: 150, input: "last" },
+      });
+      if (!stop) throw new Error("recorder failed to start");
+      state.rec = { stop: stop, events: events, gen: gen };
+      state.recording = true;
+      state.seconds = 0;
+      away(true);
+      launch.classList.add("fbx-away");
+      showRecordBar();
+      state.timer = setInterval(function () {
+        state.seconds++;
+        var t = document.getElementById("fbx-rectime");
+        if (t) t.textContent = fmt(state.seconds);
+        if (state.seconds >= 300) stopRecording(true);
+      }, 1000);
+    }).catch(function () {
+      if (gen !== generation) return;
+      showFormError("Recording isn\u2019t available on this page right now.");
+    });
+  }
+
+  // Loom-style floating control where the launcher sits.
+  function showRecordBar() {
+    var bar = el("div", "fbx fbx-anno fbx-recbar", '<span class="fbx-dot"></span><span class="fbx-rectime" id="fbx-rectime" role="timer" aria-label="Recording time">0:00</span>');
+    bar.setAttribute("role", "region");
+    bar.setAttribute("aria-label", "Recording this page");
+    var stopBtn = el("button", "fbx-recstop", '<span class="fbx-sq"></span>Stop');
+    stopBtn.title = "Stop and attach";
+    stopBtn.addEventListener("click", function () { stopRecording(true); });
+    var discard = el("button", "fbx-recx", ICONS.close);
+    discard.title = "Discard recording";
+    discard.setAttribute("aria-label", discard.title);
+    discard.addEventListener("click", function () { stopRecording(false); });
+    bar.appendChild(stopBtn);
+    bar.appendChild(discard);
+    showLayer(bar);
+  }
+
+  function stopRecording(keep) {
+    var rec = state.rec;
+    if (!rec) return;
+    state.rec = null;
+    state.recording = false;
+    clearInterval(state.timer);
+    state.timer = null;
+    try { rec.stop(); } catch (e) { /* already stopped */ }
+    closeLayer();
+    launch.classList.remove("fbx-away");
+    if (rec.gen !== generation) return;
+    if (!keep || rec.events.length < 2) {
+      away(false);
+      render();
+      focusById("fbx-recbtn");
       return;
     }
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia || !window.MediaRecorder) return;
-    var recordingGeneration = generation;
-    navigator.mediaDevices
-      .getDisplayMedia({ video: true })
-      .then(function (stream) {
-        if (recordingGeneration !== generation) { stream.getTracks().forEach(function (t) { t.stop(); }); return; }
-        state.chunks = [];
-        var mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
-        state.recorder = new MediaRecorder(stream, { mimeType: mime });
-        state.recorder.ondataavailable = function (e) { if (recordingGeneration === generation && e.data && e.data.size) state.chunks.push(e.data); };
-        state.recorder.onstop = function () {
-          stream.getTracks().forEach(function (t) { t.stop(); });
-          if (recordingGeneration !== generation) return;
-          clearInterval(state.timer);
-          state.recording = false;
-          state.timer = null;
-          state.media = new Blob(state.chunks, { type: "video/webm" });
-          state.mediaKind = "recording";
-          render();
-        };
-        stream.getVideoTracks()[0].addEventListener("ended", function () {
-          if (state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
-        });
-        state.seconds = 0;
-        state.recording = true;
-        state.recorder.start(1000);
-        render();
-        state.timer = setInterval(function () {
-          state.seconds++;
-          var t = document.getElementById("fbx-timer");
-          if (t) t.textContent = "Screen recording · " + fmt(state.seconds) + " / 5:00";
-          if (state.seconds >= 300 && state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
-        }, 1000);
-      })
-      .catch(function () { /* user declined; keep the form quiet */ });
+    var seconds = state.seconds;
+    packReplay(rec.events).then(function (blob) {
+      if (rec.gen !== generation) return;
+      state.media = blob;
+      state.mediaKind = "recording";
+      state.shot = null;
+      state.seconds = seconds;
+      away(false);
+      render();
+      focusById(state.text.trim() ? "fbx-send" : "fbx-note");
+    }, function () {
+      if (rec.gen !== generation) return;
+      showFormError("Couldn\u2019t save the recording. Please try again.");
+    });
+  }
+
+  function packReplay(events) {
+    var json = JSON.stringify({ v: 1, url: location.href, viewport: { w: innerWidth, h: innerHeight }, events: events });
+    var gzipped = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
+    return new Response(gzipped).blob().then(function (b) { return new Blob([b], { type: "application/gzip" }); });
+  }
+
+  function showFormError(message) {
+    away(false);
+    render();
+    var error = body.querySelector(".fbx-err");
+    if (error) { error.textContent = message; error.style.display = "block"; }
   }
 
   function fmt(s) {
@@ -573,7 +655,8 @@
     state.seconds = 0;
     state.issueUrl = null;
     if (state.timer) { clearInterval(state.timer); state.timer = null; }
-    if (state.recording && state.recorder && state.recorder.state !== "inactive") state.recorder.stop();
+    if (state.rec) { try { state.rec.stop(); } catch (e) { /* already stopped */ } state.rec = null; }
+    if (launch) launch.classList.remove("fbx-away");
     state.recording = false;
     state.audio = null;
     state.audioSeconds = 0;
@@ -701,7 +784,7 @@
     if (state.busy || state.recording || layer) return;
     var gen = generation;
     away(true);
-    var pill = el("div", "fbx fbx-snap", '<span class="fbx-spin"></span>Capturing this page…');
+    var pill = el("div", "fbx fbx-snap", '<span class="fbx-spin"></span>Capturing this page\u2026');
     pill.setAttribute("role", "status");
     showLayer(pill);
     // Let the panel disappear before the (synchronous) DOM walk starts.
@@ -786,7 +869,7 @@
 
   function captureFailed() {
     var canShare = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
-    var ui = cardShell("Couldn’t capture this page");
+    var ui = cardShell("Couldn\u2019t capture this page");
     ui.card.appendChild(el("p")).textContent = canShare
       ? "This page blocks in-page screenshots. You can share your screen instead."
       : "This page blocks in-page screenshots in this browser.";
@@ -824,10 +907,7 @@
     }, function () {
       if (gen !== generation) return;
       closeLayer();
-      away(false);
-      render();
-      var error = body.querySelector(".fbx-err");
-      if (error) { error.textContent = "Couldn’t attach the screenshot. Please try again."; error.style.display = "block"; }
+      showFormError("Couldn\u2019t attach the screenshot. Please try again.");
     });
   }
 
@@ -1337,7 +1417,7 @@
 
   function boot() {
     if (!project) return;
-    var style = el("style");
+    var style = el("style", "fbx");
     style.textContent = CSS;
     document.head.appendChild(style);
 

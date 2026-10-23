@@ -109,6 +109,40 @@ test("feedback with screenshot creates issue and stores media", async () => {
   expect(media.headers.get("content-type")).toBe("image/png");
 });
 
+test("web page recording is stored as a replay and linked from the issue", async () => {
+  const cookie = await login();
+  const slug = `replay-${Date.now()}`;
+  await createProject(cookie, slug);
+
+  const json = JSON.stringify({ v: 1, url: "https://shop.test/cart", viewport: { w: 1280, h: 800 }, events: [{ type: 4, timestamp: 1 }, { type: 2, timestamp: 2 }] });
+  const gz = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"))).arrayBuffer();
+  const form = new FormData();
+  form.append("project", slug);
+  form.append("kind", "bug");
+  form.append("text", "Discount button breaks the total");
+  form.append("media", new File([gz], "replay.json.gz", { type: "application/gzip" }));
+  form.append("media_kind", "recording");
+  form.append("media_seconds", "12");
+
+  const res = await SELF.fetch("https://example.com/api/feedback", { method: "POST", body: form });
+  expect(res.status).toBe(201);
+  const issue = ghCalls.at(-1)?.body.body as string;
+  const link = issue.match(/\[▶ Watch session replay \(12s\)\]\((https:\/\/example\.com\/replay\/(p\/[^)]+\.rrweb\.gz))\)/);
+  expect(link).not.toBeNull();
+
+  const page = await SELF.fetch(link![1]!);
+  expect(page.status).toBe(200);
+  expect(page.headers.get("content-security-policy")).toContain("script-src 'self'");
+  expect(await page.text()).toContain('<script src="/replay-player.js">');
+
+  const media = await SELF.fetch(`https://example.com/f/${link![2]}`);
+  expect(media.headers.get("content-type")).toBe("application/gzip");
+  const back = await new Response(media.body!.pipeThrough(new DecompressionStream("gzip"))).json();
+  expect(back).toEqual(JSON.parse(json));
+
+  expect((await SELF.fetch("https://example.com/replay/p/x/f/y.png")).status).toBe(404);
+});
+
 test("rejected media mismatch and empty text", async () => {
   const cookie = await login();
   const slug = `bad-${Date.now()}`;

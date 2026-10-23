@@ -1,44 +1,69 @@
 #!/usr/bin/env python3
-"""Regenerate the widget bundles the Worker serves.
+"""Regenerate the browser bundles the Worker serves, as TS string modules.
 
-- src/embed_widget.js (hand-written widget) -> src/embed_js.ts, served at /embed.js
-- node_modules/modern-screenshot (pinned devDependency, UMD build) -> src/capture_js.ts,
-  served at /embed-capture.js and lazy-loaded by the widget for in-page screenshots.
+- src/embed_widget.js (hand-written widget)          -> src/embed_js.ts    /embed.js
+- modern-screenshot (in-page screenshots, lazy)      -> src/capture_js.ts  /embed-capture.js
+- @rrweb/record (prompt-free page recording, lazy)   -> src/record_js.ts   /embed-record.js
+- rrweb-player + style (replay page only)            -> src/player_js.ts   /replay-player.js
 
-Escapes each file into a TS template literal so the Worker bundles it without
-extra loaders. Run after any edit (and after `pnpm install`): python3 scripts/build-embed.py
+Third-party code comes from pinned devDependencies in node_modules. Escapes
+each file into a TS template literal so the Worker bundles it without extra
+loaders. Run after any widget edit or `pnpm install`: python3 scripts/build-embed.py
 """
 import json
 import pathlib
+import re
 import sys
 
 root = pathlib.Path(__file__).resolve().parent.parent
 
 
-def emit(out, name, origin, js):
-    escaped = js.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
-    out.write_text(
-        f"// Generated from {origin} by scripts/build-embed.py. Do not edit.\n"
-        f"export const {name} = `" + escaped + "`;\n"
+def escape(text):
+    return text.replace("\\", "\\\\").replace("`", "\\`").replace("${", "\\${")
+
+
+def emit(out, origin, exports):
+    body = "".join(f"export const {name} = `" + escape(text) + "`;\n" for name, text in exports)
+    out.write_text(f"// Generated from {origin} by scripts/build-embed.py. Do not edit.\n" + body)
+    size = sum(len(text) for _, text in exports)
+    print(f"wrote {out.relative_to(root)} ({size} bytes from {origin})")
+
+
+def strip_maps(text):
+    # Source maps aren't shipped; dangling references only produce 404s/warnings.
+    return re.sub(r"(//|/\*)# sourceMappingURL=[^\s*'\"`]+( \*/)?", "", text)
+
+
+def vendor(name, path, global_name):
+    pkg_dir = root / "node_modules" / name
+    if not pkg_dir.exists():
+        sys.exit(f"{name} missing: run pnpm install first")
+    pkg = json.loads((pkg_dir / "package.json").read_text())
+    lib = (pkg_dir / path).read_text()
+    if global_name not in lib:
+        sys.exit(f"refusing: {name}/{path} does not define {global_name}")
+    lib = strip_maps(lib)
+    # UMD wrappers register with AMD/CommonJS loaders when the host page has
+    # one; shadow those names so the library always lands on self.<global>.
+    wrapped = (
+        f"/*! {pkg['name']} {pkg['version']} | {pkg['license']} | {pkg.get('homepage', '')} */\n"
+        "(function(define,module,exports){\n" + lib.rstrip() + "\n}).call(self);\n"
     )
-    print(f"wrote {out.relative_to(root)} ({len(js)} bytes from {origin})")
+    return pkg, wrapped
 
 
 src = root / "src" / "embed_widget.js"
 js = src.read_text()
 if "feedbackbee" not in js.lower() and "fb-" not in js:
     sys.exit("refusing: file does not look like the widget")
-emit(root / "src" / "embed_js.ts", "EMBED_JS", "embed_widget.js", js)
+emit(root / "src" / "embed_js.ts", "embed_widget.js", [("EMBED_JS", js)])
 
-pkg_dir = root / "node_modules" / "modern-screenshot"
-if not pkg_dir.exists():
-    sys.exit("modern-screenshot missing: run pnpm install first")
-pkg = json.loads((pkg_dir / "package.json").read_text())
-lib = (pkg_dir / "dist" / "index.js").read_text()
-# The UMD wrapper registers with AMD/CommonJS loaders when the host page has
-# one; shadow those names so it always lands on self.modernScreenshot.
-wrapped = (
-    f"/*! modern-screenshot {pkg['version']} | {pkg['license']} | {pkg['homepage']} */\n"
-    "(function(define,module,exports){\n" + lib.rstrip() + "\n}).call(self);\n"
-)
-emit(root / "src" / "capture_js.ts", "CAPTURE_JS", f"modern-screenshot@{pkg['version']}", wrapped)
+pkg, code = vendor("modern-screenshot", "dist/index.js", "modernScreenshot")
+emit(root / "src" / "capture_js.ts", f"modern-screenshot@{pkg['version']}", [("CAPTURE_JS", code)])
+
+pkg, code = vendor("@rrweb/record", "dist/record.umd.min.cjs", "rrwebRecord")
+emit(root / "src" / "record_js.ts", f"@rrweb/record@{pkg['version']}", [("RECORD_JS", code)])
+
+pkg, code = vendor("rrweb-player", "dist/rrweb-player.umd.min.cjs", "rrwebPlayer")
+css = strip_maps((root / "node_modules" / "rrweb-player" / "dist" / "style.min.css").read_text())
+emit(root / "src" / "player_js.ts", f"rrweb-player@{pkg['version']}", [("PLAYER_JS", code), ("PLAYER_CSS", css)])
