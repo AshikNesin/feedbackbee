@@ -41,6 +41,6 @@ app.route("/", replayRoutes);
 
 export default app;
 
-import { EMBED_JS } from "./embed_js.ts";
-import { CAPTURE_JS } from "./capture_js.ts";
-import { RECORD_JS } from "./record_js.ts";
+import { EMBED_JS } from "./generated/embed_js.ts";
+import { CAPTURE_JS } from "./generated/capture_js.ts";
+import { RECORD_JS } from "./generated/record_js.ts";

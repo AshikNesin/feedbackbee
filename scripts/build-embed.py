@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Regenerate the browser bundles the Worker serves, as TS string modules.
 
-- src/embed_widget.js (hand-written widget)          -> src/embed_js.ts    /embed.js
-- modern-screenshot (in-page screenshots, lazy)      -> src/capture_js.ts  /embed-capture.js
-- @rrweb/record (prompt-free page recording, lazy)   -> src/record_js.ts   /embed-record.js
-- rrweb-player + style (replay page only)            -> src/player_js.ts   /replay-player.js
+- src/embed_widget.js (hand-written widget)          -> src/generated/embed_js.ts    /embed.js
+- modern-screenshot (in-page screenshots, lazy)      -> src/generated/capture_js.ts  /embed-capture.js
+- @rrweb/record (prompt-free page recording, lazy)   -> src/generated/record_js.ts   /embed-record.js
+- rrweb-player + style (replay page only)            -> src/generated/player_js.ts   /replay-player.js
 
 Third-party code comes from pinned devDependencies in node_modules. Escapes
 each file into a TS template literal so the Worker bundles it without extra
@@ -56,14 +56,14 @@ src = root / "src" / "embed_widget.js"
 js = src.read_text()
 if "feedbackbee" not in js.lower() and "fb-" not in js:
     sys.exit("refusing: file does not look like the widget")
-emit(root / "src" / "embed_js.ts", "embed_widget.js", [("EMBED_JS", js)])
+emit(root / "src" / "generated" / "embed_js.ts", "embed_widget.js", [("EMBED_JS", js)])
 
 pkg, code = vendor("modern-screenshot", "dist/index.js", "modernScreenshot")
-emit(root / "src" / "capture_js.ts", f"modern-screenshot@{pkg['version']}", [("CAPTURE_JS", code)])
+emit(root / "src" / "generated" / "capture_js.ts", f"modern-screenshot@{pkg['version']}", [("CAPTURE_JS", code)])
 
 pkg, code = vendor("@rrweb/record", "dist/record.umd.min.cjs", "rrwebRecord")
-emit(root / "src" / "record_js.ts", f"@rrweb/record@{pkg['version']}", [("RECORD_JS", code)])
+emit(root / "src" / "generated" / "record_js.ts", f"@rrweb/record@{pkg['version']}", [("RECORD_JS", code)])
 
 pkg, code = vendor("rrweb-player", "dist/rrweb-player.umd.min.cjs", "rrwebPlayer")
 css = strip_maps((root / "node_modules" / "rrweb-player" / "dist" / "style.min.css").read_text())
-emit(root / "src" / "player_js.ts", f"rrweb-player@{pkg['version']}", [("PLAYER_JS", code), ("PLAYER_CSS", css)])
+emit(root / "src" / "generated" / "player_js.ts", f"rrweb-player@{pkg['version']}", [("PLAYER_JS", code), ("PLAYER_CSS", css)])
