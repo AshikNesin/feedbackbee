@@ -1,8 +1,6 @@
 # FeedbackBee
 
-Lightweight, self-hostable user feedback on the Cloudflare free tier. Visitors click a widget in your app, annotate a screenshot or record the screen, and the feedback lands as a labeled GitHub issue. Think feedback.fish that you own.
-
-**Website**: [feedbackbee.nesin.io](https://feedbackbee.nesin.io)
+Lightweight, self-hostable user feedback on the Cloudflare free tier. Visitors click a widget in your app, annotate a screenshot or record the screen, and the feedback lands as a labeled GitHub issue.
 
 ### Widget
 
@@ -54,3 +52,6 @@ pnpm test          # workerd integration tests
 ```
 
 `GET /demo` hosts a demo page with the widget. The `demo` project is provisioned automatically on first visit.
+
+## Inspiration
+- Feedback.fish
