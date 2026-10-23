@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { api } from "./api.ts";
+import { Logo } from "./icons.tsx";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -22,22 +23,23 @@ export function Login() {
   }
 
   return (
-    <div style={{ display: "grid", placeItems: "center", minHeight: "100vh" }}>
-      <form onSubmit={submit} className="card" style={{ width: 360, display: "grid", gap: 14 }}>
-        <h1 style={{ margin: 0, fontSize: 20 }}>FeedbackBee</h1>
-        <p style={{ margin: 0, color: "var(--muted)", fontSize: 13 }}>
-          First login creates the owner account.
-        </p>
-        <label>
+    <div className="auth">
+      <form onSubmit={submit}>
+        <div>
+          <Logo size={32} />
+          <h1>Sign in to FeedbackBee</h1>
+        </div>
+        <p className="sub">The first sign-in creates the owner account.</p>
+        <label className="field">
           Email
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <input className="input" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
         </label>
-        <label>
+        <label className="field">
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input className="input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
         </label>
-        {error && <div style={{ color: "#b91c1c", fontSize: 13 }}>{error}</div>}
-        <button disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+        {error && <p className="error">{error}</p>}
+        <button className="btn primary" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
       </form>
     </div>
   );
