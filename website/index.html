@@ -21,14 +21,14 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400&display=swap" />
 <style>
 /* Hallmark · shape: Feature Stack (banner, showcase, rows, steps, band) · genre: modern-minimal · theme: brand · redesign: full
- * paper: oklch(98.5% 0.004 85) · accent: oklch(80.5% 0.165 82) · display: Geist 600 · body: Geist 400 · hero: Banner · nav: edge-aligned · footer: mast · signature: the real widget demo on a dark stage with its player row, full width under the headline
+ * paper: oklch(98.5% 0.004 85) · accent: oklch(80.5% 0.165 82) · display: Geist 600 · body: Geist 400 · hero: Banner · nav: edge-aligned · footer: mast · signature: the real widget demo as a plain video with one play button, full width under the headline
  * axes: light/grotesk-sans/chromatic-honey · posture: restrained · contrast: pass · fold: pass · job: sign up · imagery: product video 1 (the user's recording) · v2.0.0 */
 /* Hallmark · pre-emit critique: P4 H5 E4 S4 R5 V3 · weakest: V, a dev-tool page in a familiar order; kept the order the content argues and made each section a different composition, no cards anywhere */
 /* Hallmark · reworded "A tiny widget for your web and Android apps. Users grab a screenshot, mark it up or record what happened, and you get a labeled issue. Self-hosted on Cloudflare's free tier." to "A tiny widget for your web and Android apps. Users mark up a screenshot or record the bug, and you get a labeled issue." · 58 names the 31-word hero line */
 /* Hallmark · reworded "Open source · MIT licensed" to "Open source, MIT licensed" · 63 names the dot */
 /* Hallmark · waive 59 · 96px sits between the banner hero and the demo video it introduces · a wider gap pushes the demo video below the 1280 x 800 fold */
 /* Hallmark · dismissed 3 · the steps are a numbered list with code wells, no icons or tiles */
-/* Hallmark · dropped the drawn browser bar (traffic lights, your-app.com) · 47a names it; the player row (pause, progress, sound) sits on the stage under the video */
+/* Hallmark · dropped the drawn browser bar (traffic lights, your-app.com) · 47a names it; the video uses the browser's own controls after one play button */
 
 /* tokens */
 :root {
@@ -148,27 +148,29 @@ html.js[data-theme="dark"] .theme .moon { opacity: 0; transform: rotate(-30deg) 
   .hero-side { margin-top: var(--space-lg); max-width: 36rem; }
 }
 
-/* the demo: a recording on a dark stage, with its player row beneath so nothing covers the widget in the video */
+/* the demo: a plain video with the browser's own controls, and one play button over the poster */
 .demo { margin: 0; }
-.stage { --color-focus: var(--color-accent); padding: var(--space-lg) var(--space-lg) var(--space-xs); border-radius: calc(var(--radius-card) + var(--space-xs)); background: var(--color-stage); color: var(--color-on-stage); }
-.stage video { width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius-well); background: var(--color-paper-2); }
-.player { display: flex; align-items: center; gap: var(--space-sm); margin-top: var(--space-xs); }
-.player .icon-btn { color: var(--color-on-stage); }
-.player .icon-btn:hover { background: var(--color-stage-2); color: var(--color-on-stage); }
-.progress { flex: 1; height: 4px; border-radius: var(--radius-pill); background: var(--color-stage-2); overflow: hidden; }
-.progress i { display: block; height: 100%; background: var(--color-accent); transform-origin: 0 50%; transform: scaleX(0); }
-.sound { display: inline-flex; align-items: center; gap: var(--space-xs); min-height: 44px; padding: 0 var(--space-md); border: 1px solid var(--color-stage-edge); border-radius: var(--radius-pill); background: transparent; color: var(--color-on-stage); font: 500 var(--text-sm)/1 var(--font-body); white-space: nowrap; cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color var(--dur-short) var(--ease-out), border-color var(--dur-short) var(--ease-out), transform var(--dur-micro) var(--ease-out); }
-.sound:hover { background: var(--color-stage-2); }
-.sound:active { transform: scale(0.97); }
-.sound .icons { display: grid; }
-.sound svg { grid-area: 1 / 1; transition: opacity var(--dur-short) var(--ease-out), transform var(--dur-short) var(--ease-out); }
-.sound .on, .sound[aria-pressed="true"] .off { opacity: 0; transform: scale(0.6); }
-.sound[aria-pressed="true"] .on { opacity: 1; transform: none; }
-.sound[aria-pressed="true"] { border-color: var(--color-accent); }
-.pause .play, .pause[aria-pressed="true"] .bars { opacity: 0; transform: scale(0.6); }
-.pause[aria-pressed="true"] .play { opacity: 1; transform: none; }
+.video { position: relative; border-radius: var(--radius-card); overflow: hidden; background: var(--color-stage); }
+.video video { width: 100%; aspect-ratio: 16 / 9; }
+.play-overlay {
+  position: absolute; inset: 0; display: grid; place-items: center; width: 100%; padding: 0; border: 0;
+  background: color-mix(in oklch, var(--color-stage) 25%, transparent); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--dur-short) var(--ease-out), opacity var(--dur-short) var(--ease-out);
+}
+.play-overlay .disc {
+  display: grid; place-items: center; width: 88px; height: 88px; border-radius: 50%;
+  background: var(--color-accent); color: var(--color-stage); box-shadow: 0 8px 32px color-mix(in oklch, var(--color-stage) 40%, transparent);
+  transition: transform var(--dur-short) var(--ease-out);
+}
+.play-overlay svg { margin-left: var(--space-2xs); }
+.play-overlay:hover { background: color-mix(in oklch, var(--color-stage) 10%, transparent); }
+.play-overlay:hover .disc { transform: scale(1.06); }
+.play-overlay:active .disc { transform: scale(0.96); }
+.play-overlay:focus-visible { outline: 3px solid var(--color-accent); outline-offset: -3px; }
+.play-overlay:focus-visible .disc { transform: scale(1.06); }
+.play-overlay[hidden] { display: none; }
 .demo figcaption { margin-top: var(--space-sm); font-size: var(--text-sm); color: var(--color-muted); }
-@media (max-width: 40rem) { .stage { padding: var(--space-xs) var(--space-xs) 0; } .sound .label { display: none; } .sound { padding: 0 var(--space-sm); } }
+@media (max-width: 40rem) { .play-overlay .disc { width: 64px; height: 64px; } .play-overlay svg { width: 24px; height: 24px; } }
 
 /* features: rows parted by hairlines */
 .features { padding-top: var(--section-gap); }
@@ -264,16 +266,12 @@ html.js[data-theme="dark"] .theme .moon { opacity: 0; transform: rotate(-30deg) 
 
   <section class="container" aria-label="Demo">
     <figure class="demo">
-      <div class="stage">
-        <video poster="/poster.jpg" autoplay muted loop playsinline controls preload="auto" aria-label="Demo: a user spots a bug, takes a screenshot, annotates it with an arrow, a box and pixelation, and sends it as feedback.">
+      <div class="video">
+        <video poster="/poster.jpg" controls playsinline preload="metadata" aria-label="Demo: a user spots a bug, takes a screenshot, annotates it with an arrow, a box and pixelation, and sends it as feedback.">
           <source src="/demo-music.webm" type="video/webm" />
           <source src="/demo-music.mp4" type="video/mp4" />
         </video>
-        <div class="player needs-js">
-          <button class="icon-btn pause" type="button" aria-pressed="false" aria-label="Pause demo"><svg class="bars" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg><svg class="play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></button>
-          <span class="progress" aria-hidden="true"><i></i></span>
-          <button class="sound" type="button" aria-pressed="false" aria-label="Turn sound on"><span class="icons"><svg class="off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg><svg class="on" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></span><span class="label" aria-hidden="true">Play with sound</span></button>
-        </div>
+        <button class="play-overlay needs-js" type="button" aria-label="Play demo"><span class="disc"><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg></span></button>
       </div>
       <figcaption>Spot a bug, snap the page, mark it up, send. No screen-share prompt.</figcaption>
     </figure>
@@ -374,40 +372,13 @@ themeBtn.addEventListener("click", function () {
   try { localStorage.setItem("fb:theme", next); } catch (e) {}
   labelTheme();
 });
-// Sound toggle for the demo's backing track (autoplay has to start muted).
-var sound = document.querySelector(".sound");
-sound.addEventListener("click", function () {
-  var on = sound.getAttribute("aria-pressed") !== "true";
-  v.muted = !on;
-  if (on) { v.currentTime = 0; held = false; sync(); }
-  sound.setAttribute("aria-pressed", String(on));
-  sound.setAttribute("aria-label", on ? "Turn sound off" : "Turn sound on");
-  sound.querySelector(".label").textContent = on ? "Sound on" : "Play with sound";
-});
-// Progress along the bottom of the player, so the demo reads as a recording.
-var bar = document.querySelector(".progress i");
-var raf;
-function tick() {
-  if (v.duration) bar.style.transform = "scaleX(" + v.currentTime / v.duration + ")";
-  raf = requestAnimationFrame(tick);
-}
-v.addEventListener("playing", function () { cancelAnimationFrame(raf); tick(); });
-v.addEventListener("pause", function () { cancelAnimationFrame(raf); });
-// The demo plays while on screen, unless the user paused it or prefers less motion.
-// Native controls are the no-script fallback; the script swaps in its own.
-var pause = document.querySelector(".pause");
-var seen = false, held = matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Demo: one play button over the poster, then the browser's own controls (fullscreen and all).
+// Without the script the native controls are there from the start.
+var playBtn = document.querySelector(".play-overlay");
 v.controls = false;
-if (held) v.removeAttribute("autoplay");
-function sync() {
-  seen && !held ? v.play().catch(function () {}) : v.pause();
-  pause.setAttribute("aria-pressed", String(held));
-  pause.setAttribute("aria-label", held ? "Play demo" : "Pause demo");
-}
-pause.addEventListener("click", function () { held = !held; sync(); });
-if ("IntersectionObserver" in window) {
-  new IntersectionObserver(function (e) { seen = e[0].isIntersecting; sync(); }).observe(v);
-} else { seen = true; sync(); }
+playBtn.addEventListener("click", function () { v.play().catch(function () {}); });
+v.addEventListener("play", function () { playBtn.hidden = true; v.controls = true; });
+v.addEventListener("ended", function () { playBtn.hidden = false; v.controls = false; });
 </script>
 </body>
 </html>
