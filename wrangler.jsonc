@@ -1,5 +1,5 @@
 {
-  // FeedbackBee — self-hostable feedback widget on the Cloudflare free tier.
+  // FeedbackBee: self-hostable feedback widget on the Cloudflare free tier.
   // database_id pins this deployment's D1 database. For another account, run:
   //   pnpm exec wrangler d1 create feedbackbee
   // and replace database_id below with the new database's id.

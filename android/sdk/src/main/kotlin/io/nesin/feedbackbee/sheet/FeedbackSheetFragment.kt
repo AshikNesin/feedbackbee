@@ -3,12 +3,9 @@ package io.nesin.feedbackbee.sheet
 import android.app.Dialog
 import android.animation.ValueAnimator
 import android.Manifest
-import android.content.ActivityNotFoundException
 import android.content.DialogInterface
-import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.Gravity
@@ -18,7 +15,6 @@ import android.view.ViewGroup
 import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.view.animation.PathInterpolator
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.FragmentActivity
@@ -184,16 +180,6 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
             onSuccess = viewModel::finishVoiceRecording,
             onFailure = { viewModel.failVoiceRecording("Couldn't save that voice note. Please try again.") },
         )
-    }
-
-    override fun onOpenIssue(url: String) {
-        val uri = Uri.parse(url)
-        if (uri.scheme != "https" && uri.scheme != "http") return
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, uri))
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(requireContext(), "No app can open this link.", Toast.LENGTH_SHORT).show()
-        }
     }
 
     private fun slideIn(view: View) {

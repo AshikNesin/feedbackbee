@@ -56,7 +56,6 @@
     ".fbx-check{display:flex;align-items:center;justify-content:center;width:40px;height:40px;margin:0 auto 12px;border-radius:50%;background:#dcfce7;color:#15803d}" +
     ".fbx-done h3{margin:0 0 4px;font-size:16px;letter-spacing:-.2px;font-weight:600;color:var(--fb-ink)}" +
     ".fbx-done p{margin:0;font-size:13px;color:var(--fb-muted)}" +
-    ".fbx-done a{display:inline-flex;align-items:center;min-height:44px;color:var(--fb-ink);text-underline-offset:3px}" +
     ".fbx-err{margin-top:12px;font-size:13px;color:#b91c1c;display:none}" +
     ".fbx-launch.fbx-away{visibility:hidden}" +
     ".fbx-recbar{position:fixed;" + position + ":max(20px,env(safe-area-inset-" + position + "));bottom:max(20px,env(safe-area-inset-bottom));z-index:2147483001;display:flex;align-items:center;gap:8px;padding:6px 6px 6px 16px;border-radius:999px;background:rgba(24,24,27,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#fff;box-shadow:0 8px 24px #0000002e;animation:fbx-rise 200ms cubic-bezier(.23,1,.32,1)}" +
@@ -204,18 +203,8 @@
       var done = el("div", "fbx-done");
       done.setAttribute("role", "status");
       done.appendChild(el("div", "fbx-check", ICONS.check));
-      var h = el("h3", "", "Thanks \u2014 feedback sent");
-      var p = el("p");
-      if (state.issueUrl) {
-        var a = document.createElement("a");
-        a.href = state.issueUrl;
-        a.target = "_blank";
-        a.rel = "noreferrer";
-        a.textContent = "View on GitHub ↗";
-        p.appendChild(a);
-      } else {
-        p.textContent = "We read every message.";
-      }
+      var h = el("h3", "", "Thanks, feedback sent");
+      var p = el("p", "", "We read every message.");
       done.appendChild(h);
       done.appendChild(p);
       body.appendChild(done);
@@ -436,11 +425,10 @@
             failed(result.status === 404 ? "This feedback board isn\u2019t set up yet. Please try again later." : result.data.error);
             return;
           }
-          state.issueUrl = result.data.issueUrl || null;
           state.screen = "done";
           render();
           closeBtn.focus({ preventScroll: true });
-          resetTimer = setTimeout(function () { setOpen(false); }, state.issueUrl ? 5000 : 3000);
+          resetTimer = setTimeout(function () { setOpen(false); }, 3000);
         })
         .catch(function () {
           if (requestGeneration !== generation) return;
@@ -653,7 +641,6 @@
     state.shot = null;
     state.mediaKind = "none";
     state.seconds = 0;
-    state.issueUrl = null;
     if (state.timer) { clearInterval(state.timer); state.timer = null; }
     if (state.rec) { try { state.rec.stop(); } catch (e) { /* already stopped */ } state.rec = null; }
     if (launch) launch.classList.remove("fbx-away");
