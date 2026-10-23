@@ -2,7 +2,7 @@
 import { Hono } from "hono";
 import type { Env } from "../types.ts";
 import { isReplayKey } from "../lib/validate.ts";
-import { PLAYER_CSS, PLAYER_JS } from "../player_js.ts";
+import { PLAYER_CSS, PLAYER_JS } from "../generated/player_js.ts";
 
 // Recorded DOM is untrusted. The player renders it in a script-less sandboxed
 // iframe; the CSP also forbids any script but our own and any network call but

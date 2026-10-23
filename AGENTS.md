@@ -8,7 +8,7 @@ Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflar
 - Validate untrusted input once, in `src/lib/validate.ts` and route parsers. Trust internal types.
 - GitHub auth is one global fine-grained PAT held as the `GITHUB_TOKEN` Worker secret. It never leaves the worker except to api.github.com, never lives in D1, and never appears in an API response. Projects store only `owner/repo`.
 - Tests run inside workerd via `@cloudflare/vitest-plugin` with `SELF.fetch()`; outbound GitHub calls are stubbed with MSW (`test/gh-server.ts`).
-- The web widget is hand-written vanilla JS. Edit `src/embed_widget.js`, then run `python3 scripts/build-embed.py` to regenerate `src/embed_js.ts` (plus the vendored bundles from pinned devDependencies: `src/capture_js.ts` from `modern-screenshot`, `src/record_js.ts` from `@rrweb/record`, `src/player_js.ts` from `rrweb-player`). Never edit the generated files.
+- The web widget is hand-written vanilla JS. Edit `src/embed_widget.js`, then run `python3 scripts/build-embed.py` to regenerate `src/generated/embed_js.ts` (plus the vendored bundles from pinned devDependencies: `capture_js.ts` from `modern-screenshot`, `record_js.ts` from `@rrweb/record`, `player_js.ts` from `rrweb-player`, all in `src/generated/`). Never edit anything in `src/generated/`.
 - Android SDK lives in `android/` (namespace io.nesin.feedbackbee, no third-party deps beyond coroutines). Keep the upload contract in `docs/CONTRACT.md` in sync with any API change.
 - `website/` is the static landing page for feedbackbee.nesin.io (plain HTML, no build, deployed separately from the Worker).
 - Free-tier ceilings matter: no queues, no Durable Objects, batch D1 where possible, media caps enforced in code.
