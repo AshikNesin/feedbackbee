@@ -165,7 +165,9 @@ function FeedbackItem({ f, open, onToggle }: { f: Feedback; open: boolean; onTog
           <dl className="ctx">
             {f.url && <><dt>Page</dt><dd><a href={f.url} target="_blank" rel="noreferrer">{f.url}</a></dd></>}
             <dt>Sent</dt><dd>{new Date(f.created_at).toLocaleString()}</dd>
-            {f.os_name && <><dt>OS</dt><dd>{[f.os_name, f.os_version].filter(Boolean).join(" ")}</dd></>}
+            {f.os_name === "web"
+              ? browser(f.user_agent) && <><dt>Browser</dt><dd>{browser(f.user_agent)}</dd></>
+              : f.os_name && <><dt>OS</dt><dd>{[f.os_name, f.os_version].filter(Boolean).join(" ")}</dd></>}
             {f.device_model && <><dt>Device</dt><dd>{f.device_model}</dd></>}
             {f.app_version && <><dt>App version</dt><dd>{f.app_version}</dd></>}
             {f.screen_w && f.screen_h && <><dt>Screen</dt><dd>{f.screen_w}×{f.screen_h}</dd></>}
