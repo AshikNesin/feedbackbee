@@ -11,7 +11,7 @@ The endpoint is public, CORS `*`, rate-limited 20/hour/IP/project.
 | `kind` | text | yes | `bug`, `idea`, or `feedback` |
 | `text` | text | yes | 1..5000 chars |
 | `email` | text | no | Reporter email, stored raw |
-| `media` | file | no | Screenshot (png/jpeg/webp, max 10 MB) or recording (webm/mp4, max 200 MB) |
+| `media` | file | no | Screenshot (png/jpeg/webp, max 10 MB) or recording (webm/mp4 video, or a gzipped rrweb replay from the web widget; max 200 MB) |
 | `media_kind` | text | no | `screenshot` or `recording`. Required iff `media` present |
 | `media_seconds` | number | no | Recording length in seconds, max 300 |
 | `audio` | file | no | Voice note (webm/ogg/mp4/m4a, max 25 MB) |
@@ -34,5 +34,5 @@ Web adds `viewport_w`/`viewport_h` in `screen_w`/`screen_h` plus a `user_agent` 
 
 ## Media serving
 
-Media lives at `GET /f/<key>` with long cache headers. Key shape `p/<project>/f/<feedback-id>/<filename>`.
+Media lives at `GET /f/<key>` with long cache headers. Web recordings are rrweb DOM replays, gzipped JSON `{"v":1,"url","viewport":{"w","h"},"events":[...]}` sniffed by the gzip magic bytes and stored as `*.rrweb.gz`; they are watched at `GET /replay/<key>`, which is what the GitHub issue links to. Key shape `p/<project>/f/<feedback-id>/<filename>`.
 Visual media and voice notes are independent: a report can carry `media`, `audio`, both, or neither.

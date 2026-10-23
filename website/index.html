@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>FeedbackBee: user feedback that lands in GitHub issues</title>
+<meta name="description" content="Open-source feedback widget for web and Android. One-click screenshots, annotations and session replays, filed as GitHub issues. Self-hosted on the Cloudflare free tier." />
+<link rel="canonical" href="https://feedbackbee.nesin.io/" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#0c0c0d" media="(prefers-color-scheme: dark)" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://feedbackbee.nesin.io/" />
+<meta property="og:title" content="FeedbackBee: user feedback that lands in GitHub issues" />
+<meta property="og:description" content="Screenshots, annotations and session replays from your users, filed as GitHub issues. Open source, self-hosted on Cloudflare's free tier." />
+<meta property="og:image" content="https://feedbackbee.nesin.io/og.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<style>
+:root {
+  --bg: #fafaf9;
+  --fg: #18181b;
+  --muted: #6b6b73;
+  --line: #e7e5e4;
+  --card: #ffffff;
+  --tile: #f4f4f3;
+  --honey: #f5b301;
+  --honey-ink: #8a5a00;
+  --ease: cubic-bezier(.23, 1, .32, 1);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0c0d;
+    --fg: #ededee;
+    --muted: #9b9ba3;
+    --line: #232326;
+    --card: #141416;
+    --tile: #1b1b1e;
+    --honey-ink: #f5c84a;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 16px/1.6 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+.wrap { max-width: 1040px; margin: 0 auto; padding: 0 24px; }
+@media (max-width: 480px) { .wrap { padding: 0 16px; } .navlinks .opt { display: none; } }
+
+/* Nav */
+nav { display: flex; align-items: center; justify-content: space-between; height: 64px; }
+.logo { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -.2px; text-decoration: none; }
+.logo svg { display: block; }
+.navlinks { display: flex; align-items: center; gap: 4px; font-size: 14px; }
+.navlinks a { text-decoration: none; color: var(--muted); padding: 6px 10px; border-radius: 8px; transition: color .15s, background-color .15s; }
+
+/* Hero */
+.hero { padding: 72px 0 40px; text-align: center; }
+.pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--muted);
+  border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px 4px 8px; text-decoration: none;
+  transition: border-color .15s;
+}
+.pill b { width: 6px; height: 6px; border-radius: 50%; background: var(--honey); }
+h1 {
+  font-size: clamp(36px, 6.4vw, 60px); line-height: 1.04; letter-spacing: -.035em; font-weight: 650;
+  margin: 20px auto 0; max-width: 14ch; text-wrap: balance;
+}
+.lede { color: var(--muted); font-size: clamp(16px, 2.2vw, 19px); max-width: 34em; margin: 20px auto 0; text-wrap: pretty; }
+.ctas { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 32px; }
+.btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px;
+  border-radius: 12px; font-size: 15px; font-weight: 550; text-decoration: none;
+  border: 1px solid var(--line); background: var(--card); color: var(--fg);
+  transition: transform .16s var(--ease), background-color .15s, border-color .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(.97); }
+.btn.primary { background: var(--fg); color: var(--bg); border-color: transparent; }
+.btn svg { flex: none; }
+
+/* Demo video */
+.stage { margin: 56px auto 0; max-width: 960px; }
+.frame {
+  border-radius: 16px; overflow: hidden; background: var(--card);
+  border: 1px solid var(--line);
+  box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px -8px rgba(0,0,0,.12), 0 40px 80px -24px rgba(0,0,0,.18);
+}
+.bar { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--tile); }
+.bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
+.bar span { margin: 0 auto; font-size: 12px; color: var(--muted); }
+.sound {
+  display: grid; place-items: center; width: 28px; height: 28px; margin-right: -8px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform .16s var(--ease), background-color .15s, color .15s;
+}
+.sound:active { transform: scale(.92); }
+.sound svg { grid-area: 1 / 1; transition: opacity .2s var(--ease), transform .2s var(--ease), filter .2s var(--ease); }
+.sound .on, .sound[aria-pressed="true"] .off { opacity: 0; transform: scale(.6); filter: blur(2px); }
+.sound[aria-pressed="true"] .on { opacity: 1; transform: none; filter: none; }
+.sound[aria-pressed="true"] { color: var(--fg); }
+video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #fafafa; }
+.caption { text-align: center; color: var(--muted); font-size: 13px; margin-top: 14px; }
+
+/* Sections */
+section { padding: 96px 0 0; }
+.eyebrow { font-size: 13px; font-weight: 600; color: var(--honey-ink); letter-spacing: .02em; margin: 0; }
+h2 { font-size: clamp(26px, 3.6vw, 36px); line-height: 1.15; letter-spacing: -.025em; font-weight: 650; margin: 8px 0 0; max-width: 22ch; text-wrap: balance; }
+.sub { color: var(--muted); margin: 12px 0 0; max-width: 36em; }
+
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin-top: 40px; background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+@media (max-width: 860px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .grid { grid-template-columns: 1fr; } }
+.feat { background: var(--card); padding: 24px; }
+.feat svg { color: var(--fg); }
+.feat h3 { font-size: 15px; font-weight: 600; margin: 14px 0 4px; letter-spacing: -.1px; }
+.feat p { font-size: 14px; color: var(--muted); margin: 0; }
+
+/* Steps + code */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 40px; counter-reset: step; }
+@media (max-width: 860px) { .steps { grid-template-columns: 1fr; } }
+.step { border: 1px solid var(--line); border-radius: 16px; padding: 22px; background: var(--card); min-width: 0; }
+.step::before {
+  counter-increment: step; content: counter(step);
+  display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 8px;
+  background: var(--tile); font-size: 12px; font-weight: 600; color: var(--muted);
+}
+.step h3 { font-size: 15px; font-weight: 600; margin: 14px 0 4px; }
+.step p { font-size: 14px; color: var(--muted); margin: 0; }
+.code {
+  display: flex; align-items: flex-start; margin-top: 14px; border-radius: 10px; background: var(--tile); border: 1px solid var(--line);
+  font: 12.5px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.code pre { flex: 1; min-width: 0; margin: 0; padding: 12px; overflow-x: auto; white-space: pre; scrollbar-width: thin; }
+.copy {
+  flex: none; margin: 6px 6px 0 0; width: 30px; height: 30px; border-radius: 8px;
+  display: grid; place-items: center; border: 0; background: transparent; color: var(--muted); cursor: pointer;
+  transition: transform .16s var(--ease), background-color .15s, color .15s;
+}
+.copy:active { transform: scale(.92); }
+.copy svg { grid-area: 1 / 1; transition: opacity .2s var(--ease), transform .2s var(--ease), filter .2s var(--ease); }
+.copy .ok { opacity: 0; transform: scale(.6); filter: blur(2px); }
+.copy.done .ok { opacity: 1; transform: none; filter: none; }
+.copy.done .cp { opacity: 0; transform: scale(.6); filter: blur(2px); }
+
+/* Closing */
+.close { text-align: center; padding: 120px 0 0; }
+.close h2 { margin: 0 auto; }
+.close .sub { margin: 12px auto 0; }
+footer { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; color: var(--muted); font-size: 13px; padding: 40px 0; margin-top: 120px; border-top: 1px solid var(--line); }
+footer a { text-decoration: none; }
+
+@media (hover: hover) and (pointer: fine) {
+  .navlinks a:hover { color: var(--fg); background: var(--tile); }
+  .pill:hover { border-color: var(--muted); }
+  .btn:hover { border-color: var(--muted); }
+  .btn.primary:hover { background: color-mix(in srgb, var(--fg) 86%, var(--bg)); }
+  .copy:hover, .sound:hover { background: var(--line); color: var(--fg); }
+  footer a:hover { color: var(--fg); }
+}
+:focus-visible { outline: 2px solid var(--honey); outline-offset: 2px; }
+
+/* Entrance: short, ease-out, staggered; transform/opacity/filter only. */
+.in { animation: rise .6s var(--ease) both; animation-delay: calc(var(--i, 0) * 70ms); }
+@keyframes rise { from { opacity: 0; transform: translateY(8px); filter: blur(4px); } }
+.stage.in { animation-name: lift; animation-duration: .8s; }
+@keyframes lift { from { opacity: 0; transform: translateY(16px) scale(.98); filter: blur(6px); } }
+@media (prefers-reduced-motion: reduce) {
+  .in, .stage.in { animation: none; }
+  .btn, .copy, .copy svg, .sound, .sound svg { transition: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="logo" href="/" aria-label="FeedbackBee home">
+      <svg width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.8 27.4 9.4v13.2L16 29.2 4.6 22.6V9.4z" fill="#f5b301" stroke="#f5b301" stroke-width="3" stroke-linejoin="round"/><path d="M11 12.5h10a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5h-4.2L14 22.6v-2.1h-3A1.5 1.5 0 0 1 9.5 19v-5a1.5 1.5 0 0 1 1.5-1.5z" fill="#18181b"/></svg>
+      FeedbackBee
+    </a>
+    <div class="navlinks">
+      <a class="opt" href="#features">Features</a>
+      <a href="https://github.com/AshikNesin/feedbackbee#readme">Docs</a>
+      <a href="https://github.com/AshikNesin/feedbackbee" aria-label="FeedbackBee on GitHub">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <a class="pill in" style="--i:0" href="https://github.com/AshikNesin/feedbackbee"><b></b>Open source · MIT licensed</a>
+    <h1 class="in" style="--i:1">User feedback that lands in GitHub issues</h1>
+    <p class="lede in" style="--i:2">A tiny widget for your web and Android apps. Users grab a screenshot, mark it up or record what happened, and you get a labeled issue. Self-hosted on Cloudflare’s free tier.</p>
+    <div class="ctas in" style="--i:3">
+      <a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 13 3 3 0 0 0 6 19z"/></svg>
+        Deploy to Cloudflare
+      </a>
+      <a class="btn" href="https://github.com/AshikNesin/feedbackbee">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.71 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"/></svg>
+        Star on GitHub
+      </a>
+    </div>
+  </header>
+
+  <div class="stage in" style="--i:4">
+    <div class="frame">
+      <div class="bar"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><span aria-hidden="true">your-app.com</span>
+        <button class="sound" type="button" aria-pressed="false" aria-label="Turn sound on"><svg class="off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg><svg class="on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></button>
+      </div>
+      <video poster="/poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Demo: a user spots a bug, takes a screenshot, annotates it with an arrow, a box and pixelation, and sends it as feedback.">
+        <source src="/demo-music.webm" type="video/webm" />
+        <source src="/demo-music.mp4" type="video/mp4" />
+      </video>
+    </div>
+    <p class="caption">Spot a bug, snap the page, mark it up, send. No screen-share prompt.</p>
+  </div>
+
+  <section id="features">
+    <p class="eyebrow">Features</p>
+    <h2>Everything a good bug report needs, nothing your users have to learn</h2>
+    <div class="grid">
+      <div class="feat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V6a2 2 0 0 1 2-2h2M16 4h2a2 2 0 0 1 2 2v2M20 16v2a2 2 0 0 1-2 2h-2M8 20H6a2 2 0 0 1-2-2v-2"/><circle cx="12" cy="12" r="3"/></svg>
+        <h3>One-click screenshots</h3>
+        <p>Captures the page they’re on, right in the browser. No “choose a tab” dialog.</p>
+      </div>
+      <div class="feat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19 19 5M10 5h9v9"/></svg>
+        <h3>Quick annotations</h3>
+        <p>Arrows, boxes, highlighter, text, step numbers and pixelate for anything private.</p>
+      </div>
+      <div class="feat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m10 8.5 5 3.5-5 3.5z" fill="currentColor"/></svg>
+        <h3>Session replay</h3>
+        <p>Record the page as they reproduce the bug, without a permission prompt. Passwords stay masked.</p>
+      </div>
+      <div class="feat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+        <h3>Voice notes</h3>
+        <p>When typing it out is slower than saying it.</p>
+      </div>
+      <div class="feat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+        <h3>Straight to GitHub issues</h3>
+        <p>Labeled by type, with the page URL, browser details and media linked. Triage where you already work.</p>
+      </div>
+      <div class="feat">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
+        <h3>Android SDK</h3>
+        <p>Kotlin, no heavy dependencies. Shake to send feedback from any screen.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="start">
+    <p class="eyebrow">Get started</p>
+    <h2>Running in about five minutes</h2>
+    <p class="sub">One Worker with D1 and R2. It fits in Cloudflare’s free tier, and your GitHub token never leaves it.</p>
+    <div class="steps">
+      <div class="step">
+        <h3>Deploy</h3>
+        <p>The Cloudflare button provisions the database and storage, then deploys.</p>
+        <div class="code"><pre>pnpm exec wrangler secret put GITHUB_TOKEN</pre><button class="copy" type="button" aria-label="Copy command"><svg class="cp" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><svg class="ok" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button></div>
+      </div>
+      <div class="step">
+        <h3>Embed</h3>
+        <p>Add one script tag to your app. It loads extras only when someone uses them.</p>
+        <div class="code"><pre>&lt;script src="https://your-bee.workers.dev/embed.js"
+  data-project="myapp" async&gt;&lt;/script&gt;</pre><button class="copy" type="button" aria-label="Copy snippet"><svg class="cp" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><svg class="ok" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button></div>
+      </div>
+      <div class="step">
+        <h3>Triage</h3>
+        <p>Feedback shows up as issues in the repo you connect. Reply, label and close as usual.</p>
+        <div class="code"><pre>FeedbackBee.init(this, "myapp", endpoint)</pre><button class="copy" type="button" aria-label="Copy Android setup"><svg class="cp" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><svg class="ok" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg></button></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="close">
+    <h2>Own your feedback loop</h2>
+    <p class="sub">MIT licensed. Fork it, self-host it, make it yours.</p>
+    <div class="ctas">
+      <a class="btn primary" href="https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee">Deploy to Cloudflare</a>
+      <a class="btn" href="https://github.com/AshikNesin/feedbackbee">View source</a>
+    </div>
+  </section>
+
+  <footer>
+    <span>FeedbackBee · MIT License</span>
+    <span><a href="https://github.com/AshikNesin/feedbackbee">GitHub</a> · <a href="https://github.com/AshikNesin/feedbackbee/issues">Issues</a></span>
+  </footer>
+</div>
+<script>
+document.querySelectorAll(".copy").forEach(function (btn) {
+  var timer;
+  btn.addEventListener("click", function () {
+    var text = btn.previousElementSibling.textContent;
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject()).then(function () {
+      btn.classList.add("done");
+      btn.setAttribute("aria-label", "Copied");
+      clearTimeout(timer);
+      timer = setTimeout(function () { btn.classList.remove("done"); btn.setAttribute("aria-label", "Copy"); }, 1600);
+    }, function () {});
+  });
+});
+var v = document.querySelector("video");
+// Sound toggle for the demo's backing track (autoplay has to start muted).
+var sound = document.querySelector(".sound");
+sound.addEventListener("click", function () {
+  var on = sound.getAttribute("aria-pressed") !== "true";
+  v.muted = !on;
+  if (on) { v.currentTime = 0; v.play().catch(function () {}); }
+  sound.setAttribute("aria-pressed", String(on));
+  sound.setAttribute("aria-label", on ? "Turn sound off" : "Turn sound on");
+});
+// Pause the demo when it is off screen or the user prefers less motion.
+if (matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.controls = true; v.pause(); }
+else if ("IntersectionObserver" in window) {
+  new IntersectionObserver(function (e) { e[0].isIntersecting ? v.play().catch(function () {}) : v.pause(); }).observe(v);
+}
+</script>
+</body>
+</html>

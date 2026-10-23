@@ -62,14 +62,14 @@ The embed snippet is generated per project.
 
 ### 2. Web widget (`embed.js`)
 
-Vanilla JS, one IIFE, zero dependencies, served by the Worker. No framework assumptions on the host page. Minimal two-screen flow:
+Vanilla JS, one IIFE, served by the Worker (the screenshot library is a separate lazy-loaded script). No framework assumptions on the host page. Minimal single-screen flow, optimized for time-to-send:
 
-1. Launcher pill bottom-right (position configurable). Click opens the panel: "What's on your mind?" with three tiles, Issue, Idea, Other.
-2. A tile opens the form screen: a borderless note field ("I noticed that..."), an optional email field, a camera button, and a "Send feedback" button that stays disabled until there is text.
-3. The camera button opens the annotation overlay: capture the tab via `getDisplayMedia` or draw on a note card. Tools are pen, box, arrow, and undo.
-4. Optional screen recording via `getDisplayMedia`, capped at 5 minutes (300 s) with a visible timer. WebM only, client-side enforced.
+1. Launcher bottom-right (position configurable). Click opens the panel with the note field already focused (on pointer devices), so the user can type immediately.
+2. One screen: Issue / Idea / Other chips (defaults to Other; arrow keys move between them), the note field, an optional email field, and one row with camera, screen-record and voice buttons plus a Send button that stays disabled until there is text. Cmd/Ctrl+Enter sends. The success state auto-closes after a few seconds.
+3. The camera button screenshots the visible page in-place (DOM rendered to canvas by the lazily loaded `/embed-capture.js`, no screen-picker prompt), then a small card offers **Annotate** or **Attach**. The annotation editor is a floating toolbar with arrow, rectangle, ellipse, pen, highlighter, text, step numbers and pixelate (masking), plus colors, undo/redo and keyboard shortcuts. If a page blocks in-page capture, the card falls back to `getDisplayMedia` (preferring the current tab).
+4. Optional page recording with no permission prompt: rrweb (lazy-loaded `/embed-record.js`) records the page's DOM, mutations, scrolls and pointer; the panel steps aside for a floating timer pill with Stop and Discard. Capped at 5 minutes (300 s). Passwords are masked and the widget's own UI is excluded. Uploaded as gzipped rrweb JSON and watched at `/replay/<key>` (rrweb-player, strict CSP).
 5. Submit sends multipart form data: project id, kind, text, optional email, and media. Anonymous by default.
-6. The done screen thanks the user and links the created GitHub issue. Footer: "Widget by FeedbackBee".
+6. The done screen thanks the user. It never links the GitHub issue, since the repo may be private. Footer: "Widget by FeedbackBee".
 
 Captures standard context automatically: URL, browser, OS, viewport size, and screen resolution.
 
@@ -98,8 +98,9 @@ Email and password login for the owner. Single owner in v1 (no team seats).
 
 Pages:
 
-- **Projects.** Create, edit, regenerate nothing (slug is stable). No per-project tokens.
-- **Project detail.** Recent feedback list with media thumbnails, GitHub issue links and states, and the embed snippet with a copy button.
+- **Projects.** A sidebar list (a picker on phones) plus a "New project" dialog; the project id is derived from the name and stays stable. No per-project tokens. The last opened project is remembered.
+- **Project inbox.** One list filtered by type (All, Issues, Ideas, Other). Each row shows the message, time, page and reporter, with chips for screenshot, replay, voice note and issue state. A row expands to the screenshot, voice player, links to the GitHub issue and replay, a mailto reply, and the device context. Paged with "Load more".
+- **Setup.** Hidden behind a button (open by default while a project has no feedback): web and Android snippets with copy buttons, the target repo, and delete project.
 - **Settings.** Change password. That is all.
 
 ### 5. GitHub integration

@@ -6,6 +6,7 @@ import { mediaRoutes } from "./routes/media.ts";
 import { authRoutes } from "./routes/auth.ts";
 import { apiRoutes } from "./routes/api.ts";
 import { demoRoutes } from "./routes/demo.ts";
+import { replayRoutes } from "./routes/replay.ts";
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -17,12 +18,29 @@ app.get("/embed.js", (c) =>
     "cache-control": "public, max-age=300, stale-while-revalidate=86400",
   }),
 );
+// DOM-to-image library the widget lazy-loads when someone takes a screenshot.
+app.get("/embed-capture.js", (c) =>
+  c.text(CAPTURE_JS, 200, {
+    "content-type": "application/javascript; charset=utf-8",
+    "cache-control": "public, max-age=86400, stale-while-revalidate=604800",
+  }),
+);
+// rrweb recorder the widget lazy-loads when someone records the page.
+app.get("/embed-record.js", (c) =>
+  c.text(RECORD_JS, 200, {
+    "content-type": "application/javascript; charset=utf-8",
+    "cache-control": "public, max-age=86400, stale-while-revalidate=604800",
+  }),
+);
 app.route("/", feedbackRoutes);
 app.route("/", mediaRoutes);
 app.route("/", authRoutes);
 app.route("/", apiRoutes);
 app.route("/", demoRoutes);
+app.route("/", replayRoutes);
 
 export default app;
 
 import { EMBED_JS } from "./embed_js.ts";
+import { CAPTURE_JS } from "./capture_js.ts";
+import { RECORD_JS } from "./record_js.ts";
