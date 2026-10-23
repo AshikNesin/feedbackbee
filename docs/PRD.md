@@ -69,7 +69,7 @@ Vanilla JS, one IIFE, served by the Worker (the screenshot library is a separate
 3. The camera button screenshots the visible page in-place (DOM rendered to canvas by the lazily loaded `/embed-capture.js`, no screen-picker prompt), then a small card offers **Annotate** or **Attach**. The annotation editor is a floating toolbar with arrow, rectangle, ellipse, pen, highlighter, text, step numbers and pixelate (masking), plus colors, undo/redo and keyboard shortcuts. If a page blocks in-page capture, the card falls back to `getDisplayMedia` (preferring the current tab).
 4. Optional page recording with no permission prompt: rrweb (lazy-loaded `/embed-record.js`) records the page's DOM, mutations, scrolls and pointer; the panel steps aside for a floating timer pill with Stop and Discard. Capped at 5 minutes (300 s). Passwords are masked and the widget's own UI is excluded. Uploaded as gzipped rrweb JSON and watched at `/replay/<key>` (rrweb-player, strict CSP).
 5. Submit sends multipart form data: project id, kind, text, optional email, and media. Anonymous by default.
-6. The done screen thanks the user and links the created GitHub issue. Footer: "Widget by FeedbackBee".
+6. The done screen thanks the user. It never links the GitHub issue, since the repo may be private. Footer: "Widget by FeedbackBee".
 
 Captures standard context automatically: URL, browser, OS, viewport size, and screen resolution.
 

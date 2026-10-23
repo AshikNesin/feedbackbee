@@ -1,4 +1,4 @@
-# FeedbackBee — engineering guide
+# FeedbackBee: engineering guide
 
 Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflare free tier.
 
@@ -16,19 +16,19 @@ Lightweight self-hostable feedback widget (feedback.fish style) on the Cloudflar
 ## Dev
 
 - Use pnpm for installs and scripts, not npm or npx. Lockfiles are `pnpm-lock.yaml` at the root and in `web/`.
-- `pnpm run dev` — wrangler dev at :8787 (migrations apply automatically). Copy `.dev.vars.example` to `.dev.vars` and set `GITHUB_TOKEN` first.
-- `pnpm run dev:web` — Vite dashboard at :5173, proxies to :8787.
-- `pnpm test` — vitest in workerd, no account needed.
+- `pnpm run dev`: wrangler dev at :8787 (migrations apply automatically). Copy `.dev.vars.example` to `.dev.vars` and set `GITHUB_TOKEN` first.
+- `pnpm run dev:web`: Vite dashboard at :5173, proxies to :8787.
+- `pnpm test`: vitest in workerd, no account needed.
 - `pnpm run typecheck`
 - Android: `cd android && ./gradlew :sdk:assembleRelease :app:assembleDebug :sdk:testReleaseUnitTest`
 
 ## Surfaces
 
-- `/` — dashboard SPA (login seeds the first admin).
-- `/demo` — worker-served demo page exercising the widget.
-- `/embed.js` — the widget script (reads data-project, data-endpoint, data-position).
-- `/embed-capture.js` — DOM-to-image library the widget lazy-loads on the first screenshot.
-- `/embed-record.js` — rrweb recorder the widget lazy-loads for prompt-free page recording.
-- `/replay/<key>` — session replay viewer for web recordings (`/replay-player.js` is its script).
-- `/api/feedback` — public multipart submit endpoint (see docs/CONTRACT.md).
-- `/f/<key>` — public R2 media.
+- `/`: dashboard SPA (login seeds the first admin).
+- `/demo`: worker-served demo page exercising the widget.
+- `/embed.js`: the widget script (reads data-project, data-endpoint, data-position).
+- `/embed-capture.js`: DOM-to-image library the widget lazy-loads on the first screenshot.
+- `/embed-record.js`: rrweb recorder the widget lazy-loads for prompt-free page recording.
+- `/replay/<key>`: session replay viewer for web recordings (`/replay-player.js` is its script).
+- `/api/feedback`: public multipart submit endpoint (see docs/CONTRACT.md).
+- `/f/<key>`: public R2 media.

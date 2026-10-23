@@ -18,7 +18,7 @@ export function issueTitle(f: Pick<FeedbackRow, "kind" | "text" | "device_model"
 }
 
 function row(label: string, value: string | null | undefined): string {
-  return `| ${label} | ${value && value !== "" ? value : "—" } |`;
+  return `| ${label} | ${value && value !== "" ? value : "-" } |`;
 }
 
 export function issueBody(f: FeedbackRow, mediaUrl: string | null, audioUrl: string | null): string {
