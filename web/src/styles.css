@@ -98,8 +98,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Setup panel */
 .setup {
   margin-top: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 18px;
-  display: grid; gap: 16px; animation: drop .25s var(--ease);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; animation: drop .25s var(--ease);
 }
+.setup > div { min-width: 0; }
 @keyframes drop { from { opacity: 0; transform: translateY(-4px); } }
 .setup h2 { font-size: 13px; margin: 0 0 6px; font-weight: 600; }
 .setup p { margin: 0; color: var(--muted); font-size: 13px; }
