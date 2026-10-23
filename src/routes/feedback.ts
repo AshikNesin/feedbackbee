@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env, FeedbackRow } from "../types.ts";
-import { kind as parseKind, mediaKind, num, sniffRole, str } from "../lib/validate.ts";
+import { isReplayKey, kind as parseKind, mediaExt, mediaKind, num, sniffRole, str } from "../lib/validate.ts";
 import { checkRate } from "../lib/rate.ts";
 import { insertFeedback, markIssueCreated, markIssueError, projectBySlug } from "../db/queries.ts";
 import { createIssueForProject, issueBody, issueLabels, issueTitle } from "../lib/github.ts";
@@ -65,7 +65,7 @@ feedbackRoutes.post("/api/feedback", async (c) => {
     if (!sniffed) return bad("media content does not match media_kind", 415);
 
     mediaKindValue = declared;
-    const ext = sniffed.mime.split("/")[1];
+    const ext = mediaExt(sniffed.mime);
     mediaKey = `p/${project.id}/f/${newId()}.${ext}`;
     const bytes = await mediaFile.arrayBuffer();
     await c.env.MEDIA.put(mediaKey, bytes, {
@@ -113,7 +113,7 @@ feedbackRoutes.post("/api/feedback", async (c) => {
   });
 
   const base = c.env.MEDIA_BASE || new URL(c.req.url).origin;
-  const mediaUrl = mediaKey ? `${base}/f/${mediaKey}` : null;
+  const mediaUrl = mediaKey ? `${base}/${isReplayKey(mediaKey) ? "replay" : "f"}/${mediaKey}` : null;
   const audioUrl = audioKey ? `${base}/f/${audioKey}` : null;
   const labels = issueLabels(row.kind, project.labels_map);
   const issue = await createIssueForProject(

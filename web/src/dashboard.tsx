@@ -45,7 +45,9 @@ function FeedbackRow({ f }: { f: Feedback }) {
       </div>
       <div>{f.text}</div>
       <div className="row">
-        {f.media_key && <a href={`/f/${f.media_key}`} target="_blank" rel="noreferrer">view {f.media_kind}</a>}
+        {f.media_key && (f.media_key.endsWith(".rrweb.gz")
+          ? <a href={`/replay/${f.media_key}`} target="_blank" rel="noreferrer">watch replay</a>
+          : <a href={`/f/${f.media_key}`} target="_blank" rel="noreferrer">view {f.media_kind}</a>)}
         {f.reporter_email && <span className="muted">{f.reporter_email}</span>}
       </div>
       {f.state === "issue_error" && f.issue_error && (
