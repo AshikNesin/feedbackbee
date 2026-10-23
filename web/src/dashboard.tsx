@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, type Feedback, type Project } from "./api.ts";
-import { Icon, Logo } from "./icons.tsx";
+import { Icon, Logo, ThemeToggle } from "./icons.tsx";
 
 type Kind = Feedback["kind"];
 const KINDS: { id: Kind | "all"; label: string }[] = [
@@ -340,6 +340,7 @@ export function Dashboard() {
   if (!current) {
     return (
       <div className="auth">
+        <div className="auth-theme"><ThemeToggle /></div>
         <div className="empty" style={{ padding: 0 }}>
           <Logo size={32} />
           <h3>Create your first project</h3>
@@ -371,7 +372,10 @@ export function Dashboard() {
           ))}
         </nav>
         <div className="side-foot">
-          <button type="button" className="proj" onClick={api.logout}><Icon name="logout" /> <span>Sign out</span></button>
+          <div className="side-actions">
+            <ThemeToggle className="btn quiet icon" />
+            <button type="button" className="proj" onClick={api.logout}><Icon name="logout" /> <span>Sign out</span></button>
+          </div>
         </div>
       </aside>
 
@@ -382,6 +386,7 @@ export function Dashboard() {
             {projects.map((p) => <option key={p.id} value={p.slug}>{p.name}</option>)}
           </select>
           <button className="btn icon" aria-label="New project" onClick={() => setCreating(true)}><Icon name="plus" /></button>
+          <ThemeToggle />
           <button className="btn icon quiet" aria-label="Sign out" onClick={api.logout}><Icon name="logout" /></button>
         </div>
 
