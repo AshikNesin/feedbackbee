@@ -62,10 +62,10 @@ The embed snippet is generated per project.
 
 ### 2. Web widget (`embed.js`)
 
-Vanilla JS, one IIFE, zero dependencies, served by the Worker. No framework assumptions on the host page. Minimal two-screen flow:
+Vanilla JS, one IIFE, served by the Worker (the screenshot library is a separate lazy-loaded script). No framework assumptions on the host page. Minimal single-screen flow, optimized for time-to-send:
 
-1. Launcher pill bottom-right (position configurable). Click opens the panel: "What's on your mind?" with three tiles, Issue, Idea, Other.
-2. A tile opens the form screen: a borderless note field ("I noticed that..."), an optional email field, a camera button, and a "Send feedback" button that stays disabled until there is text.
+1. Launcher bottom-right (position configurable). Click opens the panel with the note field already focused (on pointer devices), so the user can type immediately.
+2. One screen: Issue / Idea / Other chips (defaults to Other; arrow keys move between them), the note field, an optional email field, and one row with camera, screen-record and voice buttons plus a Send button that stays disabled until there is text. Cmd/Ctrl+Enter sends. The success state auto-closes after a few seconds.
 3. The camera button screenshots the visible page in-place (DOM rendered to canvas by the lazily loaded `/embed-capture.js`, no screen-picker prompt), then a small card offers **Annotate** or **Attach**. The annotation editor is a floating toolbar with arrow, rectangle, ellipse, pen, highlighter, text, step numbers and pixelate (masking), plus colors, undo/redo and keyboard shortcuts. If a page blocks in-page capture, the card falls back to `getDisplayMedia` (preferring the current tab).
 4. Optional screen recording via `getDisplayMedia`, capped at 5 minutes (300 s) with a visible timer. WebM only, client-side enforced.
 5. Submit sends multipart form data: project id, kind, text, optional email, and media. Anonymous by default.

@@ -22,29 +22,21 @@ export const EMBED_JS = `(function () {
     ".fbx button:disabled{cursor:default}" +
     ".fbx svg{display:block;width:20px;height:20px;flex:none;pointer-events:none}" +
     ".fbx-launch{position:fixed;" + position + ":max(20px,env(safe-area-inset-" + position + "));bottom:max(20px,env(safe-area-inset-bottom));z-index:2147483000;width:48px;height:48px;border-radius:16px;background:var(--fb-ink);color:#fff;border:1px solid rgba(255,255,255,.12);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 4px #00000014,0 8px 24px #0000001f}" +
-    ".fbx-panel{position:fixed;" + position + ":max(20px,env(safe-area-inset-" + position + "));bottom:calc(80px + env(safe-area-inset-bottom));z-index:2147483000;width:360px;max-width:calc(100vw - 40px);max-height:calc(100vh - 104px);max-height:calc(100dvh - 104px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid var(--fb-border);border-radius:20px;box-shadow:0 4px 12px #00000008,0 20px 60px #0000001a;padding:20px;visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom " + position + ";transition:opacity 140ms ease,transform 180ms cubic-bezier(.23,1,.32,1),visibility 180ms}" +
-    ".fbx-panel.fbx-open{visibility:visible;opacity:1;transform:translateY(0) scale(1)}" +
+    ".fbx-panel{position:fixed;" + position + ":max(20px,env(safe-area-inset-" + position + "));bottom:calc(80px + env(safe-area-inset-bottom));z-index:2147483000;width:340px;max-width:calc(100vw - 40px);max-height:calc(100vh - 104px);max-height:calc(100dvh - 104px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;background:#fff;border:1px solid var(--fb-border);border-radius:20px;box-shadow:0 4px 12px #00000008,0 20px 60px #0000001a;padding:16px;visibility:hidden;opacity:0;transform:translateY(6px) scale(.98);transform-origin:bottom " + position + ";transition:opacity 140ms ease,transform 180ms cubic-bezier(.23,1,.32,1),visibility 180ms}" +
+    ".fbx-panel.fbx-open{visibility:visible;opacity:1;transform:translateY(0) scale(1);transition:opacity 140ms ease,transform 180ms cubic-bezier(.23,1,.32,1),visibility 0s}" +
     ".fbx-panel.fbx-instant,.fbx-instant button{transition:none}" +
-    ".fbx-head{display:flex;align-items:center;gap:4px;min-height:44px;margin:-6px -8px 0 0}" +
-    ".fbx-title{flex:1;min-width:0;font-size:18px;line-height:1.35;letter-spacing:-.4px;font-weight:600;margin:0;color:var(--fb-ink)}" +
-    ".fbx-back,.fbx-close,.fbx-remove{width:44px;height:44px;display:flex;align-items:center;justify-content:center;flex:none;background:transparent;border:none;border-radius:10px;cursor:pointer;color:var(--fb-muted);padding:12px}" +
-    ".fbx-back{margin-left:-12px}" +
-    ".fbx-subtitle{margin:2px 0 20px;font-size:13px;color:var(--fb-muted)}" +
-    ".fbx-tiles{display:flex;flex-direction:column;gap:8px}" +
-    ".fbx-tile{width:100%;background:#fff;border:1px solid var(--fb-border);border-radius:12px;padding:12px;cursor:pointer;display:flex;align-items:center;gap:12px;text-align:left;color:var(--fb-ink)}" +
-    ".fbx-kind-icon{display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:9px;background:var(--fb-tile);flex:none}" +
-    ".fbx-kind-copy{flex:1;min-width:0}" +
-    ".fbx-kind-copy strong{display:block;font-size:14px;font-weight:600}" +
-    ".fbx-kind-copy small{display:block;font-size:12px;line-height:1.5;color:var(--fb-muted);margin-top:1px}" +
-    ".fbx-tile>svg{width:16px;height:16px;color:#a1a1aa}" +
-    ".fbx-label{display:block;margin-bottom:7px;font-size:12px;font-weight:500;color:#52525b}" +
-    ".fbx-label span{font-weight:400;color:var(--fb-muted)}" +
-    ".fbx-note,.fbx-mail{display:block;width:100%;border:1px solid var(--fb-border);background:#fff;border-radius:10px;padding:11px 12px;outline:none;color:var(--fb-ink);box-shadow:0 1px 2px #00000004}" +
-    ".fbx .fbx-note{font-size:16px;line-height:1.6;min-height:128px;resize:vertical;max-height:240px}" +
-    ".fbx .fbx-mail{font-size:16px;min-height:44px}" +
+    ".fbx-head{display:flex;align-items:center;gap:4px;min-height:36px;margin:-6px -8px 10px 0}" +
+    ".fbx-title{flex:1;min-width:0;font-size:15px;line-height:1.35;letter-spacing:-.2px;font-weight:600;margin:0;color:var(--fb-ink)}" +
+    ".fbx-close,.fbx-remove{width:40px;height:40px;display:flex;align-items:center;justify-content:center;flex:none;background:transparent;border:none;border-radius:10px;cursor:pointer;color:var(--fb-muted);padding:11px}" +
+    ".fbx-kinds{display:flex;gap:6px;margin-bottom:10px}" +
+    ".fbx .fbx-kind{display:flex;align-items:center;gap:6px;min-height:34px;padding:0 12px 0 9px;border:1px solid var(--fb-border);border-radius:999px;background:#fff;color:#52525b;font-size:13px;font-weight:500;cursor:pointer;transition:background-color 120ms ease,color 120ms ease,border-color 120ms ease,transform 140ms cubic-bezier(.23,1,.32,1)}" +
+    ".fbx-kind svg{width:15px;height:15px}" +
+    ".fbx .fbx-kind[aria-checked=true]{background:var(--fb-ink);border-color:var(--fb-ink);color:#fff}" +
+    ".fbx-note,.fbx-mail{display:block;width:100%;border:1px solid var(--fb-border);background:#fff;border-radius:10px;padding:10px 12px;outline:none;color:var(--fb-ink);font-size:14px}" +
+    ".fbx .fbx-note{line-height:1.55;min-height:108px;resize:vertical;max-height:240px}" +
+    ".fbx .fbx-mail{min-height:40px;margin-top:8px}" +
     ".fbx-note:focus,.fbx-mail:focus{border-color:var(--fb-focus);box-shadow:0 0 0 3px #2563eb14}" +
-    ".fbx-note::placeholder,.fbx-mail::placeholder{color:var(--fb-muted);opacity:1}" +
-    ".fbx-email-group{margin-top:14px}" +
+    ".fbx-note::placeholder,.fbx-mail::placeholder{color:#a1a1aa;opacity:1}" +
     ".fbx-preview{position:relative;margin-top:12px;border:1px solid var(--fb-border);border-radius:10px;overflow:hidden}" +
     ".fbx-shot{width:100%;max-height:160px;object-fit:contain;background:var(--fb-tile);display:block}" +
     ".fbx-preview .fbx-remove{position:absolute;top:4px;right:4px;background:#fff;box-shadow:0 1px 4px #00000014}" +
@@ -52,19 +44,18 @@ export const EMBED_JS = `(function () {
     ".fbx-rec>span:not(.fbx-dot){flex:1;font-variant-numeric:tabular-nums}" +
     ".fbx-dot{width:7px;height:7px;border-radius:50%;background:#dc2626;flex:none}" +
     ".fbx .fbx-stop{min-height:44px;border:0;background:transparent;border-radius:8px;padding:0 12px;color:#b91c1c;font-weight:600;cursor:pointer}" +
-    ".fbx-tools{display:flex;align-items:center;gap:4px;margin-top:12px}" +
-    ".fbx-tools-label{flex:1;color:var(--fb-muted);font-size:12px}" +
-    ".fbx-cam{width:44px;height:44px;border:1px solid var(--fb-border);border-radius:10px;background:#fff;color:#52525b;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;padding:11px}" +
-    ".fbx-cam[aria-pressed=true]{background:#fef2f2;border-color:#fecaca;color:#b91c1c}" +
-    ".fbx-cam:disabled{opacity:.4}" +
-    ".fbx-actions{margin-top:14px}" +
-    ".fbx .fbx-send{display:block;width:100%;min-height:46px;border:1px solid transparent;border-radius:10px;padding:11px;font-size:14px;font-weight:600;color:#fff;background:var(--fb-ink);cursor:pointer}" +
-    ".fbx-send:disabled{background:var(--fb-tile);color:var(--fb-muted)}" +
-    ".fbx-foot{margin-top:18px;text-align:center;font-size:11px;color:var(--fb-muted)}" +
+    ".fbx-tools{display:flex;align-items:center;gap:2px;margin-top:12px}" +
+    ".fbx-cam{width:40px;height:40px;border:0;border-radius:10px;background:transparent;color:#71717a;cursor:pointer;display:flex;align-items:center;justify-content:center;flex:none;padding:10px}" +
+    ".fbx-cam[aria-pressed=true]{background:#fef2f2;color:#b91c1c}" +
+    ".fbx-cam:disabled{opacity:.35}" +
+    ".fbx .fbx-send{display:flex;align-items:center;gap:8px;margin-left:auto;min-height:40px;border:1px solid transparent;border-radius:10px;padding:0 16px;font-size:14px;font-weight:600;color:#fff;background:var(--fb-ink);cursor:pointer}" +
+    ".fbx-send kbd{font:inherit;font-size:12px;font-weight:500;opacity:.55}" +
+    ".fbx-send:disabled{background:var(--fb-tile);color:#a1a1aa}" +
+    ".fbx-foot{margin-top:12px;text-align:center;font-size:11px;color:var(--fb-muted)}" +
     ".fbx-foot b{font-weight:500;color:#52525b}" +
-    ".fbx-done{text-align:center;padding:8px 0 16px}" +
-    ".fbx-check{display:flex;align-items:center;justify-content:center;width:44px;height:44px;margin:0 auto 16px;border-radius:50%;background:var(--fb-tile);color:var(--fb-ink)}" +
-    ".fbx-done h3{margin:0 0 6px;font-size:18px;letter-spacing:-.3px;font-weight:600;color:var(--fb-ink)}" +
+    ".fbx-done{text-align:center;padding:4px 0 8px}" +
+    ".fbx-check{display:flex;align-items:center;justify-content:center;width:40px;height:40px;margin:0 auto 12px;border-radius:50%;background:#dcfce7;color:#15803d}" +
+    ".fbx-done h3{margin:0 0 4px;font-size:16px;letter-spacing:-.2px;font-weight:600;color:var(--fb-ink)}" +
     ".fbx-done p{margin:0;font-size:13px;color:var(--fb-muted)}" +
     ".fbx-done a{display:inline-flex;align-items:center;min-height:44px;color:var(--fb-ink);text-underline-offset:3px}" +
     ".fbx-err{margin-top:12px;font-size:13px;color:#b91c1c;display:none}" +
@@ -116,12 +107,13 @@ export const EMBED_JS = `(function () {
     "@keyframes fbx-rise{from{opacity:0;transform:translateY(8px) scale(.98)}}" +
     "@keyframes fbx-flash{from{opacity:.6}to{opacity:0}}" +
     "@keyframes fbx-spin{to{transform:rotate(360deg)}}" +
-    "@media(hover:hover) and (pointer:fine){.fbx-tile:hover,.fbx-cam:hover:not(:disabled),.fbx-back:hover,.fbx-close:hover,.fbx-remove:hover,.fbx-qa-x:hover,.fbx .fbx-qa-btn:not(.fbx-qa-primary):hover{background:var(--fb-tile)}.fbx-send:hover:not(:disabled),.fbx-launch:hover,.fbx .fbx-qa-primary:hover{background:#27272a}" +
+    "@media(hover:hover) and (pointer:fine){.fbx .fbx-kind:not([aria-checked=true]):hover,.fbx-cam:hover:not(:disabled),.fbx-close:hover,.fbx-remove:hover,.fbx-qa-x:hover,.fbx .fbx-qa-btn:not(.fbx-qa-primary):hover{background:var(--fb-tile)}.fbx-send:hover:not(:disabled),.fbx-launch:hover,.fbx .fbx-qa-primary:hover{background:#27272a}" +
     ".fbx-qa-thumb:hover .fbx-qa-hover{opacity:1}.fbx-tb button:hover:not(:disabled):not([aria-pressed=true]),.fbx-pop button:hover{background:rgba(255,255,255,.08);color:#fff}.fbx .fbx-tb .fbx-tb-done:hover{background:#e4e4e7}" +
     ".fbx-tb [data-tip]:hover::after{opacity:1;transform:translate(-50%,0);transition-delay:450ms}}" +
     "@media(prefers-reduced-motion:reduce){.fbx-panel,.fbx button{transition:none}.fbx button:active:not(:disabled){transform:none}.fbx-flash{display:none}.fbx-snap,.fbx-qa,.fbx-ed,.fbx-stage,.fbx-pop{animation:none}}" +
     "@media(max-width:640px){.fbx-tb{top:auto;bottom:max(12px,env(safe-area-inset-bottom));flex-wrap:wrap;justify-content:center;row-gap:4px;width:max-content}.fbx-sep{display:none}.fbx-tb button{width:38px;height:38px;padding:10px}.fbx-tb [data-tip]::after,.fbx-ed-hint{display:none}.fbx-snap,.fbx-qa{left:12px;right:12px;width:auto;max-width:none}.fbx-snap{justify-content:center}}" +
-    "@media(max-width:400px){.fbx-panel{" + position + ":12px;max-width:calc(100vw - 24px);padding:18px}.fbx-launch{" + position + ":16px}}";
+    "@media(pointer:coarse){.fbx .fbx-note,.fbx .fbx-mail{font-size:16px}.fbx .fbx-kind{min-height:40px}.fbx-send kbd{display:none}}" +
+    "@media(max-width:400px){.fbx-panel{" + position + ":12px;max-width:calc(100vw - 24px)}.fbx-launch{" + position + ":16px}}";
 
   var ICONS = {
     issue:
@@ -137,8 +129,6 @@ export const EMBED_JS = `(function () {
     mic:
       '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
     close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="m6 6 12 12M6 18 18 6"/></svg>',
-    back: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m10 5-7 7 7 7M3 12h18"/></svg>',
-    next: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m9 6 6 6-6 6"/></svg>',
     check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 4 4L19 6"/></svg>',
     undo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
     redo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg>',
@@ -153,14 +143,16 @@ export const EMBED_JS = `(function () {
   };
 
   var KINDS = [
-    { id: "bug", label: "Report an issue", detail: "Something isn't working as expected", placeholder: "What happened? What did you expect?", icon: ICONS.issue },
-    { id: "idea", label: "Share an idea", detail: "A small improvement or a big idea", placeholder: "What would make this better for you?", icon: ICONS.idea },
-    { id: "feedback", label: "Something else", detail: "Anything else on your mind", placeholder: "What's on your mind?", icon: ICONS.other },
+    { id: "bug", label: "Issue", placeholder: "What went wrong? What did you expect?", icon: ICONS.issue },
+    { id: "idea", label: "Idea", placeholder: "What would make this better?", icon: ICONS.idea },
+    { id: "feedback", label: "Other", placeholder: "What's on your mind?", icon: ICONS.other },
   ];
+  var MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  var SEND_KEYS = MAC ? "\\u2318\\u21b5" : "Ctrl+\\u21b5";
 
   var state = {
-    screen: "choose",
-    kind: null,
+    screen: "form",
+    kind: "feedback",
     text: "",
     email: "",
     media: null,
@@ -187,7 +179,7 @@ export const EMBED_JS = `(function () {
     return n;
   }
 
-  var panel, backBtn, title, closeBtn, body, foot, launch, subtitle;
+  var panel, title, closeBtn, body, foot, launch;
   var previewUrl = null;
   var generation = 0;
   var resetTimer = null;
@@ -201,33 +193,12 @@ export const EMBED_JS = `(function () {
     panel.setAttribute("aria-busy", String(state.busy));
     closeBtn.disabled = state.busy;
 
-    if (state.screen === "choose") {
-      title.textContent = "Share feedback";
-      subtitle.textContent = "A little feedback goes a long way.";
-      backBtn.style.display = "none";
-      var tiles = el("div", "fbx-tiles");
-      KINDS.forEach(function (k) {
-        var t = el("button", "fbx-tile", '<span class="fbx-kind-icon">' + k.icon + '</span><span class="fbx-kind-copy"><strong>' + k.label + "</strong><small>" + k.detail + "</small></span>" + ICONS.next);
-        t.addEventListener("click", function (event) {
-          state.kind = k.id;
-          state.screen = "form";
-          render();
-          if (event.detail === 0) body.querySelector("textarea").focus();
-        });
-        tiles.appendChild(t);
-      });
-      body.appendChild(tiles);
-      return;
-    }
-
     if (state.screen === "done") {
-      title.textContent = "Share feedback";
-      subtitle.textContent = "";
-      backBtn.style.display = "none";
+      title.textContent = "Send feedback";
       var done = el("div", "fbx-done");
       done.setAttribute("role", "status");
       done.appendChild(el("div", "fbx-check", ICONS.check));
-      var h = el("h3", "", "Feedback sent");
+      var h = el("h3", "", "Thanks \\u2014 feedback sent");
       var p = el("p");
       if (state.issueUrl) {
         var a = document.createElement("a");
@@ -237,7 +208,7 @@ export const EMBED_JS = `(function () {
         a.textContent = "View on GitHub ↗";
         p.appendChild(a);
       } else {
-        p.textContent = "Thanks for helping us make things better.";
+        p.textContent = "We read every message.";
       }
       done.appendChild(h);
       done.appendChild(p);
@@ -245,19 +216,47 @@ export const EMBED_JS = `(function () {
       return;
     }
 
-    // form screen
+    // form screen: kind chips, note, optional email, then attachments + send.
     var k = KINDS.filter(function (x) { return x.id === state.kind; })[0];
-    title.textContent = state.kind === "feedback" ? "Tell us more" : k.label;
-    subtitle.textContent = "We're listening. Tell us a little more.";
-    backBtn.style.display = "flex";
-    backBtn.disabled = state.busy || state.recording || state.audioRecording;
+    title.textContent = "Send feedback";
 
-    var noteLabel = el("label", "fbx-label", "Your feedback");
-    noteLabel.htmlFor = "fbx-note";
-    body.appendChild(noteLabel);
+    var kinds = el("div", "fbx-kinds");
+    kinds.setAttribute("role", "radiogroup");
+    kinds.setAttribute("aria-label", "Feedback type");
+    KINDS.forEach(function (option, i) {
+      var chip = el("button", "fbx-kind", option.icon + "<span>" + option.label + "</span>");
+      chip.type = "button";
+      chip.id = "fbx-kind-" + option.id;
+      chip.setAttribute("role", "radio");
+      chip.setAttribute("aria-checked", String(option.id === state.kind));
+      chip.tabIndex = option.id === state.kind ? 0 : -1;
+      chip.disabled = state.busy;
+      chip.addEventListener("click", function () { pickKind(option.id); });
+      chip.addEventListener("keydown", function (e) {
+        var step = e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 0;
+        if (!step) return;
+        e.preventDefault();
+        pickKind(KINDS[(i + step + KINDS.length) % KINDS.length].id, true);
+      });
+      kinds.appendChild(chip);
+    });
+    body.appendChild(kinds);
+    function pickKind(id, keyboard) {
+      if (state.kind === id) return;
+      state.kind = id;
+      KINDS.forEach(function (option) {
+        var chip = document.getElementById("fbx-kind-" + option.id);
+        chip.setAttribute("aria-checked", String(option.id === id));
+        chip.tabIndex = option.id === id ? 0 : -1;
+        if (keyboard && option.id === id) chip.focus();
+        if (option.id === id) note.placeholder = option.placeholder;
+      });
+    }
+
     var note = el("textarea", "fbx-note");
     note.id = "fbx-note";
     note.placeholder = k.placeholder;
+    note.setAttribute("aria-label", "Your feedback");
     note.maxLength = 5000;
     note.value = state.text;
     note.addEventListener("input", function () {
@@ -266,20 +265,21 @@ export const EMBED_JS = `(function () {
     });
     body.appendChild(note);
 
-    var emailGroup = el("div", "fbx-email-group");
-    var emailLabel = el("label", "fbx-label", "Email <span>(optional)</span>");
-    emailLabel.htmlFor = "fbx-mail";
-    emailGroup.appendChild(emailLabel);
     var mail = el("input", "fbx-mail");
     mail.id = "fbx-mail";
     mail.type = "email";
-    mail.placeholder = "you@example.com";
+    mail.placeholder = "Email (optional, for follow-up)";
+    mail.setAttribute("aria-label", "Email (optional)");
     mail.autocomplete = "email";
     mail.value = state.email;
     mail.addEventListener("input", function () { state.email = mail.value; });
     note.disabled = mail.disabled = state.busy;
-    emailGroup.appendChild(mail);
-    body.appendChild(emailGroup);
+    body.appendChild(mail);
+    [note, mail].forEach(function (field) {
+      field.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); submit(); }
+      });
+    });
 
     if (state.mediaKind === "screenshot" && state.media) {
       var img = el("img", "fbx-shot");
@@ -331,7 +331,6 @@ export const EMBED_JS = `(function () {
     body.appendChild(err);
 
     var tools = el("div", "fbx-tools");
-    tools.appendChild(el("span", "fbx-tools-label", "Add context"));
     var cam = el("button", "fbx-cam", ICONS.camera);
     cam.id = "fbx-cambtn";
     cam.title = state.mediaKind === "screenshot" ? "Retake screenshot of this page" : "Screenshot this page";
@@ -360,20 +359,18 @@ export const EMBED_JS = `(function () {
     mic.id = "fbx-micbtn";
     mic.addEventListener("click", toggleVoice);
     tools.appendChild(mic);
-    body.appendChild(tools);
-
-    var actions = el("div", "fbx-actions");
-    var send = el("button", "fbx-send", state.busy ? "Sending…" : "Send feedback");
+    var send = el("button", "fbx-send");
     send.id = "fbx-send";
+    send.title = "Send (" + (MAC ? "\\u2318" : "Ctrl") + "+Enter)";
     send.addEventListener("click", submit);
-    actions.appendChild(send);
-    body.appendChild(actions);
+    tools.appendChild(send);
+    body.appendChild(tools);
 
     function sync() {
       var btn = document.getElementById("fbx-send");
       if (btn) {
         btn.disabled = state.busy || state.recording || state.audioRecording || state.text.trim().length === 0;
-        btn.textContent = state.busy ? "Sending…" : "Send feedback";
+        btn.innerHTML = state.busy ? "Sending\\u2026" : "Send<kbd>" + SEND_KEYS + "</kbd>";
       }
     }
     sync();
@@ -388,8 +385,8 @@ export const EMBED_JS = `(function () {
       state.busy = true;
       sync();
       panel.setAttribute("aria-busy", "true");
-      [note, mail, backBtn, closeBtn, cam, rec, mic].forEach(function (control) { control.disabled = true; });
-      body.querySelectorAll(".fbx-remove,.fbx-shot-btn").forEach(function (control) { control.disabled = true; });
+      [note, mail, closeBtn, cam, rec, mic].forEach(function (control) { control.disabled = true; });
+      body.querySelectorAll(".fbx-remove,.fbx-shot-btn,.fbx-kind").forEach(function (control) { control.disabled = true; });
       err.style.display = "none";
       var requestGeneration = generation;
 
@@ -440,7 +437,7 @@ export const EMBED_JS = `(function () {
           state.screen = "done";
           render();
           closeBtn.focus({ preventScroll: true });
-          resetTimer = setTimeout(function () { setOpen(false); }, 6000);
+          resetTimer = setTimeout(function () { setOpen(false); }, state.issueUrl ? 5000 : 3000);
         })
         .catch(function () {
           if (requestGeneration !== generation) return;
@@ -565,8 +562,8 @@ export const EMBED_JS = `(function () {
     generation++;
     clearTimeout(resetTimer);
     resetTimer = null;
-    state.screen = "choose";
-    state.kind = null;
+    state.screen = "form";
+    state.kind = "feedback";
     state.text = "";
     state.email = "";
     closeLayer();
@@ -871,7 +868,6 @@ export const EMBED_JS = `(function () {
     ["arrow", "Arrow", "A"], ["rect", "Rectangle", "R"], ["ellipse", "Ellipse", "O"], ["pen", "Pen", "P"],
     ["marker", "Highlighter", "H"], ["text", "Text", "T"], ["counter", "Step number", "N"], ["blur", "Pixelate", "B"],
   ];
-  var MAC = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
   var pref = { tool: "arrow", color: COLORS[0][0] };
   var scratch = null;
 
@@ -1324,7 +1320,8 @@ export const EMBED_JS = `(function () {
     launch.setAttribute("aria-expanded", String(open));
     if (open) {
       fitViewport();
-      if (keyboard) body.querySelector("button,textarea").focus();
+      // Type immediately; skip on touch so the keyboard doesn't cover the page.
+      if (keyboard || matchMedia("(pointer:fine)").matches) focusById("fbx-note");
     } else {
       if (returnFocus) launch.focus({ preventScroll: true });
       reset();
@@ -1357,25 +1354,15 @@ export const EMBED_JS = `(function () {
     panel.id = "fbx-panel";
     panel.setAttribute("role", "dialog");
     panel.setAttribute("aria-labelledby", "fbx-title");
-    panel.setAttribute("aria-describedby", "fbx-subtitle");
     panel.inert = true;
     var head = el("div", "fbx-head");
-    backBtn = el("button", "fbx-back", ICONS.back);
-    backBtn.setAttribute("aria-label", "Back");
-    backBtn.addEventListener("click", function (event) {
-      state.screen = "choose"; render();
-      if (event.detail === 0) body.querySelector("button").focus();
-    });
     title = el("h2", "fbx-title");
     title.id = "fbx-title";
     closeBtn = el("button", "fbx-close", ICONS.close);
     closeBtn.setAttribute("aria-label", "Close");
     closeBtn.addEventListener("click", function (event) { setOpen(false, event.detail === 0); });
-    head.appendChild(backBtn); head.appendChild(title); head.appendChild(closeBtn);
+    head.appendChild(title); head.appendChild(closeBtn);
     panel.appendChild(head);
-    subtitle = el("p", "fbx-subtitle");
-    subtitle.id = "fbx-subtitle";
-    panel.appendChild(subtitle);
 
     body = el("div");
     panel.appendChild(body);
