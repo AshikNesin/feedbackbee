@@ -17,7 +17,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0c0c0d;
     --fg: #ededee;
     --muted: #9b9ba3;
@@ -31,6 +31,20 @@
     --warn: #fbbf24;
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #0c0c0d;
+  --fg: #ededee;
+  --muted: #9b9ba3;
+  --faint: #6b6b73;
+  --line: #232326;
+  --card: #141416;
+  --tile: #1b1b1e;
+  --hover: #1a1a1d;
+  --bug: #f87171;
+  --idea: #4ade80;
+  --warn: #fbbf24;
+  color-scheme: dark;
 }
 html, body { height: 100%; }
 body {
@@ -87,6 +101,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .proj span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-foot { margin-top: auto; }
+.side-actions { display: flex; align-items: center; gap: 2px; }
+.side-actions .proj { flex: 1; }
+.auth-theme { position: fixed; top: 16px; right: 16px; }
 .main { min-width: 0; padding: 28px 40px 80px; max-width: 920px; width: 100%; }
 
 .top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
@@ -98,8 +115,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Setup panel */
 .setup {
   margin-top: 20px; border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 18px;
-  display: grid; gap: 16px; animation: drop .25s var(--ease);
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; animation: drop .25s var(--ease);
 }
+.setup > div { min-width: 0; }
 @keyframes drop { from { opacity: 0; transform: translateY(-4px); } }
 .setup h2 { font-size: 13px; margin: 0 0 6px; font-weight: 600; }
 .setup p { margin: 0; color: var(--muted); font-size: 13px; }

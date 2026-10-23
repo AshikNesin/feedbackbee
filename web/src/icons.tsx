@@ -1,4 +1,8 @@
+import { useState } from "react";
+
 const PATHS = {
+  sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M4.6 4.6l1.4 1.4M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4" /></>,
+  moon: <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />,
   plus: <path d="M12 5v14M5 12h14" />,
   copy: <><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></>,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
@@ -16,6 +20,35 @@ export function Icon({ name, size = 15 }: { name: keyof typeof PATHS; size?: num
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: "none" }}>
       {PATHS[name]}
     </svg>
+  );
+}
+
+const THEME_KEY = "fb:theme";
+
+/** Light or dark as it is shown right now: an explicit choice wins, otherwise the system setting. */
+export function currentTheme(): "light" | "dark" {
+  const explicit = document.documentElement.dataset.theme;
+  if (explicit === "light" || explicit === "dark") return explicit;
+  return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+export function ThemeToggle({ className = "btn quiet icon" }: { className?: string }) {
+  const [theme, setTheme] = useState(currentTheme);
+  const next = theme === "dark" ? "light" : "dark";
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-label={`Switch to ${next} mode`}
+      title={`Switch to ${next} mode`}
+      onClick={() => {
+        document.documentElement.dataset.theme = next;
+        try { localStorage.setItem(THEME_KEY, next); } catch { /* storage unavailable */ }
+        setTheme(next);
+      }}
+    >
+      <Icon name={theme === "dark" ? "sun" : "moon"} />
+    </button>
   );
 }
 
