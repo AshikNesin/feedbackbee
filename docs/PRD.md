@@ -66,7 +66,7 @@ Vanilla JS, one IIFE, zero dependencies, served by the Worker. No framework assu
 
 1. Launcher pill bottom-right (position configurable). Click opens the panel: "What's on your mind?" with three tiles, Issue, Idea, Other.
 2. A tile opens the form screen: a borderless note field ("I noticed that..."), an optional email field, a camera button, and a "Send feedback" button that stays disabled until there is text.
-3. The camera button opens the annotation overlay: capture the tab via `getDisplayMedia` or draw on a note card. Tools are pen, box, arrow, and undo.
+3. The camera button screenshots the visible page in-place (DOM rendered to canvas by the lazily loaded `/embed-capture.js`, no screen-picker prompt), then a small card offers **Annotate** or **Attach**. The annotation editor is a floating toolbar with arrow, rectangle, ellipse, pen, highlighter, text, step numbers and pixelate (masking), plus colors, undo/redo and keyboard shortcuts. If a page blocks in-page capture, the card falls back to `getDisplayMedia` (preferring the current tab).
 4. Optional screen recording via `getDisplayMedia`, capped at 5 minutes (300 s) with a visible timer. WebM only, client-side enforced.
 5. Submit sends multipart form data: project id, kind, text, optional email, and media. Anonymous by default.
 6. The done screen thanks the user and links the created GitHub issue. Footer: "Widget by FeedbackBee".

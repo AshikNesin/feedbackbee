@@ -17,6 +17,13 @@ app.get("/embed.js", (c) =>
     "cache-control": "public, max-age=300, stale-while-revalidate=86400",
   }),
 );
+// DOM-to-image library the widget lazy-loads when someone takes a screenshot.
+app.get("/embed-capture.js", (c) =>
+  c.text(CAPTURE_JS, 200, {
+    "content-type": "application/javascript; charset=utf-8",
+    "cache-control": "public, max-age=86400, stale-while-revalidate=604800",
+  }),
+);
 app.route("/", feedbackRoutes);
 app.route("/", mediaRoutes);
 app.route("/", authRoutes);
@@ -26,3 +33,4 @@ app.route("/", demoRoutes);
 export default app;
 
 import { EMBED_JS } from "./embed_js.ts";
+import { CAPTURE_JS } from "./capture_js.ts";
