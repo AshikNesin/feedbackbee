@@ -98,8 +98,9 @@ Email and password login for the owner. Single owner in v1 (no team seats).
 
 Pages:
 
-- **Projects.** Create, edit, regenerate nothing (slug is stable). No per-project tokens.
-- **Project detail.** Recent feedback list with media thumbnails, GitHub issue links and states, and the embed snippet with a copy button.
+- **Projects.** A sidebar list (a picker on phones) plus a "New project" dialog; the project id is derived from the name and stays stable. No per-project tokens. The last opened project is remembered.
+- **Project inbox.** One list filtered by type (All, Issues, Ideas, Other). Each row shows the message, time, page and reporter, with chips for screenshot, replay, voice note and issue state. A row expands to the screenshot, voice player, links to the GitHub issue and replay, a mailto reply, and the device context. Paged with "Load more".
+- **Setup.** Hidden behind a button (open by default while a project has no feedback): web and Android snippets with copy buttons, the target repo, and delete project.
 - **Settings.** Change password. That is all.
 
 ### 5. GitHub integration
