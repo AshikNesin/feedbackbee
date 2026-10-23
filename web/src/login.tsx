@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { api } from "./api.ts";
-import { Logo } from "./icons.tsx";
+import { Logo, ThemeToggle } from "./icons.tsx";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -24,6 +24,7 @@ export function Login() {
 
   return (
     <div className="auth">
+      <div className="auth-theme"><ThemeToggle /></div>
       <form onSubmit={submit}>
         <div>
           <Logo size={32} />
