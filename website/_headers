@@ -9,3 +9,7 @@
   Cache-Control: public, max-age=604800
 /demo.webm
   Cache-Control: public, max-age=604800
+/demo-music.mp4
+  Cache-Control: public, max-age=604800
+/demo-music.webm
+  Cache-Control: public, max-age=604800

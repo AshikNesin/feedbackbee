@@ -95,7 +95,17 @@ h1 {
 }
 .bar { display: flex; align-items: center; gap: 6px; height: 36px; padding: 0 14px; border-bottom: 1px solid var(--line); background: var(--tile); }
 .bar i { width: 10px; height: 10px; border-radius: 50%; background: var(--line); }
-.bar span { margin: 0 auto; font-size: 12px; color: var(--muted); padding-right: 46px; }
+.bar span { margin: 0 auto; font-size: 12px; color: var(--muted); }
+.sound {
+  display: grid; place-items: center; width: 28px; height: 28px; margin-right: -8px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--muted); cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: transform .16s var(--ease), background-color .15s, color .15s;
+}
+.sound:active { transform: scale(.92); }
+.sound svg { grid-area: 1 / 1; transition: opacity .2s var(--ease), transform .2s var(--ease), filter .2s var(--ease); }
+.sound .on, .sound[aria-pressed="true"] .off { opacity: 0; transform: scale(.6); filter: blur(2px); }
+.sound[aria-pressed="true"] .on { opacity: 1; transform: none; filter: none; }
+.sound[aria-pressed="true"] { color: var(--fg); }
 video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #fafafa; }
 .caption { text-align: center; color: var(--muted); font-size: 13px; margin-top: 14px; }
 
@@ -152,7 +162,7 @@ footer a { text-decoration: none; }
   .pill:hover { border-color: var(--muted); }
   .btn:hover { border-color: var(--muted); }
   .btn.primary:hover { background: color-mix(in srgb, var(--fg) 86%, var(--bg)); }
-  .copy:hover { background: var(--line); color: var(--fg); }
+  .copy:hover, .sound:hover { background: var(--line); color: var(--fg); }
   footer a:hover { color: var(--fg); }
 }
 :focus-visible { outline: 2px solid var(--honey); outline-offset: 2px; }
@@ -164,7 +174,7 @@ footer a { text-decoration: none; }
 @keyframes lift { from { opacity: 0; transform: translateY(16px) scale(.98); filter: blur(6px); } }
 @media (prefers-reduced-motion: reduce) {
   .in, .stage.in { animation: none; }
-  .btn, .copy, .copy svg { transition: none; }
+  .btn, .copy, .copy svg, .sound, .sound svg { transition: none; }
 }
 </style>
 </head>
@@ -200,10 +210,12 @@ footer a { text-decoration: none; }
 
   <div class="stage in" style="--i:4">
     <div class="frame">
-      <div class="bar" aria-hidden="true"><i></i><i></i><i></i><span>your-app.com</span></div>
+      <div class="bar"><i aria-hidden="true"></i><i aria-hidden="true"></i><i aria-hidden="true"></i><span aria-hidden="true">your-app.com</span>
+        <button class="sound" type="button" aria-pressed="false" aria-label="Turn sound on"><svg class="off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/></svg><svg class="on" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14"/></svg></button>
+      </div>
       <video poster="/poster.jpg" autoplay muted loop playsinline preload="auto" aria-label="Demo: a user spots a bug, takes a screenshot, annotates it with an arrow, a box and pixelation, and sends it as feedback.">
-        <source src="/demo.webm" type="video/webm" />
-        <source src="/demo.mp4" type="video/mp4" />
+        <source src="/demo-music.webm" type="video/webm" />
+        <source src="/demo-music.mp4" type="video/mp4" />
       </video>
     </div>
     <p class="caption">Spot a bug, snap the page, mark it up, send. No screen-share prompt.</p>
@@ -297,8 +309,17 @@ document.querySelectorAll(".copy").forEach(function (btn) {
     }, function () {});
   });
 });
-// Pause the demo when it is off screen or the user prefers less motion.
 var v = document.querySelector("video");
+// Sound toggle for the demo's backing track (autoplay has to start muted).
+var sound = document.querySelector(".sound");
+sound.addEventListener("click", function () {
+  var on = sound.getAttribute("aria-pressed") !== "true";
+  v.muted = !on;
+  if (on) { v.currentTime = 0; v.play().catch(function () {}); }
+  sound.setAttribute("aria-pressed", String(on));
+  sound.setAttribute("aria-label", on ? "Turn sound off" : "Turn sound on");
+});
+// Pause the demo when it is off screen or the user prefers less motion.
 if (matchMedia("(prefers-reduced-motion: reduce)").matches) { v.removeAttribute("autoplay"); v.controls = true; v.pause(); }
 else if ("IntersectionObserver" in window) {
   new IntersectionObserver(function (e) { e[0].isIntersecting ? v.play().catch(function () {}) : v.pause(); }).observe(v);
