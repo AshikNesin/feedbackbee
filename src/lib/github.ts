@@ -1,4 +1,5 @@
 import type { Env, FeedbackRow, LabelsMap, ProjectRow } from "../types.ts";
+import { isReplayKey } from "./validate.ts";
 
 declare global {
   // deno-lint-ignore no-var
@@ -17,7 +18,7 @@ export function issueTitle(f: Pick<FeedbackRow, "kind" | "text" | "device_model"
 }
 
 function row(label: string, value: string | null | undefined): string {
-  return `| ${label} | ${value && value !== "" ? value : "—" } |`;
+  return `| ${label} | ${value && value !== "" ? value : "-" } |`;
 }
 
 export function issueBody(f: FeedbackRow, mediaUrl: string | null, audioUrl: string | null): string {
@@ -28,7 +29,8 @@ export function issueBody(f: FeedbackRow, mediaUrl: string | null, audioUrl: str
       lines.push(`![screenshot](${mediaUrl})`, "");
     } else {
       const secs = f.media_seconds ? ` (${Math.round(f.media_seconds)}s)` : "";
-      lines.push(`[Screen recording${secs}](${mediaUrl})`, "");
+      const label = isReplayKey(f.media_key) ? "\u25b6 Watch session replay" : "Screen recording";
+      lines.push(`[${label}${secs}](${mediaUrl})`, "");
     }
   }
   if (audioUrl) {

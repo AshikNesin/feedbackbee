@@ -36,12 +36,26 @@ export function repoOk(repo: string): boolean {
   return /^[\w.-]+\/[\w.-]+$/.test(repo);
 }
 
+// Web recordings are rrweb DOM replays (gzipped JSON), not video: capturing
+// the page this way needs no screen-share prompt. Served via /replay/<key>.
+export const REPLAY_MIME = "application/gzip";
+const REPLAY_EXT = "rrweb.gz";
+
+export function isReplayKey(key: string | null): boolean {
+  return !!key && key.endsWith(`.${REPLAY_EXT}`);
+}
+
+export function mediaExt(mime: string): string {
+  return mime === REPLAY_MIME ? REPLAY_EXT : (mime.split("/")[1] ?? "bin");
+}
+
 type SniffedRole = "screenshot" | "recording" | "audio" | "webm";
 const MAGIC: Array<{ bytes: number[]; mime: string; media: SniffedRole }> = [
   { bytes: [0x89, 0x50, 0x4e, 0x47], mime: "image/png", media: "screenshot" },
   { bytes: [0xff, 0xd8, 0xff], mime: "image/jpeg", media: "screenshot" },
   { bytes: [0x52, 0x49, 0x46, 0x46], mime: "image/webp", media: "screenshot" },
   { bytes: [0x1a, 0x45, 0xdf, 0xa3], mime: "video/webm", media: "webm" },
+  { bytes: [0x1f, 0x8b], mime: REPLAY_MIME, media: "recording" },
   { bytes: [0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70], mime: "video/mp4", media: "recording" },
   { bytes: [0x4f, 0x70, 0x75, 0x73], mime: "audio/ogg", media: "audio" },
   { bytes: [0xff, 0xfb], mime: "audio/mpeg", media: "audio" },

@@ -59,7 +59,6 @@ internal interface SheetActions {
     fun onRemoveVoice()
     fun onSend()
     fun onClose()
-    fun onOpenIssue(url: String)
 }
 
 /** Pure projection of [FeedbackState]: three screens (pick a kind, write the note, done) sharing one panel. */
@@ -217,7 +216,7 @@ internal class FeedbackSheetView(
     fun render(state: FeedbackState) {
         when (state) {
             is FeedbackState.Choosing -> renderChoose()
-            is FeedbackState.Sent -> renderDone(state)
+            is FeedbackState.Sent -> renderDone()
             else -> renderForm(state)
         }
         closeButton.isEnabled = state !is FeedbackState.Uploading
@@ -233,17 +232,13 @@ internal class FeedbackSheetView(
         dismissKeyboard()
     }
 
-    private fun renderDone(state: FeedbackState.Sent) {
+    private fun renderDone() {
         showOnly(doneGroup)
         title.text = "Share feedback"
         subtitle.visibility = View.GONE
         backButton.visibility = View.GONE
         dismissKeyboard()
-        val url = state.issueUrl
-        doneDetail.text = if (url != null) "View on GitHub ↗" else "Thanks for helping us make things better."
-        doneDetail.setTextColor(if (url != null) Theme.Ink else Theme.Muted)
-        doneDetail.setOnClickListener(if (url != null) View.OnClickListener { actions.onOpenIssue(url) } else null)
-        doneDetail.isClickable = url != null
+        doneDetail.text = "Thanks for helping us make things better."
     }
 
     private fun renderForm(state: FeedbackState) {

@@ -13,14 +13,22 @@ export type Feedback = {
   text: string;
   reporter_email: string | null;
   url: string | null;
+  user_agent: string | null;
+  screen_w: number | null;
+  screen_h: number | null;
   media_kind: "none" | "screenshot" | "recording";
   media_key: string | null;
+  media_seconds: number | null;
+  audio_key: string | null;
+  audio_seconds: number | null;
+  app_version: string | null;
   issue_url: string | null;
   issue_number: number | null;
   state: "pending" | "created" | "issue_error" | "deleted";
   issue_error: string | null;
   device_model: string | null;
   os_name: string | null;
+  os_version: string | null;
   created_at: number;
 };
 
@@ -62,8 +70,9 @@ export const api = {
   async deleteProject(id: string) {
     await req(`/api/projects/${id}`, { method: "DELETE" });
   },
-  async feedback(projectId: string): Promise<Feedback[]> {
-    const res = await req(`/api/projects/${projectId}/feedback`);
-    return (await res.json()).feedback;
+  async feedback(projectId: string, before?: number): Promise<{ feedback: Feedback[]; hasMore: boolean }> {
+    const res = await req(`/api/projects/${projectId}/feedback${before ? `?before=${before}` : ""}`);
+    if (!res.ok) throw new Error("failed to load feedback");
+    return res.json();
   },
 };
