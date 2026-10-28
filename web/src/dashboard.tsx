@@ -91,18 +91,20 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 }
 
 function Setup({ project, onDeleted }: { project: Project; onDeleted: () => void }) {
-  const web = `<script src="${location.origin}/embed.js" data-project="${project.slug}" async></script>`;
+  const stub =
+    `<script>window.FeedbackBee=window.FeedbackBee||{q:[]};"init ready identify setContext open close on off reset".split(" ").map(function(m){window.FeedbackBee[m]=function(){var a=[].slice.call(arguments);return new Promise(function(r,j){window.FeedbackBee.q.push([m,a,r,j])})}})</script>`;
+  const web = `${stub}\n<script src="${location.origin}/embed.js" data-project="${project.slug}" async></script>`;
   const android = `FeedbackBee.init(this, projectId = "${project.slug}", endpoint = "${location.origin}")`;
   return (
     <div className="setup">
       <div>
         <h2>Web</h2>
-        <p>Paste before the closing <code>&lt;/body&gt;</code> tag.</p>
+        <p>Paste before the closing <code>&lt;/body&gt;</code> tag. Add <code>data-headless</code> to hide the pill and open from your own UI with <code>FeedbackBee.open()</code>.</p>
         <div className="code"><pre>{web}</pre><CopyButton text={web} /></div>
       </div>
       <div>
         <h2>Android</h2>
-        <p>Call from <code>Application.onCreate</code>, then <code>FeedbackBee.show()</code> or shake to report.</p>
+        <p>Call from <code>Application.onCreate</code>, then <code>FeedbackBee.open()</code> or shake to report.</p>
         <div className="code"><pre>{android}</pre><CopyButton text={android} /></div>
       </div>
       <div className="setup-foot">
