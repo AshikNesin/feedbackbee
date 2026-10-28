@@ -3,11 +3,12 @@ import { api, type Feedback, type Project } from "./api.ts";
 import { Icon, Logo, ThemeToggle } from "./icons.tsx";
 
 type Kind = Feedback["kind"];
+const KIND_LABELS: Record<Kind, string> = { issue: "Issue", feature_request: "Feature request", other: "Other" };
 const KINDS: { id: Kind | "all"; label: string }[] = [
   { id: "all", label: "All" },
-  { id: "bug", label: "Issues" },
-  { id: "idea", label: "Ideas" },
-  { id: "feedback", label: "Other" },
+  { id: "issue", label: "Issues" },
+  { id: "feature_request", label: "Feature requests" },
+  { id: "other", label: "Other" },
 ];
 
 const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
@@ -50,20 +51,26 @@ function lastProject() {
   try { return localStorage.getItem("fb:project") ?? ""; } catch { return ""; }
 }
 
+/** `#<slug>` or `#<slug>/<feedback-id>`: the id deep-links one feedback item. */
+function readHash(): { slug: string; id: string | null } {
+  const [slug, id] = decodeURIComponent(location.hash.slice(1)).split("/");
+  return { slug: slug || "", id: id || null };
+}
+
 function useHashProject(projects: Project[] | null) {
-  const [slug, setSlug] = useState(() => decodeURIComponent(location.hash.slice(1)) || lastProject());
+  const [hash, setHash] = useState(readHash);
   useEffect(() => {
-    const on = () => setSlug(decodeURIComponent(location.hash.slice(1)));
+    const on = () => setHash(readHash());
     addEventListener("hashchange", on);
     return () => removeEventListener("hashchange", on);
   }, []);
-  const current = projects?.find((p) => p.slug === slug) ?? projects?.[0] ?? null;
+  const current = projects?.find((p) => p.slug === hash.slug) ?? projects?.[0] ?? null;
   useEffect(() => {
     if (!current) return;
     try { localStorage.setItem("fb:project", current.slug); } catch { /* storage unavailable */ }
   }, [current?.slug]);
   const select = (s: string) => { location.hash = encodeURIComponent(s); };
-  return [current, select] as const;
+  return [current, select, hash.id] as const;
 }
 
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
@@ -116,16 +123,31 @@ function Setup({ project, onDeleted }: { project: Project; onDeleted: () => void
   );
 }
 
+function parseMetadata(raw: string | null): Array<[string, string]> | null {
+  if (!raw) return null;
+  try {
+    const obj = JSON.parse(raw) as Record<string, unknown>;
+    const pairs = Object.entries(obj).map(([k, v]) => [k, String(v)] as [string, string]);
+    return pairs.length ? pairs : null;
+  } catch {
+    return null;
+  }
+}
+
 function FeedbackItem({ f, open, onToggle }: { f: Feedback; open: boolean; onToggle: () => void }) {
-  const shot = f.media_kind === "screenshot" && f.media_key ? `/f/${f.media_key}` : null;
+  const images = f.images ?? [];
+  const imageUrls = images.map((key) => `/f/${key}`);
+  const legacyShot = !images.length && f.media_kind === "screenshot" && f.media_key ? `/f/${f.media_key}` : null;
+  const shot = imageUrls[0] ?? legacyShot;
   const replay = isReplay(f.media_key);
   const video = f.media_kind === "recording" && f.media_key && !replay ? `/f/${f.media_key}` : null;
   const where = pagePath(f.url);
   const device = f.device_model || browser(f.user_agent);
+  const metadata = parseMetadata(f.metadata);
   return (
-    <div className={`item${open ? " open" : ""}`}>
+    <div id={`fb-${f.id}`} className={`item${open ? " open" : ""}`}>
       <button type="button" className="row" aria-expanded={open} onClick={onToggle}>
-        <span className={`dot ${f.kind}`} title={f.kind === "bug" ? "Issue" : f.kind === "idea" ? "Idea" : "Other"} />
+        <span className={`dot ${f.kind}`} title={KIND_LABELS[f.kind] ?? f.kind} />
         <span className="text">
           <p>{f.text || <em style={{ color: "var(--faint)" }}>No message</em>}</p>
           <span className="meta">
@@ -133,11 +155,13 @@ function FeedbackItem({ f, open, onToggle }: { f: Feedback; open: boolean; onTog
             {where && <span>{where}</span>}
             {device && <span>{device}</span>}
             {f.reporter_email && <span>{f.reporter_email}</span>}
+            {f.reporter_name && f.reporter_name !== f.reporter_email && <span>{f.reporter_name}</span>}
           </span>
         </span>
         <span className="right">
           {replay && <span className="chip"><Icon name="play" />{clock(f.media_seconds)}</span>}
           {video && <span className="chip"><Icon name="play" />{clock(f.media_seconds)}</span>}
+          {images.length > 1 && <span className="chip">{images.length} images</span>}
           {f.audio_key && <span className="chip"><Icon name="mic" />{clock(f.audio_seconds)}</span>}
           {shot && <img className="thumb" src={shot} alt="" loading="lazy" />}
           {f.state === "created" && f.issue_number ? (
@@ -151,7 +175,16 @@ function FeedbackItem({ f, open, onToggle }: { f: Feedback; open: boolean; onTog
       </button>
       {open && (
         <div className="detail">
-          {shot && <a className="media" href={shot} target="_blank" rel="noreferrer"><img src={shot} alt="Screenshot" /></a>}
+          {imageUrls.length > 0 && (
+            <div className={`media-grid${imageUrls.length === 1 ? " single" : ""}`}>
+              {imageUrls.map((src, i) => (
+                <a key={src} className="media" href={src} target="_blank" rel="noreferrer">
+                  <img src={src} alt={`Image ${i + 1}`} loading="lazy" />
+                </a>
+              ))}
+            </div>
+          )}
+          {legacyShot && <a className="media" href={legacyShot} target="_blank" rel="noreferrer"><img src={legacyShot} alt="Screenshot" /></a>}
           {video && <video className="media" src={video} controls preload="metadata" style={{ width: "100%" }} />}
           {f.audio_key && <audio src={`/f/${f.audio_key}`} controls preload="none" />}
           <div className="actions">
@@ -165,6 +198,8 @@ function FeedbackItem({ f, open, onToggle }: { f: Feedback; open: boolean; onTog
           <dl className="ctx">
             {f.url && <><dt>Page</dt><dd><a href={f.url} target="_blank" rel="noreferrer">{f.url}</a></dd></>}
             <dt>Sent</dt><dd>{new Date(f.created_at).toLocaleString()}</dd>
+            {f.reporter_name && <><dt>Name</dt><dd>{f.reporter_name}</dd></>}
+            {f.reporter_id && <><dt>User</dt><dd><code>{f.reporter_id}</code></dd></>}
             {f.os_name === "web"
               ? browser(f.user_agent) && <><dt>Browser</dt><dd>{browser(f.user_agent)}</dd></>
               : f.os_name && <><dt>OS</dt><dd>{[f.os_name, f.os_version].filter(Boolean).join(" ")}</dd></>}
@@ -172,6 +207,7 @@ function FeedbackItem({ f, open, onToggle }: { f: Feedback; open: boolean; onTog
             {f.app_version && <><dt>App version</dt><dd>{f.app_version}</dd></>}
             {f.screen_w && f.screen_h && <><dt>Screen</dt><dd>{f.screen_w}×{f.screen_h}</dd></>}
             {f.user_agent && <><dt>User agent</dt><dd>{f.user_agent}</dd></>}
+            {metadata && <><dt>Metadata</dt><dd className="meta-list">{metadata.map(([k, v]) => <span key={k}><code>{k}</code> {v}</span>)}</dd></>}
           </dl>
         </div>
       )}
@@ -179,7 +215,7 @@ function FeedbackItem({ f, open, onToggle }: { f: Feedback; open: boolean; onTog
   );
 }
 
-function Inbox({ project, setupOpen }: { project: Project; setupOpen: (open: boolean) => void }) {
+function Inbox({ project, setupOpen, deepLinkedId }: { project: Project; setupOpen: (open: boolean) => void; deepLinkedId?: string | null }) {
   const [items, setItems] = useState<Feedback[] | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -189,7 +225,7 @@ function Inbox({ project, setupOpen }: { project: Project; setupOpen: (open: boo
   useEffect(() => {
     let live = true;
     setItems(null);
-    setOpen(null);
+    setOpen(deepLinkedId ?? null);
     setKind("all");
     api.feedback(project.id).then(
       (page) => {
@@ -197,11 +233,16 @@ function Inbox({ project, setupOpen }: { project: Project; setupOpen: (open: boo
         setItems(page.feedback);
         setHasMore(page.hasMore);
         if (page.feedback.length === 0) setupOpen(true);
+        else if (deepLinkedId) {
+          setTimeout(() => {
+            document.getElementById(`fb-${deepLinkedId}`)?.scrollIntoView({ block: "center" });
+          }, 60);
+        }
       },
       () => live && setItems([]),
     );
     return () => { live = false; };
-  }, [project.id]);
+  }, [project.id, deepLinkedId]);
 
   async function more() {
     if (!items?.length) return;
@@ -321,7 +362,7 @@ export function Dashboard() {
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [creating, setCreating] = useState(false);
   const [setup, setSetup] = useState(false);
-  const [current, select] = useHashProject(projects);
+  const [current, select, deepLinkedId] = useHashProject(projects);
 
   const refresh = () => api.projects().then(setProjects).catch(() => setProjects([]));
   useEffect(() => { refresh(); }, []);
@@ -406,7 +447,7 @@ export function Dashboard() {
             </div>
           </div>
           {setup && <Setup project={current} onDeleted={() => { location.hash = ""; refresh(); }} />}
-          <Inbox key={current.id} project={current} setupOpen={setSetup} />
+          <Inbox key={current.id} project={current} setupOpen={setSetup} deepLinkedId={deepLinkedId} />
         </main>
       </div>
       {dialog}

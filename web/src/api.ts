@@ -9,9 +9,12 @@ export type Project = {
 
 export type Feedback = {
   id: string;
-  kind: "bug" | "idea" | "feedback";
+  kind: "issue" | "feature_request" | "other";
   text: string;
   reporter_email: string | null;
+  reporter_name: string | null;
+  reporter_id: string | null;
+  metadata: string | null;
   url: string | null;
   user_agent: string | null;
   screen_w: number | null;
@@ -19,6 +22,7 @@ export type Feedback = {
   media_kind: "none" | "screenshot" | "recording";
   media_key: string | null;
   media_seconds: number | null;
+  images: string[];
   audio_key: string | null;
   audio_seconds: number | null;
   app_version: string | null;
