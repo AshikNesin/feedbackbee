@@ -72,7 +72,7 @@ FeedbackBee.setContext(mapOf("plan" to "pro", "build" to 4211))               //
 FeedbackBee.reset()                                                           // on logout
 ```
 
-**Upgrading from 0.3:** `show()` is now `open()`. Rename your calls; there is no alias. `FeedbackKind` values are
+**Upgrading from 0.3.x:** `show()` is now `open()`. Rename your calls; there is no alias. `FeedbackKind` values are
 `Issue` / `FeatureRequest` / `Other` with wire values `issue` / `feature_request` / `other`; old server builds are
 the only consumers of the old `bug` / `idea` / `feedback` values, and current Workers accept both. Reports from
 `identify()` / `setContext()` reach your dashboard only — never the GitHub issue.
