@@ -71,8 +71,8 @@ class FeedbackConfigTest {
 
     @Test
     fun kindsMapToTheContractWireValuesAndWebLabels() {
-        assertEquals(listOf("bug", "idea", "feedback"), FeedbackKind.entries.map { it.wire })
-        assertEquals(listOf("Issue", "Idea", "Other"), FeedbackKind.entries.map { it.label })
-        assertEquals(listOf("Report an issue", "Share an idea", "Tell us more"), FeedbackKind.entries.map { it.formTitle })
+        assertEquals(listOf("issue", "feature_request", "other"), FeedbackKind.entries.map { it.wire })
+        assertEquals(listOf("Issue", "Feature request", "Other"), FeedbackKind.entries.map { it.label })
+        assertEquals(listOf("Report an issue", "Request a feature", "Tell us more"), FeedbackKind.entries.map { it.formTitle })
     }
 }

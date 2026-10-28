@@ -4,10 +4,10 @@ import android.graphics.Bitmap
 import io.nesin.feedbackbee.annotate.Shape
 import java.io.File
 
-internal enum class FeedbackKind(val wire: String, val label: String, val formTitle: String) {
-    Issue("bug", "Issue", "Report an issue"),
-    Idea("idea", "Idea", "Share an idea"),
-    Other("feedback", "Other", "Tell us more"),
+enum class FeedbackKind(val wire: String, val label: String, val formTitle: String) {
+    Issue("issue", "Issue", "Report an issue"),
+    FeatureRequest("feature_request", "Feature request", "Request a feature"),
+    Other("other", "Other", "Tell us more"),
 }
 
 internal object FeedbackLimits {
@@ -36,6 +36,10 @@ internal sealed interface FeedbackState {
         val kind: FeedbackKind = FeedbackKind.Other,
         val email: String = "",
         val audio: AudioNote? = null,
+        /** The host identified this reporter; the email ships with the report and can't be edited. */
+        val emailLocked: Boolean = false,
+        /** Opened with `open(kind, lockKind = true)`: the Back-to-picker control stays hidden. */
+        val kindLocked: Boolean = false,
     ) : Editable {
         override val draft: Draft get() = this
         override fun withDraft(draft: Draft): Editable = draft

@@ -60,7 +60,7 @@ class MultipartBodyTest {
         val out = render(FeedbackUploader.buildBody(request))
         val expected = listOf(
             "name=\"project\"\r\n\r\nmyapp",
-            "name=\"kind\"\r\n\r\nbug",
+            "name=\"kind\"\r\n\r\nissue",
             "name=\"text\"\r\n\r\nIt crashed\r\n",
             "name=\"email\"\r\n\r\na@b.co",
             "name=\"app_version\"\r\n\r\n1.2.3",
@@ -78,7 +78,7 @@ class MultipartBodyTest {
     @Test
     fun optionalFieldsAreOmittedWhenAbsent() {
         val request = UploadRequest(
-            project = "p", kind = FeedbackKind.Idea, text = "t", email = " ",
+            project = "p", kind = FeedbackKind.FeatureRequest, text = "t", email = " ",
             device = device.copy(appVersion = null), media = null,
         )
         val out = render(FeedbackUploader.buildBody(request))

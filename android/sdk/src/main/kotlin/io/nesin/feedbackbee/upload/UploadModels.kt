@@ -47,6 +47,9 @@ internal class UploadRequest(
     val device: DeviceInfo,
     val media: Media?,
     val audio: Audio? = null,
+    val reporterName: String? = null,
+    val reporterId: String? = null,
+    val metadata: Map<String, Any?> = emptyMap(),
 )
 
 internal sealed interface UploadOutcome {

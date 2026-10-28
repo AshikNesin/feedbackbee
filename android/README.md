@@ -61,8 +61,21 @@ then optional `shake`. `DEFAULT_ENDPOINT` has been removed. Blank or malformed U
 including hosts with embedded credentials, query parameters, or fragments. Use the base URL, not `/api/feedback`.
 
 `init` is idempotent: call it again (say, after the user switches workspace) and the new config replaces the old one;
-the old lifecycle callbacks are unregistered first. `show()` can be called from any thread and does nothing
+the old lifecycle callbacks are unregistered first. `open()` can be called from any thread and does nothing
 while a sheet is already open.
+
+```kotlin
+FeedbackBee.open()                                                            // the picker, like a shake
+FeedbackBee.open(OpenOptions(kind = FeedbackKind.Issue, lockKind = true))     // a "Report a problem" button
+FeedbackBee.identify(email = "jane@acme.com", name = "Jane", id = "u_123")    // reporter context, dashboard-only
+FeedbackBee.setContext(mapOf("plan" to "pro", "build" to 4211))               // metadata, dashboard-only
+FeedbackBee.reset()                                                           // on logout
+```
+
+**Upgrading from 0.3:** `show()` is now `open()`. Rename your calls; there is no alias. `FeedbackKind` values are
+`Issue` / `FeatureRequest` / `Other` with wire values `issue` / `feature_request` / `other`; old server builds are
+the only consumers of the old `bug` / `idea` / `feedback` values, and current Workers accept both. Reports from
+`identify()` / `setContext()` reach your dashboard only — never the GitHub issue.
 
 ## Shake
 
@@ -72,8 +85,8 @@ while a sheet is already open.
 | Runs | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz). Nothing runs in the background. |
 | Can't stack | Shakes are ignored while a sheet is open, and the counter resets after each trigger. |
 | Turn it off | `FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)` |
-| Open manually | `FeedbackBee.show()`, for example from a "Send feedback" menu item. |
-| No accelerometer | Logged once at init. Use `show()`. |
+| Open manually | `FeedbackBee.open()`, for example from a "Send feedback" menu item. |
+| No accelerometer | Logged once at init. Use `open()`. |
 
 The detection logic is plain Kotlin (`ShakeAnalyzer`) with JUnit tests for a shake and several non-shakes.
 
@@ -97,9 +110,10 @@ Errors (rate limit, bad input, no network, a capture that failed) show inside th
 draft is kept. Back keeps the note too.
 
 Send posts multipart to `{endpoint}/api/feedback` exactly as in [docs/CONTRACT.md](../docs/CONTRACT.md):
-`project`, `kind` (`bug`, `idea` or `feedback` for Issue, Idea, Other), `text`, optional `email`, `app_version`,
+`project`, `kind` (`issue`, `feature_request` or `other`), `text`, optional `email`, `app_version`,
 `os_name=android`, `os_version` (API level), `device_model`, `screen_w`, `screen_h`, and optional independent
-`media`/`media_kind`/`media_seconds` plus `audio`/`audio_seconds`. Screenshots have a 10 MB cap; voice notes use
+`media`/`media_kind`/`media_seconds` plus `audio`/`audio_seconds`. When `identify()` / `setContext()` were used,
+`reporter_name`, `reporter_id` and a `metadata` JSON object ride along too. Screenshots have a 10 MB cap; voice notes use
 an `.m4a` file with a 25 MB and 300-second cap.
 
 The sheet renders from one sealed state, not scattered flags:

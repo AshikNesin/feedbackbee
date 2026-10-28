@@ -23,6 +23,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import io.nesin.feedbackbee.FeedbackBee
+import io.nesin.feedbackbee.OpenOptions
 import io.nesin.feedbackbee.FeedbackKind
 import io.nesin.feedbackbee.FeedbackState
 import io.nesin.feedbackbee.FeedbackViewModel
@@ -36,6 +37,7 @@ import kotlin.math.min
 
 internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
 
+    private val options by lazy { OpenOptions.fromArguments(arguments) }
     private val viewModel by lazy { FeedbackViewModel.of(requireActivity()) }
     private var sheet: FeedbackSheetView? = null
     private var voiceRecorder: VoiceRecorder? = null
@@ -65,7 +67,10 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
         val view = FeedbackSheetView(requireContext(), this)
         sheet = view
         view.setVoicePermissionDenied(voicePermissionDenied)
-        if (savedInstanceState == null) slideIn(view)
+        if (savedInstanceState == null) {
+            viewModel.applyOptions(options)
+            slideIn(view)
+        }
         return view
     }
 
@@ -202,11 +207,11 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
         private const val DIM = 0.4f
 
         /** Does nothing while a sheet is already open, so a shake can never stack a second one. */
-        fun open(activity: FragmentActivity) {
+        fun open(activity: FragmentActivity, options: OpenOptions = OpenOptions()) {
             val fragments = activity.supportFragmentManager
             if (fragments.isStateSaved || fragments.isDestroyed) return
             if (fragments.findFragmentByTag(TAG) != null) return
-            FeedbackSheetFragment().show(fragments, TAG)
+            FeedbackSheetFragment().apply { arguments = options.toBundle() }.show(fragments, TAG)
         }
     }
 }

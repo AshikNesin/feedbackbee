@@ -43,6 +43,9 @@ internal object FeedbackUploader {
             add(Part.Text("device_model", device.deviceModel))
             add(Part.Text("screen_w", device.screenWidth.toString()))
             add(Part.Text("screen_h", device.screenHeight.toString()))
+            request.reporterName?.let { add(Part.Text("reporter_name", it)) }
+            request.reporterId?.let { add(Part.Text("reporter_id", it)) }
+            if (request.metadata.isNotEmpty()) add(Part.Text("metadata", MetadataJson.encode(request.metadata)))
             request.media?.let { media ->
                 add(Part.Text("media_kind", media.kind.wire))
                 media.seconds?.let { add(Part.Text("media_seconds", it.toString())) }

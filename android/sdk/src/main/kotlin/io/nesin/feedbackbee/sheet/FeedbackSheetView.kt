@@ -251,7 +251,7 @@ internal class FeedbackSheetView(
         subtitle.visibility = View.VISIBLE
         noteField.hint = when (draft.kind) {
             FeedbackKind.Issue -> "What happened? What did you expect?"
-            FeedbackKind.Idea -> "What would make this better for you?"
+            FeedbackKind.FeatureRequest -> "What would make this better for you?"
             FeedbackKind.Other -> "What's on your mind?"
         }
         backButton.visibility = View.VISIBLE
@@ -261,7 +261,10 @@ internal class FeedbackSheetView(
         syncText(noteField, draft.text)
         syncText(emailField, draft.email)
         noteField.isEnabled = interactive
-        emailField.isEnabled = interactive
+        emailField.isEnabled = interactive && !draft.emailLocked
+        emailField.hint = if (draft.emailLocked) draft.email else "you@example.com"
+        emailLabel.text = if (draft.emailLocked) "Email (from your account)" else "Email (optional)"
+        backButton.visibility = if (draft.kindLocked) View.GONE else View.VISIBLE
 
         val screenshot = (form as? FeedbackState.WithScreenshot)?.bitmap
         screenshotBlock.visibility = if (screenshot == null) View.GONE else View.VISIBLE
@@ -330,7 +333,7 @@ internal class FeedbackSheetView(
         orientation = LinearLayout.VERTICAL
         val tiles = listOf(
             kindTile(FeedbackKind.Issue, R.drawable.fbb_ic_issue, "Something isn't working as expected"),
-            kindTile(FeedbackKind.Idea, R.drawable.fbb_ic_idea, "A small improvement or a big idea"),
+            kindTile(FeedbackKind.FeatureRequest, R.drawable.fbb_ic_idea, "A small improvement or a big idea"),
             kindTile(FeedbackKind.Other, R.drawable.fbb_ic_other, "Anything else on your mind"),
         )
         tiles.forEachIndexed { index, tile ->
@@ -370,11 +373,13 @@ internal class FeedbackSheetView(
         })
     }
 
+    private val emailLabel = fieldLabel("Email (optional)", emailField)
+
     private fun buildFormGroup() = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
         addView(fieldLabel("Your feedback", noteField), spaced(top = 0).apply { bottomMargin = context.dp(7) })
         addView(noteField, LinearLayout.LayoutParams(MATCH_PARENT, WRAP_CONTENT))
-        addView(fieldLabel("Email (optional)", emailField), spaced(top = 14).apply { bottomMargin = context.dp(7) })
+        addView(emailLabel, spaced(top = 14).apply { bottomMargin = context.dp(7) })
         addView(emailField, spaced(top = 0))
         addView(screenshotBlock, spaced(top = 12))
         addView(voiceRecordingBlock, spaced(top = 12))

@@ -19,15 +19,15 @@ internal class Installation(
     shake: Boolean,
 ) : Application.ActivityLifecycleCallbacks {
 
-    private val detector = if (shake) ShakeDetector(application, onShake = ::show) else null
+    private val detector = if (shake) ShakeDetector(application, onShake = ::openFromShake) else null
     private var resumed: WeakReference<Activity>? = null
 
     val resumedActivity: Activity? get() = resumed?.get()
 
-    /** [resumed] is passed on by a re-init so show() keeps working until the next onResume. */
+    /** [resumed] is passed on by a re-init so open() keeps working until the next onResume. */
     fun install(resumed: Activity?) {
         if (detector != null && !detector.isSupported) {
-            Log.i(TAG, "No accelerometer on this device; call FeedbackBee.show() from your own button.")
+            Log.i(TAG, "No accelerometer on this device; call FeedbackBee.open() from your own button.")
         }
         application.registerActivityLifecycleCallbacks(this)
         if (resumed != null) onActivityResumed(resumed)
@@ -39,15 +39,17 @@ internal class Installation(
         resumed = null
     }
 
-    fun show() {
+    fun show(options: OpenOptions = OpenOptions()) {
         when (val activity = resumedActivity) {
-            null -> warn("show() ignored: no activity is in the foreground.")
+            null -> warn("open() ignored: no activity is in the foreground.")
             !is FragmentActivity -> warn(
-                "show() ignored: ${activity.javaClass.name} is not a FragmentActivity (use AppCompatActivity or FragmentActivity).",
+                "open() ignored: ${activity.javaClass.name} is not a FragmentActivity (use AppCompatActivity or FragmentActivity).",
             )
-            else -> FeedbackSheetFragment.open(activity)
+            else -> FeedbackSheetFragment.open(activity, options)
         }
     }
+
+    private fun openFromShake() = show()
 
     override fun onActivityResumed(activity: Activity) {
         resumed = WeakReference(activity)
@@ -71,6 +73,10 @@ internal class Installation(
 
         fun warn(message: String) {
             Log.w(TAG, message)
+        }
+
+        fun warnContextDropped(key: String) {
+            Log.w(TAG, "setContext: dropped metadata key \"$key\" (key or value outside the contract limits)")
         }
     }
 }

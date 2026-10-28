@@ -22,8 +22,41 @@ class FeedbackViewModelTest {
 
     @Test
     fun pickingAKindOpensTheFormForThatKind() {
-        viewModel.chooseKind(FeedbackKind.Idea)
-        assertEquals(Draft(kind = FeedbackKind.Idea), viewModel.state.value)
+        viewModel.chooseKind(FeedbackKind.FeatureRequest)
+        assertEquals(Draft(kind = FeedbackKind.FeatureRequest), viewModel.state.value)
+    }
+
+    @Test
+    fun openOptionsPrefillAndLockTheForm() {
+        Reporter.identify(email = "jane@acme.com", name = "Jane", id = "u_123")
+        try {
+            viewModel.applyOptions(OpenOptions(kind = FeedbackKind.Issue, lockKind = true, text = "It broke"))
+            val draft = viewModel.state.value as Draft
+            assertEquals(FeedbackKind.Issue, draft.kind)
+            assertEquals("It broke", draft.text)
+            assertEquals("jane@acme.com", draft.email)
+            assertEquals(true, draft.emailLocked)
+            assertEquals(true, draft.kindLocked)
+
+            viewModel.backToKindPicker()
+            assertEquals(Draft("It broke", FeedbackKind.Issue, "jane@acme.com", emailLocked = true, kindLocked = true), viewModel.state.value)
+        } finally {
+            Reporter.reset()
+        }
+    }
+
+    @Test
+    fun applyOptionsOnlyPrefillsAVirginSheet() {
+        Reporter.identify(email = "jane@acme.com", name = null, id = null)
+        try {
+            viewModel.chooseKind(FeedbackKind.Issue)
+            viewModel.editDraft { it.copy(text = "already typed") }
+            viewModel.applyOptions(OpenOptions(text = "ignored"))
+            val draft = viewModel.state.value as Draft
+            assertEquals("already typed", draft.text)
+        } finally {
+            Reporter.reset()
+        }
     }
 
     @Test

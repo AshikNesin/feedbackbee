@@ -55,16 +55,65 @@ object FeedbackBee {
     /**
      * Opens the feedback sheet over the foreground activity, for example from a "Send feedback" button.
      * Does nothing while a sheet is already open. Safe to call from any thread.
+     *
+     * `options` preselects the feedback type, prefills the note, or locks the type picker:
+     *
+     * ```kotlin
+     * FeedbackBee.open()                                                            // picker, like a shake
+     * FeedbackBee.open(OpenOptions(kind = FeedbackKind.Issue, lockKind = true))     // a "Report a problem" button
+     * ```
      */
     @JvmStatic
-    fun show() {
-        if (Looper.myLooper() == Looper.getMainLooper()) showNow() else mainThread.post(::showNow)
+    @JvmOverloads
+    fun open(options: OpenOptions = OpenOptions()) {
+        if (Looper.myLooper() == Looper.getMainLooper()) openNow(options) else mainThread.post { openNow(options) }
     }
+
+    /** Reporter details the host already knows. Sticky: applied to every [open] until [reset] or the next call. */
+    @JvmStatic
+    @JvmOverloads
+    fun identify(email: String? = null, name: String? = null, id: String? = null) = Reporter.identify(email, name, id)
+
+    /** Extra key/value context for every report (plan, build, feature flag…). Merge semantics; a null value removes a key. Sticky until [reset]. */
+    @JvmStatic
+    fun setContext(metadata: Map<String, Any?>) = Reporter.setContext(metadata)
+
+    /** Clears [identify] and [setContext] state, e.g. on logout. The sheet, if open, keeps what it already drew. */
+    @JvmStatic
+    fun reset() = Reporter.reset()
 
     internal fun configOrNull(): FeedbackConfig? = installation?.config
 
-    private fun showNow() {
-        val current = installation ?: return Installation.warn("show() ignored: call FeedbackBee.init() first.")
-        current.show()
+    private fun openNow(options: OpenOptions) {
+        val current = installation ?: return Installation.warn("open() ignored: call FeedbackBee.init() first.")
+        current.show(options)
+    }
+}
+
+/** Per-open options for [FeedbackBee.open]. */
+data class OpenOptions(
+    /** Preselected feedback type. `null` shows the picker, as a shake does. */
+    val kind: FeedbackKind? = null,
+    /** Hides the type picker and its Back control: for a dedicated "Report a problem" button. */
+    val lockKind: Boolean = false,
+    /** Prefilled note; the user can edit it. */
+    val text: String = "",
+) {
+    internal fun toBundle(): android.os.Bundle = android.os.Bundle().apply {
+        putString(ARG_KIND, kind?.name)
+        putBoolean(ARG_LOCK_KIND, lockKind)
+        putString(ARG_TEXT, text)
+    }
+
+    internal companion object {
+        private const val ARG_KIND = "kind"
+        private const val ARG_LOCK_KIND = "lockKind"
+        private const val ARG_TEXT = "text"
+
+        fun fromArguments(arguments: android.os.Bundle?): OpenOptions = OpenOptions(
+            kind = arguments?.getString(ARG_KIND)?.let { runCatching { FeedbackKind.valueOf(it) }.getOrNull() },
+            lockKind = arguments?.getBoolean(ARG_LOCK_KIND) ?: false,
+            text = arguments?.getString(ARG_TEXT) ?: "",
+        )
     }
 }

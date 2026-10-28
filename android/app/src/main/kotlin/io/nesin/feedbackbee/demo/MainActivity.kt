@@ -17,7 +17,7 @@ class MainActivity : FragmentActivity() {
                     initialEndpoint = DemoSettings.endpoint(this),
                     initiallyConfigured = DemoSettings.isConfigured(this),
                     onSaveConfiguration = ::applyConfiguration,
-                    onOpenSheet = { FeedbackBee.show() },
+                    onOpenSheet = { FeedbackBee.open() },
                 )
             }
         }

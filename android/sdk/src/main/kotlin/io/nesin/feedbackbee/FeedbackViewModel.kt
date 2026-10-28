@@ -41,12 +41,29 @@ internal class FeedbackViewModel : ViewModel() {
     private val _state = MutableStateFlow<FeedbackState>(Choosing())
     val state: StateFlow<FeedbackState> = _state.asStateFlow()
 
+    /** Applied once per sheet open: prefill from `open(options)` plus the identified reporter. */
+    fun applyOptions(options: OpenOptions) {
+        val reporter = Reporter.identityOrNull()
+        _state.update { current ->
+            if (current !is Choosing || current.from.draft != Draft()) return@update current
+            val draft = Draft(
+                text = options.text,
+                kind = options.kind ?: current.from.draft.kind,
+                email = reporter?.email ?: "",
+                emailLocked = reporter?.email != null,
+                kindLocked = options.lockKind,
+            )
+            if (options.kind == null && !options.lockKind) current.from.withDraft(draft) else draft
+        }
+    }
+
     fun chooseKind(kind: FeedbackKind) = _state.update { current ->
         if (current !is Choosing) return@update current
         current.from.withDraft(current.from.draft.copy(kind = kind))
     }
 
     fun backToKindPicker() = _state.update { current ->
+        if (current.form?.draft?.kindLocked == true) return@update current
         val editable = current.editable() ?: return@update current
         Choosing(editable)
     }
@@ -127,7 +144,6 @@ internal class FeedbackViewModel : ViewModel() {
             }
         }
     }
-
     fun reset() {
         if (_state.value !is Uploading) _state.value = Choosing()
     }
@@ -137,13 +153,18 @@ internal class FeedbackViewModel : ViewModel() {
             screenshotMedia(from.bitmap) ?: return UploadOutcome.Rejected("The screenshot is too large to upload.")
         } else null
         val draft = from.draft
+        val reporter = Reporter.identityOrNull()
+        val context = Reporter.contextOrNull()
         val request = UploadRequest(
             project = config.projectId,
             kind = draft.kind,
             text = draft.text,
-            email = draft.email,
+            email = (reporter?.email ?: draft.email).takeIf { it.isNotBlank() },
             device = device,
             media = media,
+            reporterName = reporter?.name,
+            reporterId = reporter?.id,
+            metadata = context,
             audio = draft.audio?.let { audio ->
                 Audio(
                     filename = audio.file.name,

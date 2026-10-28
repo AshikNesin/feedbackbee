@@ -38,7 +38,7 @@ One click provisions D1 + R2, applies migrations, builds, and deploys. Open the 
 
 ```kotlin
 FeedbackBee.init(this, projectId = "myapp", endpoint = "https://your-bee.workers.dev")
-FeedbackBee.show() // or your own button
+FeedbackBee.open() // or your own button
 ```
 
 The Android `endpoint` is required: use your FeedbackBee website or Worker base URL. There is no default server.
