@@ -11,7 +11,7 @@ function githubBase(): string {
 }
 
 export function issueTitle(f: Pick<FeedbackRow, "kind" | "text" | "device_model" | "os_name">): string {
-  const label = f.kind === "bug" ? "Bug" : f.kind === "idea" ? "Idea" : "Feedback";
+  const label = f.kind === "issue" ? "Issue" : f.kind === "feature_request" ? "Feature request" : "Other";
   const summary = f.text.replace(/\s+/g, " ").slice(0, 60) || "(no text)";
   const from = f.device_model ? ` [${f.device_model}]` : f.os_name ? ` [${f.os_name}]` : "";
   return `${label}: ${summary}${from}`.slice(0, 120);
@@ -53,7 +53,7 @@ export function issueBody(
   lines.push("");
   lines.push("</details>");
   if (urls.dashboard) {
-    const hasReporterDetails = Boolean(f.reporter_email);
+    const hasReporterDetails = Boolean(f.reporter_email || f.reporter_name || f.reporter_id || f.metadata);
     const linkText = hasReporterDetails
       ? "Reporter details and context are in FeedbackBee (private)"
       : "View this report in FeedbackBee";

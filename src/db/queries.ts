@@ -47,7 +47,7 @@ export async function listProjects(db: D1Database): Promise<ProjectRow[]> {
 
 export type NewFeedback = Omit<FeedbackRow, "id" | "state" | "issue_number" | "issue_url" | "issue_error" | "created_at">;
 
-export async function insertFeedback(db: D1Database, f: NewFeedback): Promise<FeedbackRow> {
+export async function insertFeedback(db: D1Database, f: NewFeedback, imageKeys: string[]): Promise<FeedbackRow> {
   const row: FeedbackRow = {
     ...f,
     id: newId(),
@@ -57,19 +57,27 @@ export async function insertFeedback(db: D1Database, f: NewFeedback): Promise<Fe
     issue_error: null,
     created_at: Date.now(),
   };
-  await db
-    .prepare(
-      "INSERT INTO feedback (id, project_id, kind, text, reporter_email, url, user_agent, screen_w, screen_h, " +
-        "media_kind, media_key, media_seconds, audio_key, audio_seconds, app_version, os_name, os_version, device_model, state, created_at) " +
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-    )
-    .bind(
-      row.id, row.project_id, row.kind, row.text, row.reporter_email, row.url, row.user_agent,
-      row.screen_w, row.screen_h, row.media_kind, row.media_key, row.media_seconds,
-      row.audio_key, row.audio_seconds,
-      row.app_version, row.os_name, row.os_version, row.device_model, row.state, row.created_at,
-    )
-    .run();
+  const statements: D1PreparedStatement[] = [
+    db
+      .prepare(
+        "INSERT INTO feedback (id, project_id, kind, text, reporter_email, reporter_name, reporter_id, metadata, url, user_agent, screen_w, screen_h, " +
+          "media_kind, media_key, media_seconds, audio_key, audio_seconds, app_version, os_name, os_version, device_model, state, created_at) " +
+          "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+      )
+      .bind(
+        row.id, row.project_id, row.kind, row.text, row.reporter_email, row.reporter_name, row.reporter_id,
+        row.metadata, row.url, row.user_agent, row.screen_w, row.screen_h,
+        row.media_kind, row.media_key, row.media_seconds,
+        row.audio_key, row.audio_seconds,
+        row.app_version, row.os_name, row.os_version, row.device_model, row.state, row.created_at,
+      ),
+    ...imageKeys.map((key, position) =>
+      db
+        .prepare("INSERT INTO feedback_image (feedback_id, position, key) VALUES (?, ?, ?)")
+        .bind(row.id, position, key),
+    ),
+  ];
+  await db.batch(statements);
   return row;
 }
 
@@ -87,7 +95,8 @@ export async function markIssueError(db: D1Database, id: string, error: string):
     .run();
 }
 
-export type FeedbackPage = { items: FeedbackRow[]; hasMore: boolean };
+export type FeedbackItem = FeedbackRow & { images: string[] };
+export type FeedbackPage = { items: FeedbackItem[]; hasMore: boolean };
 
 export async function listFeedback(
   db: D1Database,
@@ -104,6 +113,30 @@ export async function listFeedback(
         .prepare("SELECT * FROM feedback WHERE project_id = ? ORDER BY created_at DESC LIMIT ?")
         .bind(projectId, limit + 1)
         .all<FeedbackRow>();
-  const items = rows.results.slice(0, limit);
-  return { items, hasMore: rows.results.length > limit };
+  const pageRows = rows.results.slice(0, limit);
+  const images = await imageKeysFor(db, pageRows.map((r) => r.id));
+  return {
+    items: pageRows.map((r, i) => ({ ...r, images: images[i]! })),
+    hasMore: rows.results.length > limit,
+  };
+}
+
+// One query per page: image keys per feedback row, in position order.
+async function imageKeysFor(db: D1Database, ids: string[]): Promise<string[][]> {
+  const byId = new Map<string, string[]>();
+  if (ids.length > 0) {
+    const { results } = await db
+      .prepare(
+        "SELECT feedback_id, position, key FROM feedback_image WHERE feedback_id IN " +
+          `(${ids.map(() => "?").join(",")}) ORDER BY feedback_id, position`,
+      )
+      .bind(...ids)
+      .all<{ feedback_id: string; position: number; key: string }>();
+    for (const r of results) {
+      const list = byId.get(r.feedback_id) ?? [];
+      list.push(r.key);
+      byId.set(r.feedback_id, list);
+    }
+  }
+  return ids.map((id) => byId.get(id) ?? []);
 }

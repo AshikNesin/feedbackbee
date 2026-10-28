@@ -12,7 +12,7 @@ apiRoutes.use("/api/*", async (c, next) => {
   await next();
 });
 
-const DEFAULT_LABELS: LabelsMap = { bug: "bug", idea: "enhancement", feedback: "feedback" };
+const DEFAULT_LABELS: LabelsMap = { issue: "bug", feature_request: "enhancement", other: "feedback" };
 
 function publicProject(p: {
   id: string;

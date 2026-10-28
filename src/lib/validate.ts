@@ -1,6 +1,13 @@
 import type { FeedbackKind, MediaKind } from "../types.ts";
 
-const FEEDBACK_KINDS: readonly FeedbackKind[] = ["bug", "idea", "feedback"];
+const FEEDBACK_KINDS: readonly FeedbackKind[] = ["issue", "feature_request", "other"];
+// Old clients still send the pre-1.1 kind names; mapped once, here, so the
+// stored value and every response use only the new names.
+const LEGACY_KINDS: Record<string, FeedbackKind> = {
+  bug: "issue",
+  idea: "feature_request",
+  feedback: "other",
+};
 const MEDIA_KINDS: readonly MediaKind[] = ["none", "screenshot", "recording"];
 
 export function str(v: File | string | null, max: number): string | null {
@@ -17,9 +24,9 @@ export function num(v: File | string | null): number | null {
 }
 
 export function kind(v: File | string | null): FeedbackKind | null {
-  return typeof v === "string" && (FEEDBACK_KINDS as readonly string[]).includes(v)
-    ? (v as FeedbackKind)
-    : null;
+  if (typeof v !== "string") return null;
+  if ((FEEDBACK_KINDS as readonly string[]).includes(v)) return v as FeedbackKind;
+  return LEGACY_KINDS[v] ?? null;
 }
 
 export function mediaKind(v: File | string | null): MediaKind | null {
@@ -27,6 +34,65 @@ export function mediaKind(v: File | string | null): MediaKind | null {
     ? (v as MediaKind)
     : null;
 }
+
+// Reporter context (contract v1.1): a small untrusted JSON object. Valid input
+// is normalized through one JSON round-trip, so what lands in D1 is stable
+// regardless of key order or whitespace the client sent.
+export const METADATA_MAX_BYTES = 4096;
+const METADATA_MAX_KEYS = 20;
+const METADATA_KEY = /^[A-Za-z0-9_.-]{1,40}$/;
+const METADATA_VALUE_MAX = 500;
+
+export function metadata(
+  v: File | string | null,
+): { ok: true; json: string } | { ok: false; error: string } {
+  if (typeof v !== "string") return { ok: false, error: "metadata must be a JSON object" };
+  const raw = v.trim();
+  if (!raw) return { ok: false, error: "metadata must be a JSON object" };
+  if (raw.length > METADATA_MAX_BYTES) {
+    return { ok: false, error: `metadata exceeds ${METADATA_MAX_BYTES} bytes` };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { ok: false, error: "metadata must be a valid JSON object" };
+  }
+  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    return { ok: false, error: "metadata must be a JSON object" };
+  }
+  const obj = parsed as Record<string, unknown>;
+  const keys = Object.keys(obj);
+  if (keys.length > METADATA_MAX_KEYS) {
+    return { ok: false, error: `metadata allows at most ${METADATA_MAX_KEYS} keys` };
+  }
+  const normalized: Record<string, string | number | boolean> = {};
+  for (const key of keys) {
+    if (!METADATA_KEY.test(key)) {
+      return { ok: false, error: `metadata key "${key.slice(0, 40)}" is not allowed` };
+    }
+    const value = obj[key];
+    if (typeof value === "string") {
+      if (value.length > METADATA_VALUE_MAX) {
+        return { ok: false, error: `metadata value for "${key.slice(0, 40)}" exceeds ${METADATA_VALUE_MAX} chars` };
+      }
+      normalized[key] = value;
+    } else if (typeof value === "number") {
+      if (!Number.isFinite(value)) {
+        return { ok: false, error: `metadata value for "${key.slice(0, 40)}" must be finite` };
+      }
+      normalized[key] = value;
+    } else if (typeof value === "boolean") {
+      normalized[key] = value;
+    } else {
+      return { ok: false, error: "metadata values must be strings, numbers, or booleans" };
+    }
+  }
+  return { ok: true, json: JSON.stringify(normalized) };
+}
+
+export const REPORTER_NAME_MAX = 120;
+export const REPORTER_ID_MAX = 128;
 
 export function slugOk(slug: string): boolean {
   return /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug);

@@ -14,7 +14,7 @@ async function ensureDemoProject(db: D1Database) {
       name: "FeedbackBee demo",
       slug: DEMO_SLUG,
       github_repo: DEMO_REPO,
-      labels_map: JSON.stringify({ bug: "bug", idea: "enhancement", feedback: "feedback" }),
+      labels_map: JSON.stringify({ issue: "bug", feature_request: "enhancement", other: "feedback" }),
     });
   } catch {
     // Slug is UNIQUE; a concurrent request seeded it first. Reuse that row.

@@ -5,10 +5,13 @@ import type { FeedbackRow } from "../src/types.ts";
 const base: FeedbackRow = {
   id: "f1",
   project_id: "p1",
-  kind: "bug",
+  kind: "issue",
   text: "Checkout button does nothing",
   reporter_email: "a@b.co",
   url: "https://shop.test/cart",
+  reporter_name: null,
+  reporter_id: null,
+  metadata: null,
   user_agent: "UA",
   screen_w: 390,
   screen_h: 844,
@@ -31,7 +34,7 @@ const base: FeedbackRow = {
 const urls = { images: ["https://barn.dev/f/p/p1/f/x.png"], media: null, audio: null, dashboard: "https://bee.dev/#acme/f1" };
 
 test("title summarizes kind and device", () => {
-  expect(issueTitle(base)).toContain("Bug:");
+  expect(issueTitle(base)).toContain("Issue:");
   expect(issueTitle(base)).toContain("[Pixel 8]");
 });
 
@@ -52,7 +55,7 @@ test("body embeds screenshot and context table without reporter PII", () => {
 });
 
 test("body lists dashboard link as plain view without reporter details", () => {
-  const f = { ...base, reporter_email: null };
+  const f = { ...base, reporter_email: null, reporter_name: null, reporter_id: null, metadata: null };
   const body = issueBody(f, { ...urls, images: [] });
   expect(body).toContain("[View this report in FeedbackBee](https://bee.dev/#acme/f1)");
   expect(body).not.toContain("FeedbackBee (private)");
@@ -86,8 +89,13 @@ test("recording body links with duration", () => {
 });
 
 test("labels map falls back to empty on unknown kind", () => {
-  expect(issueLabels("bug", '{"bug":"needs-triage"}')).toEqual(["needs-triage"]);
-  expect(issueLabels("idea", "not json")).toEqual([]);
+  expect(issueLabels("issue", '{"issue":"needs-triage"}')).toEqual(["needs-triage"]);
+  expect(issueLabels("feature_request", "not json")).toEqual([]);
+});
+
+test("title uses the new kind prefixes", () => {
+  expect(issueTitle({ ...base, kind: "feature_request" })).toContain("Feature request:");
+  expect(issueTitle({ ...base, kind: "other" })).toContain("Other:");
 });
 
 test("issue creation posts to base and parses response", async () => {

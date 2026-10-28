@@ -6,7 +6,7 @@ export type Env = {
   DASHBOARD_BASE?: string;
 };
 
-export type FeedbackKind = "bug" | "idea" | "feedback";
+export type FeedbackKind = "issue" | "feature_request" | "other";
 export type MediaKind = "none" | "screenshot" | "recording";
 export type FeedbackState = "pending" | "created" | "issue_error" | "deleted";
 
@@ -27,6 +27,9 @@ export type FeedbackRow = {
   kind: FeedbackKind;
   text: string;
   reporter_email: string | null;
+  reporter_name: string | null;
+  reporter_id: string | null;
+  metadata: string | null;
   url: string | null;
   user_agent: string | null;
   screen_w: number | null;
