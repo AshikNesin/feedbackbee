@@ -21,33 +21,44 @@ function row(label: string, value: string | null | undefined): string {
   return `| ${label} | ${value && value !== "" ? value : "-" } |`;
 }
 
-export function issueBody(f: FeedbackRow, mediaUrl: string | null, audioUrl: string | null): string {
+export function issueBody(
+  f: FeedbackRow,
+  urls: { images: string[]; media: string | null; audio: string | null; dashboard: string | null },
+): string {
   const lines: string[] = [];
   lines.push(f.text, "");
-  if (mediaUrl) {
+  urls.images.forEach((url, i) => {
+    lines.push(`![image ${i + 1}](${url})`, "");
+  });
+  if (urls.media) {
     if (f.media_kind === "screenshot") {
-      lines.push(`![screenshot](${mediaUrl})`, "");
+      lines.push(`![screenshot](${urls.media})`, "");
     } else {
       const secs = f.media_seconds ? ` (${Math.round(f.media_seconds)}s)` : "";
       const label = isReplayKey(f.media_key) ? "\u25b6 Watch session replay" : "Screen recording";
-      lines.push(`[${label}${secs}](${mediaUrl})`, "");
+      lines.push(`[${label}${secs}](${urls.media})`, "");
     }
   }
-  if (audioUrl) {
+  if (urls.audio) {
     const secs = f.audio_seconds ? ` (${Math.round(f.audio_seconds)}s)` : "";
-    lines.push(`[Voice note${secs}](${audioUrl})`, "");
+    lines.push(`[Voice note${secs}](${urls.audio})`, "");
   }
   lines.push("<details><summary>Context</summary>", "");
   lines.push("| | |", "|---|---|");
-  lines.push(row("Source", f.url));
   lines.push(row("OS", f.os_name ? `${f.os_name} ${f.os_version ?? ""}`.trim() : null));
   lines.push(row("Device", f.device_model));
   lines.push(row("App version", f.app_version));
   lines.push(row("Screen", f.screen_w && f.screen_h ? `${f.screen_w}x${f.screen_h}` : null));
-  lines.push(row("Reporter", f.reporter_email));
   lines.push(row("User agent", f.user_agent));
   lines.push("");
   lines.push("</details>");
+  if (urls.dashboard) {
+    const hasReporterDetails = Boolean(f.reporter_email);
+    const linkText = hasReporterDetails
+      ? "Reporter details and context are in FeedbackBee (private)"
+      : "View this report in FeedbackBee";
+    lines.push("", `[${linkText}](${urls.dashboard})`);
+  }
   lines.push("", "<sub>via FeedbackBee</sub>");
   return lines.join("\n");
 }

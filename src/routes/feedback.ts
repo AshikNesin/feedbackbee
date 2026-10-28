@@ -112,15 +112,23 @@ feedbackRoutes.post("/api/feedback", async (c) => {
     device_model: str(form.get("device_model"), 128),
   });
 
-  const base = c.env.MEDIA_BASE || new URL(c.req.url).origin;
-  const mediaUrl = mediaKey ? `${base}/${isReplayKey(mediaKey) ? "replay" : "f"}/${mediaKey}` : null;
-  const audioUrl = audioKey ? `${base}/f/${audioKey}` : null;
+  const mediaBase = c.env.MEDIA_BASE || new URL(c.req.url).origin;
+  const mediaUrl = mediaKey ? `${mediaBase}/${isReplayKey(mediaKey) ? "replay" : "f"}/${mediaKey}` : null;
+  const audioUrl = audioKey ? `${mediaBase}/f/${audioKey}` : null;
+  const dashboardBase = c.env.DASHBOARD_BASE || new URL(c.req.url).origin;
+  const dashboardUrl = `${dashboardBase}/#${project.slug}/${row.id}`;
+  const imageUrl = mediaKindValue === "screenshot" ? mediaUrl : null;
   const labels = issueLabels(row.kind, project.labels_map);
   const issue = await createIssueForProject(
     c.env,
     project,
     issueTitle(row),
-    issueBody(row, mediaUrl, audioUrl),
+    issueBody(row, {
+      images: imageUrl ? [imageUrl] : [],
+      media: mediaKindValue === "recording" ? mediaUrl : null,
+      audio: audioUrl,
+      dashboard: dashboardUrl,
+    }),
     labels,
   );
 

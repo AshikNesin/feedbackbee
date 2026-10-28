@@ -95,7 +95,7 @@ test("feedback with screenshot creates issue and stores media", async () => {
   expect(gh?.path).toBe("/repos/ashik/myapp/issues");
   expect(gh?.auth).toBe(`Bearer ${env.GITHUB_TOKEN}`);
   expect(gh?.body.labels).toEqual(["bug"]);
-  expect(gh?.body.body).toContain("![screenshot](");
+  expect(gh?.body.body).toContain("![image 1](");
 
   const projects: any = await (await SELF.fetch("https://example.com/api/projects", { headers: { cookie } })).json();
   const proj = projects.projects.find((p: any) => p.slug === slug);
@@ -107,6 +107,30 @@ test("feedback with screenshot creates issue and stores media", async () => {
   const media = await SELF.fetch(`https://example.com/f/${key}`);
   expect(media.status).toBe(200);
   expect(media.headers.get("content-type")).toBe("image/png");
+});
+
+test("github issue body never contains reporter email or page url", async () => {
+  const cookie = await login();
+  const slug = `pii-${Date.now()}`;
+  await createProject(cookie, slug);
+
+  const form = new FormData();
+  form.append("project", slug);
+  form.append("kind", "bug");
+  form.append("text", "Cannot change my plan");
+  form.append("email", "jane@shop.test");
+  form.append("url", "https://shop.test/settings/billing");
+
+  const res = await SELF.fetch("https://example.com/api/feedback", { method: "POST", body: form });
+  expect(res.status).toBe(201);
+
+  const gh = ghCalls.at(-1);
+  expect(gh?.body.body).not.toContain("jane@shop.test");
+  expect(gh?.body.body).not.toContain("shop.test/settings");
+  expect(gh?.body.body).not.toContain("| Reporter |");
+  expect(gh?.body.body).not.toContain("| Source |");
+  expect(gh?.body.body).toContain("Reporter details and context are in FeedbackBee (private)");
+  expect(gh?.body.body).toMatch(/\[Reporter details and context are in FeedbackBee \(private\)\]\(https:\/\/example\.com\/#.+\/[^)]+\)/);
 });
 
 test("web page recording is stored as a replay and linked from the issue", async () => {

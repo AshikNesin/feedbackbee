@@ -18,7 +18,8 @@
     "run_worker_first": ["/api/*", "/auth/*", "/embed.js", "/embed-capture.js", "/embed-record.js", "/replay-player.js", "/replay/*", "/f/*", "/demo"]
   },
   "vars": {
-    "MEDIA_BASE": ""
+    "MEDIA_BASE": "",
+    "DASHBOARD_BASE": ""
   },
   "workers_dev": true
 }

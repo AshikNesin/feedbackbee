@@ -3,6 +3,7 @@ export type Env = {
   MEDIA: R2Bucket;
   GITHUB_TOKEN: string;
   MEDIA_BASE?: string;
+  DASHBOARD_BASE?: string;
 };
 
 export type FeedbackKind = "bug" | "idea" | "feedback";

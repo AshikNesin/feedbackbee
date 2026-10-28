@@ -28,21 +28,60 @@ const base: FeedbackRow = {
   created_at: Date.now(),
 };
 
+const urls = { images: ["https://barn.dev/f/p/p1/f/x.png"], media: null, audio: null, dashboard: "https://bee.dev/#acme/f1" };
+
 test("title summarizes kind and device", () => {
   expect(issueTitle(base)).toContain("Bug:");
   expect(issueTitle(base)).toContain("[Pixel 8]");
 });
 
-test("body embeds screenshot and context table", () => {
-  const body = issueBody(base, "https://barn.dev/f/p/p1/f/x.png", null);
-  expect(body).toContain("![screenshot](https://barn.dev/f/p/p1/f/x.png)");
+test("body embeds screenshot and context table without reporter PII", () => {
+  const body = issueBody(base, urls);
+  expect(body).toContain("![image 1](https://barn.dev/f/p/p1/f/x.png)");
   expect(body).toContain("| Device | Pixel 8 |");
-  expect(body).toContain("| Reporter | a@b.co |");
+  expect(body).toContain("| OS | android 34 |");
+  expect(body).toContain("| App version | 1.2.3 |");
+  expect(body).toContain("| Screen | 390x844 |");
+  expect(body).toContain("| User agent | UA |");
+  expect(body).toContain("[Reporter details and context are in FeedbackBee (private)](https://bee.dev/#acme/f1)");
+  expect(body).toContain("<sub>via FeedbackBee</sub>");
+  expect(body).not.toContain("a@b.co");
+  expect(body).not.toContain("| Reporter |");
+  expect(body).not.toContain("shop.test");
+  expect(body).not.toContain("Source");
+});
+
+test("body lists dashboard link as plain view without reporter details", () => {
+  const f = { ...base, reporter_email: null };
+  const body = issueBody(f, { ...urls, images: [] });
+  expect(body).toContain("[View this report in FeedbackBee](https://bee.dev/#acme/f1)");
+  expect(body).not.toContain("FeedbackBee (private)");
+});
+
+test("body embeds images in order before media and audio links", () => {
+  const body = issueBody(
+    { ...base, media_kind: "recording" as const, media_seconds: 10, audio_seconds: 23.4 },
+    {
+      images: ["https://bee.dev/f/i1.png", "https://bee.dev/f/i2.png"],
+      media: "https://bee.dev/f/x.webm",
+      audio: "https://bee.dev/f/a.webm",
+      dashboard: null,
+    },
+  );
+  const img1 = body.indexOf("![image 1](https://bee.dev/f/i1.png)");
+  const img2 = body.indexOf("![image 2](https://bee.dev/f/i2.png)");
+  const mediaIdx = body.indexOf("[Screen recording");
+  const audioIdx = body.indexOf("[Voice note");
+  expect(img1).toBeGreaterThan(-1);
+  expect(img2).toBeGreaterThan(img1);
+  expect(mediaIdx).toBeGreaterThan(img2);
+  expect(audioIdx).toBeGreaterThan(mediaIdx);
+  expect(body).not.toContain("FeedbackBee (private)");
 });
 
 test("recording body links with duration", () => {
   const rec = { ...base, media_kind: "recording" as const, media_seconds: 132 };
-  const body = issueBody(rec, "https://barn.dev/f/p/p1/f/x.webm", null);
+  const body = issueBody(rec, { ...urls, images: [], media: "https://barn.dev/f/p/p1/f/x.webm" });
   expect(body).toContain("[Screen recording (132s)]");
 });
 
@@ -61,9 +100,12 @@ test("issue creation posts to base and parses response", async () => {
 
 test("voice note links with duration after visual media", () => {
   const f = { ...base, audio_seconds: 23.4 };
-  const body = issueBody(f, null, "https://bee.dev/f/p/p1/f/a.webm");
+  const body = issueBody(f, { ...urls, images: [], media: null, audio: "https://bee.dev/f/p/p1/f/a.webm" });
   expect(body).toContain("[Voice note (23s)](https://bee.dev/f/p/p1/f/a.webm)");
-  const both = issueBody({ ...base, media_kind: "recording" as const, media_seconds: 10 }, "https://bee.dev/f/x.webm", "https://bee.dev/f/a.webm");
+  const both = issueBody(
+    { ...base, media_kind: "recording" as const, media_seconds: 10 },
+    { images: [], media: "https://bee.dev/f/x.webm", audio: "https://bee.dev/f/a.webm", dashboard: null },
+  );
   const mediaIdx = both.indexOf("[Screen recording");
   const audioIdx = both.indexOf("[Voice note");
   expect(mediaIdx).toBeGreaterThan(-1);
