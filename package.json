@@ -58,7 +58,8 @@
     "test:worker": "vitest run --config vitest.config.worker.ts",
     "build:embed": "python3 apps/web/scripts/build-embed.py",
     "build:cf": "pnpm build:client",
-    "deploy": "pnpm deploy:worker"
+    "deploy": "pnpm deploy:worker",
+    "build:site": "node site/build.mjs"
   },
   "dependencies": {
     "@codemirror/autocomplete": "6.20.3",

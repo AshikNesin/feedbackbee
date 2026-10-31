@@ -1,0 +1,7 @@
+# Old flat URLs from before the site/ layout (shared links, social cards).
+/og.png              /og/og.png              301
+/poster.jpg          /img/poster.jpg         301
+/demo.mp4            /demo/demo.mp4          301
+/demo.webm           /demo/demo.webm         301
+/demo-music.mp4      /demo/demo-music.mp4    301
+/demo-music.webm     /demo/demo-music.webm   301

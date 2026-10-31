@@ -3,13 +3,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=()
 
-/demo.mp4
+/demo/*
   Cache-Control: public, max-age=604800
-/poster.jpg
+/img/*
   Cache-Control: public, max-age=604800
-/demo.webm
-  Cache-Control: public, max-age=604800
-/demo-music.mp4
-  Cache-Control: public, max-age=604800
-/demo-music.webm
+/og/*
   Cache-Control: public, max-age=604800

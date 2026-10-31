@@ -1,0 +1,377 @@
+<!--meta
+{
+  "path": "/",
+  "title": "FeedbackBee: user feedback that lands in GitHub issues",
+  "description": "Open-source feedback widget for web and Android. One-click screenshots, annotations and session replays, filed as GitHub issues. Self-hosted on the Cloudflare free tier.",
+  "ogDescription": "Screenshots, annotations and session replays from your users, filed as GitHub issues. Open source, self-hosted on Cloudflare's free tier.",
+  "og": "/og/og.png"
+}
+-->
+<section class="hero">
+  <div class="container">
+    <h1>User feedback that lands in GitHub issues</h1>
+    <div class="hero-side">
+      <p class="lead">
+        A tiny widget for your web and Android apps. Users mark up a screenshot or record the bug,
+        and you get a labeled issue.
+      </p>
+      <div class="ctas">
+        <a
+          class="btn"
+          href="https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A6 6 0 0 0 4.5 13 3 3 0 0 0 6 19z" />
+          </svg>
+          Deploy to Cloudflare
+        </a>
+        <a class="btn btn--quiet" href="https://github.com/AshikNesin/feedbackbee">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path
+              d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38v-1.33c-2.23.48-2.7-1.07-2.7-1.07-.36-.92-.89-1.17-.89-1.17-.73-.5.05-.49.05-.49.8.06 1.23.83 1.23.83.71 1.22 1.87.87 2.33.66.07-.52.28-.87.5-1.07-1.78-.2-3.65-.89-3.65-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48v2.2c0 .21.15.46.55.38A8 8 0 0 0 8 0z"
+            />
+          </svg>
+          Star on GitHub
+        </a>
+      </div>
+      <p class="terms">
+        <a href="https://github.com/AshikNesin/feedbackbee">Open source, MIT licensed.</a>
+        Self-hosted on Cloudflare’s free tier.
+      </p>
+    </div>
+  </div>
+</section>
+
+<section class="container" aria-label="Demo">
+  <figure class="demo">
+    <div class="video">
+      <video
+        poster="/img/poster.jpg"
+        controls
+        playsinline
+        preload="metadata"
+        aria-label="Demo: a user spots a bug, takes a screenshot, annotates it with an arrow, a box and pixelation, and sends it as feedback."
+      >
+        <source src="/demo/demo-music.webm" type="video/webm" />
+        <source src="/demo/demo-music.mp4" type="video/mp4" />
+      </video>
+      <button class="play-overlay needs-js" type="button" aria-label="Play demo">
+        <span class="disc"
+          ><svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"
+            /></svg
+        ></span>
+      </button>
+    </div>
+    <figcaption>Spot a bug, snap the page, mark it up, send. No screen-share prompt.</figcaption>
+  </figure>
+</section>
+
+<section id="loop" class="loop" aria-labelledby="loop-title">
+  <div class="container">
+    <div class="loop-head">
+      <h2 id="loop-title">A report goes in, an issue comes out</h2>
+      <p>
+        Your users send what they saw. FeedbackBee files it in the repo you pick, labeled and with
+        the media attached, and keeps who sent it to itself.
+      </p>
+    </div>
+    <div class="pair">
+      <figure>
+        <div class="mock widget" aria-hidden="true">
+          <div class="widget-top"><span>Report an issue</span><span>✕</span></div>
+          <div class="kinds">
+            <span class="on">Issue</span><span>Feature request</span><span>Other</span>
+          </div>
+          <div class="field note">Apply discount turns the total into NaN</div>
+          <div class="tray">
+            <div class="shot">
+              <i></i><i></i><i></i>
+              <svg
+                viewBox="0 0 60 30"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6c18 2 32 9 46 18M50 24l-9-1M50 24l-3-8" />
+              </svg>
+              <b>$NaN</b>
+            </div>
+            <span>Screenshot, marked up</span>
+          </div>
+          <div class="field mail">jane@shop.test</div>
+          <div class="send">Send</div>
+        </div>
+        <figcaption>What your user sends: a note, a marked-up screenshot, their email.</figcaption>
+      </figure>
+      <svg
+        class="pair-arrow"
+        width="40"
+        height="40"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M4 12h16M14 6l6 6-6 6" />
+      </svg>
+      <figure>
+        <div class="mock issue" aria-hidden="true">
+          <div class="issue-title">
+            Issue: Apply discount turns the total into NaN [web] <span>#128</span>
+          </div>
+          <div class="issue-meta">
+            <span class="pill open">Open</span>
+            <span class="pill label">bug</span>
+            <span>opened with your GitHub token, just now</span>
+          </div>
+          <div class="issue-body">
+            <p>Apply discount turns the total into NaN</p>
+            <div class="shot">
+              <i></i><i></i><i></i>
+              <svg
+                viewBox="0 0 60 30"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              >
+                <path d="M4 6c18 2 32 9 46 18M50 24l-9-1M50 24l-3-8" />
+              </svg>
+              <b>$NaN</b>
+            </div>
+            <dl class="ctx">
+              <dt>OS</dt>
+              <dd>web</dd>
+              <dt>Screen</dt>
+              <dd>1440x900</dd>
+              <dt>User agent</dt>
+              <dd>Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) Chrome/141</dd>
+            </dl>
+            <p class="issue-link">Reporter details and context are in FeedbackBee (private)</p>
+            <p class="issue-via">via FeedbackBee</p>
+          </div>
+        </div>
+        <figcaption>
+          What lands in GitHub: a labeled issue with the screenshot and device context.
+        </figcaption>
+      </figure>
+    </div>
+    <ul class="split">
+      <li>
+        <h3>Goes to GitHub</h3>
+        <p>
+          The note, screenshots, replays and voice notes, plus the OS, device, app version, screen
+          size and browser.
+        </p>
+      </li>
+      <li>
+        <h3>Stays in FeedbackBee</h3>
+        <p>
+          The reporter’s email, name and user id, the page they were on, and any metadata you
+          attach. The issue links back to it instead.
+        </p>
+      </li>
+    </ul>
+  </div>
+</section>
+<section id="features" class="features">
+  <div class="container">
+    <h2>Everything a good bug report needs, nothing your users have to learn</h2>
+    <ul class="rows">
+      <li>
+        <h3>One-click screenshots</h3>
+        <p>Captures the page they’re on, right in the browser. No “choose a tab” dialog.</p>
+      </li>
+      <li>
+        <h3>Quick annotations</h3>
+        <p>Arrows, boxes, highlighter, text, step numbers and pixelate for anything private.</p>
+      </li>
+      <li>
+        <h3>Session replay</h3>
+        <p>
+          Record the page as they reproduce the bug, without a permission prompt. Passwords stay
+          masked.
+        </p>
+      </li>
+      <li>
+        <h3>Voice notes</h3>
+        <p>When typing it out is slower than saying it.</p>
+      </li>
+      <li>
+        <h3>Straight to GitHub issues</h3>
+        <p>
+          Labeled by type, with the page URL, browser details and media linked. Triage where you
+          already work.
+        </p>
+      </li>
+      <li>
+        <h3>Android SDK</h3>
+        <p>Kotlin, no heavy dependencies. Shake to send feedback from any screen.</p>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<section id="start" class="start">
+  <div class="container">
+    <div class="start-head">
+      <h2>Running in about five minutes</h2>
+      <p>
+        One Worker with D1 and R2. It fits in Cloudflare’s free tier, and your GitHub token never
+        leaves it.
+      </p>
+    </div>
+    <ol class="steps">
+      <li class="step">
+        <h3>Deploy</h3>
+        <p>The Cloudflare button provisions the database and storage, then deploys.</p>
+        <div class="code">
+          <pre>pnpm exec wrangler secret put GITHUB_TOKEN</pre>
+          <button class="icon-btn copy needs-js" type="button" aria-label="Copy command">
+            <svg
+              class="cp"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg
+            ><svg
+              class="ok"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 12.5 4.5 4.5L19 7.5" />
+            </svg>
+          </button>
+        </div>
+      </li>
+      <li class="step">
+        <h3>Embed</h3>
+        <p>Add one script tag to your app. It loads extras only when someone uses them.</p>
+        <div class="code">
+          <pre>
+&lt;script src="https://your-bee.workers.dev/embed.js"
+  data-project="myapp" async&gt;&lt;/script&gt;</pre
+          >
+          <button class="icon-btn copy needs-js" type="button" aria-label="Copy snippet">
+            <svg
+              class="cp"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg
+            ><svg
+              class="ok"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 12.5 4.5 4.5L19 7.5" />
+            </svg>
+          </button>
+        </div>
+      </li>
+      <li class="step">
+        <h3>Android, too</h3>
+        <p>Init the SDK once. Users shake or tap your button, and reports land in the same repo.</p>
+        <div class="code">
+          <pre>
+FeedbackBee.init(this, projectId = "myapp", endpoint = "…")
+FeedbackBee.open() // or shake</pre
+          >
+          <button class="icon-btn copy needs-js" type="button" aria-label="Copy Android setup">
+            <svg
+              class="cp"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg
+            ><svg
+              class="ok"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 12.5 4.5 4.5L19 7.5" />
+            </svg>
+          </button>
+        </div>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<section class="close">
+  <div class="container">
+    <h2>Own your feedback loop</h2>
+    <p>MIT licensed. Fork it, self-host it, make it yours.</p>
+    <div class="ctas">
+      <a
+        class="btn"
+        href="https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee"
+        >Deploy to Cloudflare</a
+      >
+      <a class="btn btn--quiet" href="https://github.com/AshikNesin/feedbackbee">View source</a>
+    </div>
+  </div>
+</section>

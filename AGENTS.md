@@ -5,7 +5,7 @@ the Cloudflare free tier. FeedbackBee is a child of the
 [groot](https://github.com/AshikNesin/groot) boilerplate: `packages/*`, root
 configs, `scripts/`, `docs/` and `.groot/` are synced from groot
 (`pnpm groot:sync`); FeedbackBee's own code lives in `apps/web/`, `tests/worker/`,
-`android/` and `website/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
+`android/` and `site/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
 the product docs are [`docs/PRD.md`](./docs/PRD.md) and the upload contract
 [`docs/CONTRACT.md`](./docs/CONTRACT.md).
 
@@ -100,6 +100,9 @@ one with its credentials. The dashboard API (`/api/v1/projects…`) sits behind
 - `/embed-capture.js`, `/embed-record.js`: libraries the widget lazy-loads
 - `/f/<key>`: public media · `/replay/<key>`: session replay viewer (`/replay-player.js`)
 - `/demo`: demo page exercising the widget · `/health`, `/ready`: probes
+- `site/`: the website (feedbackbee.nesin.io), laid out like 404less's:
+  `layout.html` + `pages/*.html` + `assets/`, assembled by `pnpm build:site`
+  into `dist/site/` and deployed separately on Cloudflare Pages. Not served by the Worker.
 
 ## Commands
 
