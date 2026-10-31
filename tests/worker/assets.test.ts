@@ -40,6 +40,25 @@ test("the website owns / and dashboard routes serve the SPA shell", async () => 
   }
 });
 
+test("a deploy without the dashboard build answers /app with the 404 page, not an empty 200", async () => {
+  const { "/app.html": _shell, ...withoutShell } = FILES;
+  const assets = {
+    fetch: async (req: Request) => {
+      const path = new URL(req.url).pathname;
+      return path in withoutShell
+        ? new Response(withoutShell[path])
+        : new Response("nf", { status: 404 });
+    },
+  };
+  const res = await worker.fetch(
+    new Request("http://localhost/app/projects") as never,
+    { ...env, ASSETS: assets } as never,
+    createExecutionContext() as never,
+  );
+  expect(res.status).toBe(404);
+  expect(await res.text()).toBe("not here");
+});
+
 test("a revisit with a cached shell or page gets 304, never an empty 200", async () => {
   expect((await get("/app/projects", { "If-None-Match": etag("/app.html") })).status).toBe(304);
   expect((await get("/", { "If-None-Match": etag("/index.html") })).status).toBe(304);

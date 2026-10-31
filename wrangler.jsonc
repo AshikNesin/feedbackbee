@@ -24,6 +24,14 @@
   // Workers Logs (included in the free plan): console output and errors in the dashboard.
   "observability": { "enabled": true },
 
+  // Every `wrangler deploy` / `wrangler dev` builds the dashboard and the website
+  // first, whatever build command a CI (Workers Builds, the Deploy button) runs.
+  // Watch only sources: the build writes dist/, which must not retrigger it.
+  "build": {
+    "command": "pnpm build:client",
+    "watch_dir": ["site", "apps/web/src/client"],
+  },
+
   // pnpm build:client → the website (site/build.mjs) + the dashboard SPA
   // (app.html), as in 404less. The Worker routes pages itself
   // (worker/static-assets.ts): / and /<page> → <page>.html, /app/* → app.html,

@@ -34,7 +34,8 @@ staticAssets.get("*", async (c, next) => {
     const res = await fetchAsset("/app.html");
     // 304 (If-None-Match): the browser's cached copy is app.html already; rewrapping it as 200 would serve an empty page
     if (res.status === 304) return res;
-    return new Response(res.body, { status: 200, headers: res.headers });
+    // A deploy without the SPA build has no shell: say so with a 404, not an empty 200.
+    if (res.ok) return new Response(res.body, { status: 200, headers: res.headers });
   }
   // trailing slash on a website page (/foo/ → /foo)
   if (/^\/[a-z0-9-]+\/$/.test(url.pathname)) {
