@@ -7,17 +7,20 @@ import { tokenize, type CodeLang } from "../lib/highlight";
 
 /**
  * A read-only, highlighted code block with a copy button (the 404less
- * CodeBlock). Long lines scroll sideways instead of breaking mid-word.
+ * CodeBlock). Long lines scroll sideways instead of breaking mid-word; `wrap`
+ * (for prose, like the agent prompt) wraps them at word boundaries instead.
  */
 export function CodeBlock({
   code,
   lang,
   label = "Copy",
+  wrap = false,
   className,
 }: {
   code: string;
   lang: CodeLang;
   label?: string;
+  wrap?: boolean;
   className?: string;
 }) {
   const [copied, setCopied] = useState(false);
@@ -25,7 +28,13 @@ export function CodeBlock({
     <div
       className={cn("code-block relative rounded-xl border border-border bg-muted/60", className)}
     >
-      <pre className={cn(monoClass, "overflow-x-auto px-4 py-3 pr-12 leading-relaxed")}>
+      <pre
+        className={cn(
+          monoClass,
+          "px-4 py-3 pr-12 leading-relaxed",
+          wrap ? "whitespace-pre-wrap break-words" : "overflow-x-auto",
+        )}
+      >
         <code>{tokenize(code, lang)}</code>
       </pre>
       <Button

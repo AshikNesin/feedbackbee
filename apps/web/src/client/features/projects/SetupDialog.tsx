@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { Check, Code, Copy, Globe, Smartphone, Sparkles, type LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
+import { Code, Globe, Smartphone, Sparkles, type LucideIcon } from "lucide-react";
 import { Button } from "@groot/ui/button";
 import {
   Dialog,
@@ -265,9 +265,8 @@ function SetupSteps({
   );
 }
 
-/** The agent prompt as readable text, with one copy button. */
+/** The agent prompt, in the snippets' code block, wrapped like prose. */
 function PromptPanel({ prompt }: { prompt: string }) {
-  const [copied, setCopied] = useState(false);
   return (
     <div className="space-y-3">
       <p>
@@ -276,25 +275,7 @@ function PromptPanel({ prompt }: { prompt: string }) {
           app and tells you how to check it.
         </Text>
       </p>
-      <div className="max-h-80 overflow-y-auto rounded-xl border border-border bg-muted/60 px-4 py-3">
-        <p className="whitespace-pre-wrap break-words">
-          <Text>{prompt}</Text>
-        </p>
-      </div>
-      <Button
-        onClick={async () => {
-          try {
-            await navigator.clipboard.writeText(prompt);
-          } catch {
-            return; // clipboard blocked: don't claim it was copied
-          }
-          setCopied(true);
-          setTimeout(() => setCopied(false), 1500);
-        }}
-      >
-        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
-        {copied ? "Copied" : "Copy prompt"}
-      </Button>
+      <CodeBlock code={prompt} lang="text" label="Copy prompt" wrap />
     </div>
   );
 }

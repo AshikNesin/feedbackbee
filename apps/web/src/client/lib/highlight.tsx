@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
  * script), JavaScript and Kotlin / Gradle Kotlin DSL. Enough to read, no
  * dependency. Tokens get `tok-*` classes, coloured in styles.css.
  */
-export type CodeLang = "html" | "js" | "kotlin";
+export type CodeLang = "html" | "js" | "kotlin" | "text";
 
 type Rule = [RegExp, string | ((match: RegExpExecArray) => ReactNode[])];
 
@@ -69,6 +69,7 @@ function span(kind: string, text: string): ReactNode {
 }
 
 export function tokenize(code: string, lang: CodeLang): ReactNode[] {
+  if (lang === "text") return [code];
   const rules = lang === "html" ? htmlRules() : codeRules(lang);
   const out: ReactNode[] = [];
   let i = 0;
