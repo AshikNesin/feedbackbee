@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Code, Globe, Smartphone, type LucideIcon } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Check, Code, Copy, Globe, Smartphone, Sparkles, type LucideIcon } from "lucide-react";
 import { Button } from "@groot/ui/button";
 import {
   Dialog,
@@ -116,6 +116,41 @@ dependencies {
   ];
 }
 
+const DOCS = "https://github.com/AshikNesin/feedbackbee";
+
+/**
+ * A prompt for a coding agent (Claude Code, Cursor, …) that adds the widget to
+ * the user's app on its own: what FeedbackBee is, the exact snippet with this
+ * project's values, where it goes, and how to check it worked.
+ */
+export function agentPrompt(project: ProjectDTO, origin: string): string {
+  const lines = [
+    `Add the FeedbackBee feedback widget to this project. FeedbackBee lets users report a bug or idea with a note, screenshots, a screen recording or a voice note, and files each report as a GitHub issue in ${project.githubRepo}.`,
+    "",
+    "If this is a website or web app, load the widget on every page: add this tag once, just before the closing </body> tag of the shared layout or HTML template (for example index.html, a root layout or _document):",
+    "",
+    `<script src="${origin}/embed.js" data-project="${project.slug}" async></script>`,
+    "",
+    `If this is an Android app, follow ${DOCS}/blob/main/android/README.md: include the SDK, then in the Application class's onCreate call:`,
+    "",
+    `FeedbackBee.init(this, projectId = "${project.slug}", endpoint = "${origin}")`,
+    "",
+  ];
+  if (project.allowedOrigins.length > 0) {
+    lines.push(
+      `This project only accepts reports from these sites: ${project.allowedOrigins.join(", ")}. If the app runs on another origin (including local development), tell me which one so I can add it.`,
+      "",
+    );
+  }
+  lines.push(
+    "Don't change anything else. When you're done, tell me where you added it, then how to check it: open the app, click the feedback button in the corner (or shake the phone on Android) and send a test report. It should show up at " +
+      `${origin}/app/projects/${project.slug}.`,
+    "",
+    `Docs: ${DOCS}#readme`,
+  );
+  return lines.join("\n");
+}
+
 /** Install steps for the web widget and the Android SDK, the project's values filled in. */
 export function SetupDialog({ project }: { project: ProjectDTO }) {
   const origin = window.location.origin;
@@ -145,6 +180,10 @@ export function SetupDialog({ project }: { project: ProjectDTO }) {
                 <Smartphone className="size-4" />
                 Android
               </TabsTrigger>
+              <TabsTrigger value="prompt" className="flex-none">
+                <Sparkles className="size-4" />
+                AI prompt
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="web">
               <SetupSteps
@@ -161,6 +200,9 @@ export function SetupDialog({ project }: { project: ProjectDTO }) {
                 kind="Kotlin SDK, minSdk 26"
                 steps={androidSteps(project, origin)}
               />
+            </TabsContent>
+            <TabsContent value="prompt">
+              <PromptPanel prompt={agentPrompt(project, origin)} />
             </TabsContent>
           </Tabs>
         </DialogBody>
@@ -220,5 +262,39 @@ function SetupSteps({
         ))}
       </ol>
     </section>
+  );
+}
+
+/** The agent prompt as readable text, with one copy button. */
+function PromptPanel({ prompt }: { prompt: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="space-y-3">
+      <p>
+        <Text tone="muted">
+          Send this to your coding agent (Claude Code, Cursor, Copilot…). It adds the widget to your
+          app and tells you how to check it.
+        </Text>
+      </p>
+      <div className="max-h-80 overflow-y-auto rounded-xl border border-border bg-muted/60 px-4 py-3">
+        <p className="whitespace-pre-wrap break-words">
+          <Text>{prompt}</Text>
+        </p>
+      </div>
+      <Button
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(prompt);
+          } catch {
+            return; // clipboard blocked: don't claim it was copied
+          }
+          setCopied(true);
+          setTimeout(() => setCopied(false), 1500);
+        }}
+      >
+        {copied ? <Check className="size-4" /> : <Copy className="size-4" />}
+        {copied ? "Copied" : "Copy prompt"}
+      </Button>
+    </div>
   );
 }
