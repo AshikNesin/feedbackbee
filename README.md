@@ -22,7 +22,7 @@ One inbox per project, filtered by type. Rows expand to the screenshot, session 
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee)
 
-One click provisions D1 + R2, builds, and deploys; migrations apply on the first request. Open the deployed URL and the first sign-in creates your owner account. Then set one secret: `pnpm exec wrangler secret put GITHUB_TOKEN` (fine-grained PAT, Issues: Read and Write).
+One click provisions D1 + R2, builds, and deploys; migrations apply on the first request. Open `/app` on the deployed URL and the first sign-in creates your owner account (the website from `site/` is served at `/`). Then set one secret: `pnpm exec wrangler secret put GITHUB_TOKEN` (fine-grained PAT, Issues: Read and Write).
 
 - **PRD**: [docs/PRD.md](docs/PRD.md)
 - **Upload contract**: [docs/CONTRACT.md](docs/CONTRACT.md)

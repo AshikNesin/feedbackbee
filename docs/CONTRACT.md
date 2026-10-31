@@ -70,4 +70,4 @@ and the authenticated dashboard. Exactly what reaches GitHub for every issue:
 
 `email`, `reporter_name`, `reporter_id`, `metadata` and `url` are stored and
 shown in the dashboard only. The issue ends with a link to the report in
-FeedbackBee instead (`/projects/<slug>?feedback=<id>`).
+FeedbackBee instead (`/app/projects/<slug>?feedback=<id>`).

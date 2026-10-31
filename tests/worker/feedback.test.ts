@@ -126,7 +126,7 @@ test("the issue never carries reporter email, name, id, metadata or page url", a
     expect(body).not.toContain(secret);
   }
   expect(body).toContain(
-    `[Reporter details and context are in FeedbackBee (private)](${ORIGIN}/projects/${p.slug}?feedback=${res.body.data.id})`,
+    `[Reporter details and context are in FeedbackBee (private)](${ORIGIN}/app/projects/${p.slug}?feedback=${res.body.data.id})`,
   );
 
   const row = await latestFeedback(p.cookie, p.id);

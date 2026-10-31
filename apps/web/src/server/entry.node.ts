@@ -12,7 +12,7 @@ import type { ErrorReporter } from "@groot/core/errors";
 import { localStorage, uploadsRoot } from "@groot/core/storage/node";
 import { notificationService } from "@groot/core/notification/notification.service";
 import { startWorkers, stopWorkers } from "@groot/jobs/server/worker";
-import { isServerPath, startWebApp } from "./app";
+import { DASHBOARD_BASE_PATH, isServerPath, startWebApp } from "./app";
 import { adapterMedia } from "./lib/media";
 import { openDatabase } from "./db/node";
 
@@ -93,14 +93,18 @@ async function main(): Promise<void> {
   }
 }
 
-/** Production: Hono serves the API and the built client (SPA fallback to index.html). */
+/** Production: Hono serves the API, the website files and the dashboard (/app → app.html). */
 async function createProductionServer(): Promise<http.Server> {
   const clientDist = [
     path.resolve(here, "../client"),
     path.resolve(process.cwd(), "dist/client"),
-  ].find((candidate) => existsSync(path.join(candidate, "index.html")));
+  ].find((candidate) => existsSync(path.join(candidate, "assets")));
   if (!clientDist) throw new Error("Client build not found. Run `pnpm build` first.");
-  const indexHtml = readFileSync(path.join(clientDist, "index.html"), "utf8");
+  // The dashboard shell: app.html after `pnpm build:client` (the website then owns
+  // index.html), the SPA's own index.html after a plain `pnpm build`.
+  const shell = ["app.html", "index.html"].find((f) => existsSync(path.join(clientDist, f)));
+  if (!shell) throw new Error(`No dashboard shell (app.html or index.html) in ${clientDist}.`);
+  const appHtml = readFileSync(path.join(clientDist, shell), "utf8");
 
   app.use(
     "/*",
@@ -116,8 +120,11 @@ async function createProductionServer(): Promise<http.Server> {
     }),
   );
   app.get("*", (c) => {
-    if (isServerPath(c.req.path)) return c.notFound();
-    return c.html(indexHtml, 200, { "Cache-Control": "no-cache" });
+    const { path: p } = c.req;
+    if (p === DASHBOARD_BASE_PATH || p.startsWith(`${DASHBOARD_BASE_PATH}/`)) {
+      return c.html(appHtml, 200, { "Cache-Control": "no-cache" });
+    }
+    return c.notFound();
   });
 
   return serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, () => undefined) as http.Server;
@@ -158,6 +165,11 @@ async function createDevServer(): Promise<http.Server> {
   const template = () => readFileSync(path.join(clientRoot, "index.html"), "utf8");
   server.on("request", (req, res) => {
     const url = req.url ?? "/";
+    // The website is not part of the dev server: send / to the dashboard.
+    if (url === "/") {
+      res.writeHead(302, { Location: DASHBOARD_BASE_PATH }).end();
+      return;
+    }
     if (isServerPath(new URL(url, "http://localhost").pathname)) {
       void api(req, res);
       return;

@@ -17,6 +17,7 @@ import { appConfig } from "./config";
 import { memoryStorage } from "@groot/core/storage/memory";
 import { adapterMedia, type MediaStore } from "./lib/media";
 import { setRuntime } from "./runtime";
+import { staticAssets } from "./worker/static-assets";
 
 /** What a runtime supplies: its env source and adapters. Everything else is the app's. */
 export type WebRuntime = Omit<BootstrapOptions, "config"> & {
@@ -43,6 +44,9 @@ const SERVER_PATHS = [
   "/f/*",
   "/demo",
 ];
+
+/** Where the dashboard SPA is mounted; the website (site/) owns everything else. */
+export const DASHBOARD_BASE_PATH = "/app";
 
 export function isServerPath(path: string): boolean {
   return SERVER_PATHS.some((p) => (p.endsWith("*") ? path.startsWith(p.slice(0, -1)) : path === p));
@@ -85,6 +89,9 @@ export function createWebApp(
       api.route("/projects", projectRoutes);
       api.route("/settings", appSettingsRoutes);
       app.route("/api/v1", api);
+
+      // Workers: the website at /, the dashboard SPA at /app, real 404s (ASSETS binding). Last.
+      app.route("/", staticAssets);
     },
   });
 }

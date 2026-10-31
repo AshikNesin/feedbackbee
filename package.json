@@ -49,7 +49,7 @@
     "changeset:status": "changeset status",
     "doctor": "pnpm dlx react-doctor@latest",
     "dev:worker": "pnpm build:client && wrangler dev",
-    "build:client": "vp build",
+    "build:client": "vp build && node site/build.mjs",
     "deploy:worker": "pnpm build:client && wrangler deploy",
     "check:worker": "wrangler deploy --dry-run --outdir tmp/worker-build",
     "db:generate": "tsx scripts/db-generate.ts",

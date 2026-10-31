@@ -92,7 +92,9 @@ one with its credentials. The dashboard API (`/api/v1/projects…`) sits behind
 
 ## Surfaces
 
-- `/`: dashboard SPA (`/projects`, `/projects/:slug?feedback=<id>`, `/settings`, `/login`)
+- `/`: the website (`site/`, served from Static Assets by `worker/static-assets.ts`)
+- `/app`: dashboard SPA (`/app/projects`, `/app/projects/:slug?feedback=<id>`, `/app/settings`,
+  `/app/login`); the old unprefixed paths 301 here
 - `/api/v1/feedback`: public multipart submit (docs/CONTRACT.md)
 - `/api/v1/auth/*`, `/api/v1/passkey/*`: groot auth
 - `/api/v1/projects/*`, `/api/v1/settings`: dashboard API
@@ -100,13 +102,14 @@ one with its credentials. The dashboard API (`/api/v1/projects…`) sits behind
 - `/embed-capture.js`, `/embed-record.js`: libraries the widget lazy-loads
 - `/f/<key>`: public media · `/replay/<key>`: session replay viewer (`/replay-player.js`)
 - `/demo`: demo page exercising the widget · `/health`, `/ready`: probes
-- `site/`: the website (feedbackbee.nesin.io), laid out like 404less's:
-  `layout.html` + `pages/*.html` + `assets/`, assembled by `pnpm build:site`
-  into `dist/site/` and deployed separately on Cloudflare Pages. Not served by the Worker.
+- `site/`: the website, laid out like 404less's: `layout.html` + `pages/*.html` +
+  `assets/`, assembled by `site/build.mjs` into `dist/client/` next to the SPA
+  (whose `index.html` becomes `app.html`). `pnpm build:client` builds both.
 
 ## Commands
 
-- `pnpm dev`: Node + Vite HMR (sign in with demo@example.com / demo@example.com)
+- `pnpm dev`: Node + Vite HMR at `/app` (sign in with demo@example.com / demo@example.com); the
+  website is only in `pnpm dev:worker` and builds
 - `pnpm dev:worker`: build the SPA, run the Worker in workerd (:8787)
 - `pnpm test:worker`: FeedbackBee's integration suite in workerd (the main safety net)
 - `pnpm test` / `pnpm test:client`: groot's Node and client suites

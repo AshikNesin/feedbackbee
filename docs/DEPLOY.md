@@ -58,7 +58,7 @@ Settings, then Builds, then API token.
 ## Self-check after deploy
 
 - `GET /health` returns `{"status":"ok",...}`.
-- Open the deployed URL and sign in first. **The first email and password you
+- Open `/app` on the deployed URL and sign in first (`/` is the FeedbackBee website). **The first email and password you
   submit create the owner account**, so do this before anyone else sees the URL.
   After that, sign-in only accepts existing accounts. You can add a passkey under
   Settings, then Security.

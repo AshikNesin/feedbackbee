@@ -66,7 +66,8 @@ function App() {
   }, [checkAuth]);
 
   return (
-    <BrowserRouter>
+    // Mounted at /app; the website (site/) owns everything else.
+    <BrowserRouter basename="/app">
       <NuqsAdapter>
         <GrootUIProvider>
           <ShellProvider config={SHELL_CONFIG}>

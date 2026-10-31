@@ -125,7 +125,7 @@ export async function submitFeedback(
         ? `${mediaBase}/${isReplayKey(row.recordingKey) ? "replay" : "f"}/${row.recordingKey}`
         : null,
       audio: row.audioKey ? `${mediaBase}/f/${row.audioKey}` : null,
-      dashboard: `${dashboardBase}/projects/${project.slug}?feedback=${row.id}`,
+      dashboard: `${dashboardBase}/app/projects/${project.slug}?feedback=${row.id}`,
     }),
   });
 

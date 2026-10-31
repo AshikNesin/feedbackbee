@@ -1,7 +1,7 @@
-# feedbackbee.nesin.io
+# site/
 
 The FeedbackBee website, laid out like 404less's `site/`. Static HTML assembled
-by one script; no framework.
+by one script; no framework. The Worker serves it at `/`; the dashboard is at `/app`.
 
 - `layout.html`: the shared shell (head, nav, footer). Placeholders `{{title}}`,
   `{{description}}`, `{{ogDescription}}`, `{{canonical}}`, `{{ogImage}}`,
@@ -12,10 +12,11 @@ by one script; no framework.
   look and the small page script), `img/`, `og/` (1200×630 social card), `demo/`
   (the product demo: `demo-music.*` plays on the page muted with a sound toggle,
   `demo.*` is the same cut without audio for sharing; recorded with Playwright
-  against the real widget, only the submit response mocked), plus Cloudflare
-  Pages' `_headers` and `_redirects` (old flat URLs → new paths).
-- `build.mjs`: `pnpm build:site` writes `dist/site/` with `sitemap.xml` and
-  `robots.txt`. `SITE_URL` overrides the canonical origin.
+  against the real widget, only the submit response mocked), plus
+  the `_headers` and `_redirects` files Static Assets read (old flat URLs → new paths).
+- `build.mjs`: runs after the SPA build (`pnpm build:client` = `vp build && node site/build.mjs`),
+  writes the pages into `dist/client/` with `sitemap.xml` and `robots.txt`, and renames
+  the SPA's `index.html` to `app.html`. `SITE_URL` overrides the canonical origin.
 
-Deployed separately from the Worker, on Cloudflare Pages: build command
-`node site/build.mjs`, output directory `dist/site`.
+Routing (`apps/web/src/server/worker/static-assets.ts`): `/` and `/<page>` →
+`<page>.html`, `/app/*` → `app.html`, anything else → `404.html` with a 404 status.

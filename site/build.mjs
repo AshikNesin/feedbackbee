@@ -1,21 +1,28 @@
-// Assembles the FeedbackBee website: site/layout.html + site/pages/*.html →
-// dist/site/, copies site/assets/* alongside (with _headers and _redirects for
-// Cloudflare Pages), and writes sitemap.xml + robots.txt.
+// Assembles the website: site/layout.html + site/pages/*.html → dist/client/,
+// copies site/assets/* alongside (with _headers and _redirects), and writes
+// sitemap.xml + robots.txt. Runs after the SPA build (`pnpm build:client` =
+// vp build && this): the SPA's index.html becomes app.html (the Worker serves
+// it for /app/*), because the website's home page owns /index.html.
 // Pages start with a <!--meta {json} --> block (path, title, description, og).
-// Deployed separately from the Worker: Cloudflare Pages, build command
-// `node site/build.mjs`, output directory `dist/site`.
 import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(new URL(".", import.meta.url).pathname);
-const OUT = path.resolve(ROOT, "..", "dist", "site");
+const OUT = path.resolve(ROOT, "..", "dist", "client");
 const SITE_URL = (process.env.SITE_URL ?? "https://feedbackbee.nesin.io").replace(/\/$/, "");
 
 const layout = fs.readFileSync(path.join(ROOT, "layout.html"), "utf8");
-fs.rmSync(OUT, { recursive: true, force: true });
 fs.mkdirSync(OUT, { recursive: true });
 
-// assets (css, js, images, og, demo videos, _headers, _redirects) → dist/site/
+// the SPA shell: vp build emits dist/client/index.html; the Worker serves it as /app.html
+const spaIndex = path.join(OUT, "index.html");
+if (fs.existsSync(spaIndex) && fs.readFileSync(spaIndex, "utf8").includes('<div id="root">')) {
+  fs.renameSync(spaIndex, path.join(OUT, "app.html"));
+} else if (!fs.existsSync(path.join(OUT, "app.html"))) {
+  console.warn("site: no SPA build in dist/client (run vp build first); /app will 404");
+}
+
+// assets (css, js, images, og, demo videos, _headers, _redirects) → dist/client/
 fs.cpSync(path.join(ROOT, "assets"), OUT, { recursive: true });
 
 const urls = [];
@@ -76,7 +83,7 @@ fs.writeFileSync(
 );
 fs.writeFileSync(
   path.join(OUT, "robots.txt"),
-  `User-agent: *\nAllow: /\n\nSitemap: ${SITE_URL}/sitemap.xml\n`,
+  `User-agent: *\nAllow: /\nDisallow: /app\nDisallow: /api\n\nSitemap: ${SITE_URL}/sitemap.xml\n`,
 );
 
 function esc(s) {
