@@ -43,21 +43,20 @@ FeedbackBee gives any project a five-minute feedback loop. Embed one script tag 
 
 The unit of tenancy. Creating a project captures the GitHub wiring up front.
 
-| Field | Type | Notes |
-|---|---|---|
-| `id` | uuid | |
-| `name` | text | Human name, e.g. "myapp.dev" |
-| `slug` | text | URL-safe, unique, used in the embed snippet |
-| `github_repo` | text | `owner/repo`, required to create issues |
-| `github_repo` | text | `owner/repo` the issues are created in. Auth comes from the global `GITHUB_TOKEN` secret |
-| `labels_map` | json | Feedback kind to GitHub label. Defaults: bug→`bug`, idea→`enhancement`, other→`feedback` |
-| `created_at` | timestamp | |
+| Field         | Type      | Notes                                                                                    |
+| ------------- | --------- | ---------------------------------------------------------------------------------------- |
+| `id`          | uuid      |                                                                                          |
+| `name`        | text      | Human name, e.g. "myapp.dev"                                                             |
+| `slug`        | text      | URL-safe, unique, used in the embed snippet                                              |
+| `github_repo` | text      | `owner/repo`, required to create issues                                                  |
+| `github_repo` | text      | `owner/repo` the issues are created in. Auth comes from the global `GITHUB_TOKEN` secret |
+| `labels_map`  | json      | Feedback kind to GitHub label. Defaults: bug→`bug`, idea→`enhancement`, other→`feedback` |
+| `created_at`  | timestamp |                                                                                          |
 
 The embed snippet is generated per project.
 
 ```html
-<script src="https://your-barn.workers.dev/embed.js"
-        data-project="myapp" async></script>
+<script src="https://your-barn.workers.dev/embed.js" data-project="myapp" async></script>
 ```
 
 ### 2. Web widget (`embed.js`)
@@ -136,26 +135,32 @@ admin(id, email, password_hash)
 
 ### 7. API
 
-Public (CORS `*`, rate-limited by IP via D1 counter rows):
+Every API response is groot's envelope: `{"success":true,"data":...}` or
+`{"success":false,"error":{"code","message"}}`.
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/embed.js` | The widget script |
-| POST | `/api/feedback` | Multipart submit |
-| GET | `/f/<key>` | Public R2 media passthrough |
+Public (the submit endpoint answers CORS `*`, rate-limited by IP via D1 counter rows):
 
-Authenticated (session cookie):
+| Method | Path               | Purpose                                    |
+| ------ | ------------------ | ------------------------------------------ |
+| GET    | `/embed.js`        | The widget script                          |
+| POST   | `/api/v1/feedback` | Multipart submit ([contract](CONTRACT.md)) |
+| GET    | `/f/<key>`         | Public R2 media passthrough                |
+| GET    | `/replay/<key>`    | Session replay viewer                      |
+| GET    | `/demo`            | Demo host page                             |
 
-| Method | Path | Purpose |
-|---|---|---|---|
-| POST | `/auth/login` | Owner login |
-| POST | `/auth/logout` | |
-| GET | `/api/projects` | List |
-| POST | `/api/projects` | Create |
-| PATCH | `/api/projects/:id` | Edit (name, repo, labels) |
-| DELETE | `/api/projects/:id` | Delete project + feedback rows (media kept) |
-| GET | `/api/projects/:id/feedback` | Paged list |
-| GET | `/api/projects/:id/feedback/:fid` | One item with media URL |
+Authenticated (groot's JWT cookie; passkeys optional):
+
+| Method | Path                                    | Purpose                                       |
+| ------ | --------------------------------------- | --------------------------------------------- |
+| POST   | `/api/v1/auth/login`                    | Sign in (the first sign-in creates the owner) |
+| POST   | `/api/v1/auth/logout`                   |                                               |
+| GET    | `/api/v1/auth/me`                       | The signed-in user                            |
+| GET    | `/api/v1/projects`                      | List                                          |
+| POST   | `/api/v1/projects`                      | Create                                        |
+| GET    | `/api/v1/projects/:id`                  | One project                                   |
+| PATCH  | `/api/v1/projects/:id`                  | Edit (name, repo, labels)                     |
+| DELETE | `/api/v1/projects/:id`                  | Delete project + feedback rows (media kept)   |
+| GET    | `/api/v1/projects/:id/feedback?before=` | Paged list, newest first (cursor: epoch ms)   |
 
 ### 8. Security
 
@@ -167,12 +172,12 @@ Authenticated (session cookie):
 
 ## Free-tier fit
 
-| Resource | Free ceiling | FeedbackBee use |
-|---|---|---|
-| Workers | 100k req/day | Widget + API calls |
-| D1 | 5 GB, 5M rows read/day | Projects, feedback, rate limits |
-| R2 | 10 GB storage, 1M class-A/month | Screenshots (KBs), recordings (MBs) |
-| CPU | 10 ms/req (free) | GitHub call is I/O bound, fits |
+| Resource | Free ceiling                    | FeedbackBee use                     |
+| -------- | ------------------------------- | ----------------------------------- |
+| Workers  | 100k req/day                    | Widget + API calls                  |
+| D1       | 5 GB, 5M rows read/day          | Projects, feedback, rate limits     |
+| R2       | 10 GB storage, 1M class-A/month | Screenshots (KBs), recordings (MBs) |
+| CPU      | 10 ms/req (free)                | GitHub call is I/O bound, fits      |
 
 Recordings are the pressure point. 200 MB caps and 5-minute limits keep a self-hoster inside R2's 10 GB for realistic volumes. A pruning note lands in the ops README later.
 

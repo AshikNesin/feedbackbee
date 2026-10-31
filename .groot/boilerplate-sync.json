@@ -1,0 +1,27 @@
+{
+  "boilerplate": {
+    "name": "groot",
+    "repo": "https://github.com/AshikNesin/groot"
+  },
+  "last_sync": {
+    "version": "3.0.0",
+    "commit": "1a38cc221122ba029a6820bcab9ea7f3ca9f402b",
+    "date": "2026-10-31T18:30:15+05:30"
+  },
+  "additional_exclusions": [
+    "vitest.config.worker.ts",
+    ".github/workflows/worker-tests.yml",
+    ".github/workflows/release.yml",
+    "docs/CONTRACT.md",
+    "docs/DEPLOY.md",
+    "docs/PRD.md",
+    "docs/screenshots/**",
+    "tests/server/jobs/**",
+    "tests/server/api/storage.test.ts",
+    "tests/server/api/todos.test.ts",
+    "tests/server/app/todo.jobs.test.ts",
+    "tests/e2e/storage.spec.ts",
+    "tests/e2e/todos.spec.ts",
+    "tests/e2e/verify-job-selection.spec.ts"
+  ]
+}

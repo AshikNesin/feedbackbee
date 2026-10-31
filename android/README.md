@@ -50,15 +50,15 @@ FeedbackBee.init(application, projectId = "myapp", endpoint = "https://bee.examp
 FeedbackBee.show() // open the sheet yourself
 ```
 
-| Parameter | Default | Notes |
-|---|---|---|
-| `projectId` | required | From your dashboard. A blank id throws `IllegalArgumentException`. |
-| `endpoint` | required | Your FeedbackBee website or Worker base URL, including `https://`. No default server. A trailing `/` is trimmed. |
-| `shake` | `true` | `false` removes the accelerometer listener entirely. |
+| Parameter   | Default  | Notes                                                                                                            |
+| ----------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `projectId` | required | From your dashboard. A blank id throws `IllegalArgumentException`.                                               |
+| `endpoint`  | required | Your FeedbackBee website or Worker base URL, including `https://`. No default server. A trailing `/` is trimmed. |
+| `shake`     | `true`   | `false` removes the accelerometer listener entirely.                                                             |
 
 **Upgrading:** add `endpoint` to existing `init` calls. The argument order is application, project id, endpoint,
 then optional `shake`. `DEFAULT_ENDPOINT` has been removed. Blank or malformed URLs are rejected immediately,
-including hosts with embedded credentials, query parameters, or fragments. Use the base URL, not `/api/feedback`.
+including hosts with embedded credentials, query parameters, or fragments. Use the base URL, not `/api/v1/feedback`.
 
 `init` is idempotent: call it again (say, after the user switches workspace) and the new config replaces the old one;
 the old lifecycle callbacks are unregistered first. `open()` can be called from any thread and does nothing
@@ -79,14 +79,14 @@ the only consumers of the old `bug` / `idea` / `feedback` values, and current Wo
 
 ## Shake
 
-| | |
-|---|---|
-| Triggers | Three firm jolts (above 15 m/s², gravity included) within 1.5 seconds. A long push counts once; peaks under 120 ms apart count once. |
-| Runs | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz). Nothing runs in the background. |
-| Can't stack | Shakes are ignored while a sheet is open, and the counter resets after each trigger. |
-| Turn it off | `FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)` |
-| Open manually | `FeedbackBee.open()`, for example from a "Send feedback" menu item. |
-| No accelerometer | Logged once at init. Use `open()`. |
+|                  |                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Triggers         | Three firm jolts (above 15 m/s², gravity included) within 1.5 seconds. A long push counts once; peaks under 120 ms apart count once. |
+| Runs             | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz). Nothing runs in the background.                             |
+| Can't stack      | Shakes are ignored while a sheet is open, and the counter resets after each trigger.                                                 |
+| Turn it off      | `FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)`                                   |
+| Open manually    | `FeedbackBee.open()`, for example from a "Send feedback" menu item.                                                                  |
+| No accelerometer | Logged once at init. Use `open()`.                                                                                                   |
 
 The detection logic is plain Kotlin (`ShakeAnalyzer`) with JUnit tests for a shake and several non-shakes.
 
@@ -109,10 +109,11 @@ The web widget and SDK share a neutral palette, subtle borders, and clear focus 
 Errors (rate limit, bad input, no network, a capture that failed) show inside the sheet above the Send button and the
 draft is kept. Back keeps the note too.
 
-Send posts multipart to `{endpoint}/api/feedback` exactly as in [docs/CONTRACT.md](../docs/CONTRACT.md):
+Send posts multipart to `{endpoint}/api/v1/feedback` exactly as in [docs/CONTRACT.md](../docs/CONTRACT.md):
 `project`, `kind` (`issue`, `feature_request` or `other`), `text`, optional `email`, `app_version`,
 `os_name=android`, `os_version` (API level), `device_model`, `screen_w`, `screen_h`, and optional independent
-`media`/`media_kind`/`media_seconds` plus `audio`/`audio_seconds`. When `identify()` / `setContext()` were used,
+attachments: a screenshot as an `image` part, a screen recording as `media` plus `media_seconds`, and a voice note as
+`audio` plus `audio_seconds`. When `identify()` / `setContext()` were used,
 `reporter_name`, `reporter_id` and a `metadata` JSON object ride along too. Screenshots have a 10 MB cap; voice notes use
 an `.m4a` file with a 25 MB and 300-second cap.
 

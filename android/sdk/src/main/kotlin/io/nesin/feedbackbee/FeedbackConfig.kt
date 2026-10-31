@@ -4,7 +4,7 @@ import java.net.URI
 import java.net.URISyntaxException
 
 internal data class FeedbackConfig(val projectId: String, val endpoint: String) {
-    val feedbackUrl: String get() = "$endpoint/api/feedback"
+    val feedbackUrl: String get() = "$endpoint/api/v1/feedback"
 
     companion object {
         fun create(projectId: String, endpoint: String): FeedbackConfig {

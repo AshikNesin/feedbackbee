@@ -69,10 +69,11 @@ class MultipartBodyTest {
             "name=\"device_model\"\r\n\r\nPixel 9",
             "name=\"screen_w\"\r\n\r\n1080",
             "name=\"screen_h\"\r\n\r\n2400",
-            "name=\"media_kind\"\r\n\r\nscreenshot",
-            "name=\"media\"; filename=\"screenshot.png\"\r\nContent-Type: image/png",
+            "name=\"image\"; filename=\"screenshot.png\"\r\nContent-Type: image/png",
         )
         expected.forEach { assertTrue("missing $it in:\n$out", out.contains(it)) }
+        assertTrue(!out.contains("name=\"media\""))
+        assertTrue(!out.contains("name=\"media_kind\""))
     }
 
     @Test
@@ -117,7 +118,7 @@ class MultipartBodyTest {
             audio = Audio("voice.m4a", "audio/mp4", 1, 7) { ByteArrayInputStream(byteArrayOf(2)) },
         )
         val out = render(FeedbackUploader.buildBody(request))
-        assertTrue(out.contains("name=\"media\"; filename=\"s.png\""))
+        assertTrue(out.contains("name=\"image\"; filename=\"s.png\""))
         assertTrue(out.contains("name=\"audio\"; filename=\"voice.m4a\""))
     }
 

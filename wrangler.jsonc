@@ -1,25 +1,73 @@
+// FeedbackBee on Cloudflare Workers. Everything here fits the Workers Free plan.
+//
+// This file is the self-host template: it holds no account-specific ids.
+// `wrangler deploy` (or the Deploy to Cloudflare button) creates the D1
+// database and the R2 bucket below in the deploying account on first deploy
+// and reuses them on every deploy after that.
+//
+//   pnpm exec wrangler login
+//   pnpm deploy:worker
+//   pnpm exec wrangler secret put GITHUB_TOKEN      (fine-grained PAT, Issues: read/write)
+//
+// Migrations apply on the first request (apps/web/src/server/worker/boot.ts).
+// groot's production secrets (JWT_SECRET_KEY, ADMIN_AUTH_KEY) are generated on
+// first boot and kept in D1 unless you set them; ORIGIN/RP_ID default to the
+// host of the first request. Local: `pnpm dev:worker` (workerd, local D1 + R2).
 {
-  // FeedbackBee: self-hostable feedback widget on the Cloudflare free tier.
-  // database_id pins this deployment's D1 database. For another account, run:
-  //   pnpm exec wrangler d1 create feedbackbee
-  // and replace database_id below with the new database's id.
+  "$schema": "node_modules/wrangler/config-schema.json",
   "name": "feedbackbee",
-  "main": "src/index.ts",
+  "main": "apps/web/src/server/entry.worker.ts",
   "compatibility_date": "2026-09-01",
-  "d1_databases": [
-    { "binding": "DB", "database_name": "feedbackbee", "database_id": "c415d47c-ece2-44ee-b296-1408b96b92ee", "migrations_dir": "migrations" }
-  ],
-  "r2_buckets": [
-    { "binding": "MEDIA", "bucket_name": "feedbackbee-media" }
-  ],
+  "compatibility_flags": ["nodejs_compat"],
+  // Drizzle's .sql migrations are bundled as text and applied on first request.
+  "rules": [{ "type": "Text", "globs": ["**/*.sql"] }],
+  // Workers Logs (included in the free plan): console output and errors in the dashboard.
+  "observability": { "enabled": true },
+
+  // The dashboard SPA (pnpm build:client). Asset requests never reach the
+  // Worker; these paths do.
   "assets": {
-    "directory": "./dist/web",
+    "directory": "./dist/client",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/auth/*", "/embed.js", "/embed-capture.js", "/embed-record.js", "/replay-player.js", "/replay/*", "/f/*", "/demo"]
+    "run_worker_first": [
+      "/api/*",
+      "/health",
+      "/ready",
+      "/embed.js",
+      "/embed-capture.js",
+      "/embed-record.js",
+      "/replay-player.js",
+      "/replay/*",
+      "/f/*",
+      "/demo",
+    ],
   },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      // No database_id: provisioned on first deploy (an existing database with
+      // this name in the account is used instead of creating one).
+      "database_name": "feedbackbee",
+      "migrations_dir": "apps/web/drizzle",
+    },
+  ],
+
+  // Report attachments: images, recordings, voice notes. Served at /f/<key>.
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "feedbackbee-media" }],
+
+  // Non-secret configuration. GITHUB_TOKEN is a secret (`wrangler secret put`).
+  // Optional: ORIGIN + RP_ID (your public domain; default: the first request's
+  // host), MEDIA_BASE / DASHBOARD_BASE (origins used in GitHub issue links).
   "vars": {
-    "MEDIA_BASE": "",
-    "DASHBOARD_BASE": ""
+    "NODE_ENV": "production",
+    "RP_NAME": "FeedbackBee",
   },
-  "workers_dev": true
+
+  "workers_dev": true,
+
+  // Preview deploys (Workers Builds on non-production branches) get no
+  // bindings: they prove the branch builds and uploads without touching
+  // production D1/R2. For working previews, point this at test resources.
+  "previews": {},
 }

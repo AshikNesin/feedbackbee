@@ -22,11 +22,13 @@ One inbox per project, filtered by type. Rows expand to the screenshot, session 
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee)
 
-One click provisions D1 + R2, applies migrations, builds, and deploys. Open the deployed URL and the first login creates your owner account. Then set one secret: `pnpm exec wrangler secret put GITHUB_TOKEN` (fine-grained PAT, Issues: Read and Write).
+One click provisions D1 + R2, builds, and deploys; migrations apply on the first request. Open the deployed URL and the first sign-in creates your owner account. Then set one secret: `pnpm exec wrangler secret put GITHUB_TOKEN` (fine-grained PAT, Issues: Read and Write).
 
 - **PRD**: [docs/PRD.md](docs/PRD.md)
+- **Upload contract**: [docs/CONTRACT.md](docs/CONTRACT.md)
 - **Deploy runbook**: [docs/DEPLOY.md](docs/DEPLOY.md)
 - **Android SDK**: `android/` (Kotlin, `FeedbackBee.init(app, projectId, endpoint)`, shake-to-feedback)
+- **Boilerplate**: built on [groot](https://github.com/AshikNesin/groot) (Hono + React + Drizzle); its guides start at [docs/README.md](docs/README.md)
 
 ## Embed in any web app
 
@@ -47,11 +49,14 @@ The Android `endpoint` is required: use your FeedbackBee website or Worker base 
 
 ```bash
 pnpm install
-pnpm run dev       # API at http://localhost:8787, dashboard at /
-pnpm test          # workerd integration tests
+pnpm dev           # Node + Vite HMR; sign in with demo@example.com / demo@example.com
+pnpm dev:worker    # the real Worker in workerd (local D1 + R2) at http://localhost:8787
+pnpm test:worker   # FeedbackBee's integration suite, in workerd
+pnpm test          # groot's server suites
 ```
 
-`GET /demo` hosts a demo page with the widget. The `demo` project is provisioned automatically on first visit.
+Set `GITHUB_TOKEN` in `.env` (for `pnpm dev`) or `.dev.vars` (for `pnpm dev:worker`) to file real issues. `GET /demo` hosts a demo page with the widget; the `demo` project is provisioned on first visit.
 
 ## Inspiration
+
 - Feedback.fish

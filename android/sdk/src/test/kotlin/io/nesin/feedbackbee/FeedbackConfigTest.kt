@@ -11,14 +11,14 @@ class FeedbackConfigTest {
     fun projectIdAndEndpointAreTrimmedAndTrailingSlashesRemoved() {
         val config = FeedbackConfig.create(" myapp ", " http://10.0.2.2:8787// ")
         assertEquals("myapp", config.projectId)
-        assertEquals("http://10.0.2.2:8787/api/feedback", config.feedbackUrl)
+        assertEquals("http://10.0.2.2:8787/api/v1/feedback", config.feedbackUrl)
     }
 
     @Test
     fun websiteHostDeterminesTheUploadDestination() {
         val config = FeedbackConfig.create("myapp", "https://feedback.example.com/")
         assertEquals("https://feedback.example.com", config.endpoint)
-        assertEquals("https://feedback.example.com/api/feedback", config.feedbackUrl)
+        assertEquals("https://feedback.example.com/api/v1/feedback", config.feedbackUrl)
     }
 
     @Test
@@ -29,7 +29,7 @@ class FeedbackConfigTest {
             "http://10.0.2.2:8787",
             "http://[::1]:8787",
         ).forEach { endpoint ->
-            assertEquals("$endpoint/api/feedback", FeedbackConfig.create("myapp", "$endpoint/").feedbackUrl)
+            assertEquals("$endpoint/api/v1/feedback", FeedbackConfig.create("myapp", "$endpoint/").feedbackUrl)
         }
     }
 

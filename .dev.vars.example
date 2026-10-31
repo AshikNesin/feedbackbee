@@ -1,4 +1,8 @@
-# Required. Fine-grained PAT with Issues: Read and Write on every repo your
-# projects point at. Set once per deployment, never per project.
-# Local dev: copy to .dev.vars. Cloudflare: npx wrangler secret put GITHUB_TOKEN
+# Local vars for `pnpm dev:worker` (wrangler dev). Copy to `.dev.vars` (git-ignored).
+# Nothing else is required: groot's production secrets (JWT_SECRET_KEY,
+# ADMIN_AUTH_KEY) are generated on first boot and kept in the local D1, and
+# ORIGIN/RP_ID come from the first request (apps/web/src/server/worker/boot.ts).
+#
+# Fine-grained PAT with Issues: Read and Write on the repos your projects use.
+# Without it, reports are stored but no issue is filed (state "issue_error").
 GITHUB_TOKEN=

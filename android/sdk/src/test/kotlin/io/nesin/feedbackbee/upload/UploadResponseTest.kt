@@ -8,13 +8,13 @@ class UploadResponseTest {
 
     @Test
     fun created201ReturnsTheIssueUrl() {
-        val body = """{"id":"abc","state":"created","issueUrl":"https://github.com/o/r/issues/7"}"""
+        val body = """{"success":true,"data":{"id":"abc","state":"created","issueUrl":"https://github.com/o/r/issues/7"}}"""
         assertEquals(UploadOutcome.Accepted("https://github.com/o/r/issues/7"), parseUploadResponse(201, body))
     }
 
     @Test
     fun pending202IsAcceptedWithoutALink() {
-        assertEquals(UploadOutcome.Accepted(null), parseUploadResponse(202, """{"id":"abc","state":"pending"}"""))
+        assertEquals(UploadOutcome.Accepted(null), parseUploadResponse(202, """{"success":true,"data":{"id":"abc","state":"issue_error"}}"""))
     }
 
     @Test
@@ -24,8 +24,15 @@ class UploadResponseTest {
 
     @Test
     fun badRequestSurfacesTheServerMessage() {
-        val outcome = parseUploadResponse(400, """{"error":"text is required"}""")
+        val outcome = parseUploadResponse(400, """{"success":false,"error":{"code":"VALIDATION_ERROR","message":"text is required"}}""")
         assertEquals(UploadOutcome.Rejected("text is required"), outcome)
+    }
+
+    @Test
+    fun unknownProjectAndRejectedMediaSurfaceTheServerMessage() {
+        val notFound = """{"success":false,"error":{"code":"NOT_FOUND","message":"unknown project"}}"""
+        assertEquals(UploadOutcome.Rejected("unknown project"), parseUploadResponse(404, notFound))
+        assertTrue((parseUploadResponse(413, "<html>") as UploadOutcome.Rejected).message.contains("rejected"))
     }
 
     @Test

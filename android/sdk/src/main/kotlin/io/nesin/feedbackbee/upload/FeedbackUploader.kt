@@ -46,10 +46,16 @@ internal object FeedbackUploader {
             request.reporterName?.let { add(Part.Text("reporter_name", it)) }
             request.reporterId?.let { add(Part.Text("reporter_id", it)) }
             if (request.metadata.isNotEmpty()) add(Part.Text("metadata", MetadataJson.encode(request.metadata)))
+            // A screenshot is an `image` part; a screen recording is `media` + its length.
             request.media?.let { media ->
-                add(Part.Text("media_kind", media.kind.wire))
-                media.seconds?.let { add(Part.Text("media_seconds", it.toString())) }
-                add(Part.File("media", media.filename, media.mimeType, media.length, media.open))
+                when (media.kind) {
+                    MediaKind.Screenshot ->
+                        add(Part.File("image", media.filename, media.mimeType, media.length, media.open))
+                    MediaKind.Recording -> {
+                        media.seconds?.let { add(Part.Text("media_seconds", it.toString())) }
+                        add(Part.File("media", media.filename, media.mimeType, media.length, media.open))
+                    }
+                }
             }
             request.audio?.let { audio ->
                 add(Part.Text("audio_seconds", audio.seconds.toString()))
