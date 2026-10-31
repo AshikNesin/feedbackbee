@@ -1,4 +1,4 @@
-// FeedbackBee site: copy buttons, color mode, the demo player.
+// FeedbackBee site: copy buttons and the demo player.
 document.querySelectorAll(".copy").forEach(function (btn) {
   var timer;
   btn.addEventListener("click", function () {
@@ -16,24 +16,6 @@ document.querySelectorAll(".copy").forEach(function (btn) {
       function () {},
     );
   });
-});
-// Color mode: an explicit choice wins over the system setting and is remembered.
-var themeBtn = document.querySelector(".theme");
-function isDark() {
-  var explicit = document.documentElement.dataset.theme;
-  return explicit ? explicit === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-}
-function labelTheme() {
-  themeBtn.setAttribute("aria-label", isDark() ? "Switch to light mode" : "Switch to dark mode");
-}
-labelTheme();
-themeBtn.addEventListener("click", function () {
-  var next = isDark() ? "light" : "dark";
-  document.documentElement.dataset.theme = next;
-  try {
-    localStorage.setItem("fb:theme", next);
-  } catch (e) {}
-  labelTheme();
 });
 // Demo: one play button over the poster, then the browser's own controls (fullscreen and all).
 // Without the script the native controls are there from the start. Home page only.

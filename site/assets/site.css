@@ -79,34 +79,6 @@
   --display-weight: 600;
   color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --color-paper: oklch(16% 0.005 85);
-    --color-paper-2: oklch(20% 0.006 85);
-    --color-paper-3: oklch(24% 0.007 85);
-    --color-ink: oklch(94% 0.005 85);
-    --color-ink-2: oklch(82% 0.006 85);
-    --color-muted: oklch(70% 0.008 85);
-    --color-rule: oklch(27% 0.007 85);
-    --color-edge: oklch(46% 0.008 85);
-    --color-focus: oklch(82% 0.15 82);
-    --color-stage: oklch(23% 0.007 85);
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --color-paper: oklch(16% 0.005 85);
-  --color-paper-2: oklch(20% 0.006 85);
-  --color-paper-3: oklch(24% 0.007 85);
-  --color-ink: oklch(94% 0.005 85);
-  --color-ink-2: oklch(82% 0.006 85);
-  --color-muted: oklch(70% 0.008 85);
-  --color-rule: oklch(27% 0.007 85);
-  --color-edge: oklch(46% 0.008 85);
-  --color-focus: oklch(82% 0.15 82);
-  --color-stage: oklch(23% 0.007 85);
-  color-scheme: dark;
-}
 
 /* base */
 *,
@@ -344,31 +316,6 @@ html:not(.js) .needs-js {
 }
 .navlinks a:hover {
   color: var(--color-ink);
-}
-.theme {
-  margin-left: var(--space-2xs);
-}
-.js .theme .sun {
-  opacity: 0;
-  transform: rotate(60deg) scale(0.6);
-}
-html.js[data-theme="dark"] .theme .sun {
-  opacity: 1;
-  transform: none;
-}
-html.js[data-theme="dark"] .theme .moon {
-  opacity: 0;
-  transform: rotate(-30deg) scale(0.6);
-}
-@media (prefers-color-scheme: dark) {
-  html.js:not([data-theme="light"]) .theme .sun {
-    opacity: 1;
-    transform: none;
-  }
-  html.js:not([data-theme="light"]) .theme .moon {
-    opacity: 0;
-    transform: rotate(-30deg) scale(0.6);
-  }
 }
 @media (max-width: 40rem) {
   .navlinks .opt {
