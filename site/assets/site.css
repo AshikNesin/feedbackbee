@@ -1129,32 +1129,69 @@ html:not(.js) .needs-js {
 .panel[hidden] {
   display: none;
 }
+/* code: the dashboard's snippet block (apps/web CodeBlock): soft paper,
+   a hairline, highlighted tokens, a small round copy button in the corner */
 .code {
-  display: flex;
-  align-items: flex-start;
+  position: relative;
   min-height: 120px;
-  border-radius: var(--radius-well);
-  background: var(--color-stage);
-  color: var(--color-on-stage);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+  background: var(--color-paper-2);
+  color: var(--color-ink);
   font: 400 var(--text-sm) / 1.7 var(--font-outlier);
 }
 .code pre {
-  flex: 1;
-  min-width: 0;
   margin: 0;
-  padding: var(--space-md) var(--space-lg);
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  padding: var(--space-md) 52px var(--space-md) var(--space-lg);
+  white-space: pre;
+  overflow-x: auto;
   font: inherit;
 }
 .copy {
-  flex: none;
-  margin: var(--space-2xs) var(--space-2xs) 0 0;
-  color: color-mix(in oklch, var(--color-on-stage) 70%, transparent);
+  position: absolute;
+  top: var(--space-xs);
+  right: var(--space-xs);
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--color-rule);
+  border-radius: 50%;
+  background: var(--color-paper);
+  color: var(--color-muted);
+}
+.copy svg {
+  width: 14px;
+  height: 14px;
 }
 .copy:hover {
-  background: var(--color-stage-2);
-  color: var(--color-on-stage);
+  background: var(--color-paper);
+  border-color: var(--color-edge);
+  color: var(--color-ink);
+}
+/* token colours: the same as the dashboard's (apps/web/src/client/styles.css) */
+.tok-tag {
+  color: oklch(46% 0.13 255);
+}
+.tok-attr {
+  color: oklch(47% 0.11 155);
+}
+.tok-str {
+  color: oklch(52% 0.12 65);
+}
+.tok-kw {
+  color: oklch(50% 0.16 25);
+}
+.tok-fn {
+  color: oklch(45% 0.13 300);
+}
+.tok-type {
+  color: oklch(42% 0.1 220);
+}
+.tok-com {
+  color: oklch(58% 0.01 85);
+  font-style: italic;
+}
+.tok-punc {
+  color: oklch(48% 0.01 85);
 }
 .js .copy .ok {
   opacity: 0;
@@ -1182,7 +1219,7 @@ html:not(.js) .needs-js {
     font-size: var(--text-xs);
   }
   .code pre {
-    padding: var(--space-md);
+    padding: var(--space-md) 48px var(--space-md) var(--space-md);
   }
 }
 @media (max-width: 60rem) {

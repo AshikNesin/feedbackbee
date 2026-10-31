@@ -418,10 +418,8 @@
       <div class="panel" role="tabpanel" id="panel-deploy" aria-labelledby="tab-deploy">
         <p class="panel-label">Deploy</p>
         <div class="code">
-          <pre>
-pnpm deploy:worker
-pnpm exec wrangler secret put GITHUB_TOKEN</pre
-          >
+          <pre><span class="tok-fn">pnpm</span> deploy:worker
+<span class="tok-fn">pnpm</span> exec wrangler secret put <span class="tok-str">GITHUB_TOKEN</span></pre>
           <button class="icon-btn copy needs-js" type="button" aria-label="Copy">
             <svg
               class="cp"
@@ -457,10 +455,11 @@ pnpm exec wrangler secret put GITHUB_TOKEN</pre
       <div class="panel" role="tabpanel" id="panel-web" aria-labelledby="tab-web">
         <p class="panel-label">Web</p>
         <div class="code">
-          <pre>
-&lt;script src="https://your-bee.workers.dev/embed.js"
-  data-project="myapp" async&gt;&lt;/script&gt;</pre
-          >
+          <pre><span class="tok-tag">&lt;script</span>
+  <span class="tok-attr">src</span><span class="tok-punc">=</span><span class="tok-str">"https://your-bee.workers.dev/embed.js"</span>
+  <span class="tok-attr">data-project</span><span class="tok-punc">=</span><span class="tok-str">"myapp"</span>
+  <span class="tok-attr">async</span>
+<span class="tok-tag">&gt;&lt;/script&gt;</span></pre>
           <button class="icon-btn copy needs-js" type="button" aria-label="Copy">
             <svg
               class="cp"
@@ -496,10 +495,12 @@ pnpm exec wrangler secret put GITHUB_TOKEN</pre
       <div class="panel" role="tabpanel" id="panel-android" aria-labelledby="tab-android">
         <p class="panel-label">Android</p>
         <div class="code">
-          <pre>
-FeedbackBee.init(this, projectId = "myapp", endpoint = "…")
-FeedbackBee.open() // or shake</pre
-          >
+          <pre><span class="tok-type">FeedbackBee</span><span class="tok-punc">.</span><span class="tok-fn">init</span><span class="tok-punc">(</span>
+    <span class="tok-kw">this</span><span class="tok-punc">,</span>
+    <span class="tok-attr">projectId</span> <span class="tok-punc">=</span> <span class="tok-str">"myapp"</span><span class="tok-punc">,</span>
+    <span class="tok-attr">endpoint</span> <span class="tok-punc">=</span> <span class="tok-str">"https://your-bee.workers.dev"</span><span class="tok-punc">,</span>
+<span class="tok-punc">)</span>
+<span class="tok-type">FeedbackBee</span><span class="tok-punc">.</span><span class="tok-fn">open</span><span class="tok-punc">()</span> <span class="tok-com">// or shake</span></pre>
           <button class="icon-btn copy needs-js" type="button" aria-label="Copy">
             <svg
               class="cp"
