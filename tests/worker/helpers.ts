@@ -76,12 +76,19 @@ export async function createProject(
 }
 
 /** POST /api/v1/feedback with these form fields (arrays repeat a part). */
-export async function submit(fields: Record<string, string | File | Array<string | File>>) {
+export async function submit(
+  fields: Record<string, string | File | Array<string | File>>,
+  headers: Record<string, string> = {},
+) {
   const form = new FormData();
   for (const [name, value] of Object.entries(fields)) {
     for (const part of Array.isArray(value) ? value : [value]) form.append(name, part);
   }
-  const res = await SELF.fetch(`${ORIGIN}/api/v1/feedback`, { method: "POST", body: form });
+  const res = await SELF.fetch(`${ORIGIN}/api/v1/feedback`, {
+    method: "POST",
+    body: form,
+    headers,
+  });
   return { status: res.status, headers: res.headers, body: (await res.json()) as any };
 }
 

@@ -38,7 +38,7 @@ export function useCreateProject(onCreated: (project: ProjectDTO) => void) {
 export function useUpdateProject(id: string) {
   const queryClient = useQueryClient();
   return useToastMutation(
-    (input: { name: string; githubRepo: string; labels: LabelsMap }) =>
+    (input: { name: string; githubRepo: string; labels: LabelsMap; allowedOrigins: string[] }) =>
       apiClient.patch<ProjectDTO>(`/projects/${id}`, input),
     {
       success: "Project saved",

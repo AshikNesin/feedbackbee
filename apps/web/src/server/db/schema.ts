@@ -29,6 +29,11 @@ export const projects = sqliteTable("projects", {
   /** `owner/repo`. Issues are filed with the deployment's GITHUB_TOKEN secret. */
   githubRepo: text("github_repo").notNull(),
   labels: text("labels", { mode: "json" }).$type<LabelsMap>().notNull(),
+  /**
+   * Browser origins allowed to submit (lib/origins.ts). Empty: any site. Requests
+   * without an Origin header (the Android SDK) are not affected.
+   */
+  allowedOrigins: text("allowed_origins", { mode: "json" }).$type<string[]>().notNull().default([]),
   ...timestamps,
 });
 

@@ -42,6 +42,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
       slug: input.slug,
       githubRepo: input.githubRepo,
       labels,
+      allowedOrigins: input.allowedOrigins ?? [],
     })
     .returning();
   return project!;
@@ -56,6 +57,7 @@ export async function updateProject(id: string, input: UpdateProjectInput): Prom
       name: input.name ?? existing.name,
       githubRepo: input.githubRepo ?? existing.githubRepo,
       labels: labels ?? existing.labels,
+      allowedOrigins: input.allowedOrigins ?? existing.allowedOrigins,
     })
     .where(eq(projects.id, id))
     .returning();

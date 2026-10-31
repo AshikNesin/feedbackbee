@@ -12,15 +12,17 @@ import {
 } from "@groot/ui/dialog";
 import { Field } from "@groot/ui/form";
 import { Input } from "@groot/ui/input";
+import { Textarea } from "@groot/ui/textarea";
 import { useConfirm } from "@groot/ui/primitives";
 import { Text } from "@groot/ui/typography";
 import type { FeedbackKind, ProjectDTO } from "../../../server/wire-types";
 import { KIND_LABELS } from "../feedback/format";
 import { useDeleteProject, useUpdateProject } from "./useProjects";
+import { errorMessage } from "../../lib/errors";
 
 const KINDS = Object.keys(KIND_LABELS) as FeedbackKind[];
 
-/** Rename, point at another repo, relabel, or delete a project. */
+/** Rename, point at another repo, relabel, limit the allowed sites, or delete a project. */
 export function ProjectSettingsDialog({
   project,
   onDeleted,
@@ -32,6 +34,7 @@ export function ProjectSettingsDialog({
   const [name, setName] = useState(project.name);
   const [githubRepo, setGithubRepo] = useState(project.githubRepo);
   const [labels, setLabels] = useState(project.labels);
+  const [origins, setOrigins] = useState(project.allowedOrigins.join("\n"));
   const update = useUpdateProject(project.id);
   const remove = useDeleteProject(onDeleted);
   const confirm = useConfirm();
@@ -41,6 +44,7 @@ export function ProjectSettingsDialog({
       setName(project.name);
       setGithubRepo(project.githubRepo);
       setLabels(project.labels);
+      setOrigins(project.allowedOrigins.join("\n"));
       update.reset();
     }
     setOpen(next);
@@ -51,7 +55,16 @@ export function ProjectSettingsDialog({
     const cleaned = Object.fromEntries(
       Object.entries(labels).filter(([, label]) => label && label.trim() !== ""),
     );
-    await update.mutateAsync({ name: name.trim(), githubRepo: githubRepo.trim(), labels: cleaned });
+    await update.mutateAsync({
+      name: name.trim(),
+      githubRepo: githubRepo.trim(),
+      labels: cleaned,
+      // one per line (commas work too); the server validates and normalizes them
+      allowedOrigins: origins
+        .split(/[\n,]/)
+        .map((o) => o.trim())
+        .filter(Boolean),
+    });
     setOpen(false);
   };
 
@@ -114,7 +127,23 @@ export function ProjectSettingsDialog({
                 ))}
               </div>
             </Field>
-            {update.error && <Text tone="destructive">{update.error.message}</Text>}
+            <Field
+              label="Allowed sites"
+              htmlFor="ps-origins"
+              description="Websites that may send feedback to this project, one per line. Leave empty to accept any site."
+              hint="Like https://example.com, http://localhost:3000 or https://*.example.com. Android apps are not affected."
+            >
+              <Textarea
+                id="ps-origins"
+                rows={3}
+                value={origins}
+                placeholder="https://example.com"
+                autoCapitalize="off"
+                spellCheck={false}
+                onChange={(e) => setOrigins(e.target.value)}
+              />
+            </Field>
+            {update.error && <Text tone="destructive">{errorMessage(update.error)}</Text>}
           </DialogBody>
           <DialogFooter className="sm:justify-between">
             <Button

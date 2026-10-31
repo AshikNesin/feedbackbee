@@ -168,6 +168,7 @@ Authenticated (groot's JWT cookie; passkeys optional):
 - Media uploads are capped (screenshot 10 MB, recording 200 MB, 5 min). Type sniffed at the boundary by magic bytes, not extension.
 - `embed.js` sets `rendered` state only after the project slug resolves. Unknown slugs render a friendly "project not found" note, never an error.
 - Rate limit: 20 submissions per IP per hour per project, tracked in D1. Excess returns 429 with a plain message.
+- Allowed origins (per project, optional): browsers on other sites get 403; native apps, which send no `Origin`, are not affected. See CONTRACT.md.
 - The feedback endpoint never reflects user text back unescaped into HTML. All dashboard rendering escapes by default (React).
 
 ## Free-tier fit

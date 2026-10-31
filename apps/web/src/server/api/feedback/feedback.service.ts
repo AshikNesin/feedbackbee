@@ -10,6 +10,7 @@ import {
 } from "../../db";
 import { createIssue, issueBody, issueLabels, issueTitle } from "../../lib/github";
 import { isReplayKey, mediaKey, sniff, type MediaRole } from "../../lib/media";
+import { originAllowed } from "../../lib/origins";
 import { runtime } from "../../runtime";
 import { findProjectBySlug } from "../projects/projects.service";
 import { LIMITS, type Submission } from "./feedback.schema";
@@ -55,10 +56,27 @@ async function attachment(
  */
 export async function submitFeedback(
   input: Submission,
-  request: { origin: string; userAgent?: string },
+  request: {
+    /** This deployment's origin, the default base for links in the issue. */
+    origin: string;
+    /** The caller's Origin header: set by browsers, absent from native apps. */
+    callerOrigin?: string;
+    userAgent?: string;
+  },
 ): Promise<SubmitResult> {
   const project = await findProjectBySlug(input.project);
   if (!project) throw Boom.notFound("unknown project");
+  if (
+    project.allowedOrigins.length > 0 &&
+    request.callerOrigin !== undefined &&
+    !originAllowed(request.callerOrigin, project.allowedOrigins)
+  ) {
+    throw Boom.forbidden(
+      "this site is not allowed to send feedback to this project",
+      undefined,
+      "ORIGIN_NOT_ALLOWED",
+    );
+  }
 
   const imagesBytes = input.image.reduce((sum, file) => sum + file.size, 0);
   if (imagesBytes > LIMITS.imagesBytes) {

@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `allowed_origins` text DEFAULT '[]' NOT NULL;

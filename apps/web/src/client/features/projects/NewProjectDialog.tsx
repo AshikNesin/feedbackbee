@@ -14,6 +14,7 @@ import { Input } from "@groot/ui/input";
 import { Text } from "@groot/ui/typography";
 import type { ProjectDTO } from "../../../server/wire-types";
 import { useCreateProject } from "./useProjects";
+import { errorMessage } from "../../lib/errors";
 
 const toSlug = (value: string) =>
   value
@@ -110,7 +111,7 @@ export function NewProjectDialog({
                 onChange={(e) => setGithubRepo(e.target.value)}
               />
             </Field>
-            {create.error && <Text tone="destructive">{create.error.message}</Text>}
+            {create.error && <Text tone="destructive">{errorMessage(create.error)}</Text>}
           </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

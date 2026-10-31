@@ -2,7 +2,8 @@
 
 The web widget and the Android SDK post `multipart/form-data` to this one endpoint.
 It is public (no auth), answers CORS `*` without credentials, and is rate-limited
-to 20 reports per hour per project and IP. Implemented in
+to 20 reports per hour per project and IP. A project may limit which websites
+can post to it (see [Allowed origins](#allowed-origins)). Implemented in
 `apps/web/src/server/api/feedback/` (`feedback.schema.ts` holds the field rules).
 
 ## Fields
@@ -43,10 +44,24 @@ Every response is groot's JSON envelope.
 - Errors: `{"success":false,"error":{"code":"...","message":"..."}}`. The `message`
   is written to be shown to the reporter as-is (`"text is required"`).
   - `400` invalid input (`VALIDATION_ERROR`)
+  - `403` the browser's `Origin` is not in the project's allowed origins (`ORIGIN_NOT_ALLOWED`)
   - `404` unknown project
   - `413` a file over its cap
   - `415` a file whose bytes are not an accepted type for its part
   - `429` rate limited, with `Retry-After` in seconds
+
+## Allowed origins
+
+A project's settings may list the websites allowed to post to it:
+`https://shop.example.com`, `http://localhost:3000`, or `https://*.example.com`
+for its subdomains (not the bare domain; list that too). Empty, the default,
+accepts any site. With a list, a request whose `Origin` header is not on it is
+refused with `403` before anything is stored or filed.
+
+A request without an `Origin` header passes: native apps (the Android SDK)
+send none. The check is a browser control: it stops other websites from
+using your widget's project id, not scripts, which can send any header. The
+rate limit applies to everyone.
 
 ## Media serving
 
