@@ -8,6 +8,7 @@
 /* Hallmark · dismissed 3 · the steps are a numbered list with code wells, no icons or tiles */
 /* Hallmark · dropped the drawn browser bar (traffic lights, your-app.com) · 47a names it; the video uses the browser's own controls after one play button */
 
+/* Hallmark · v3 (Inspo: Turbo, Mintlify, Factory) · features became six tiles that open on a small piece of the product; setup became steps beside one tabbed install panel; the close moved onto the dark stage with the one honey button; the footer is one line */
 /* tokens */
 :root {
   --space-3xs: 2px;
@@ -354,17 +355,6 @@ html:not(.js) .needs-js {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-xs);
-}
-.terms {
-  font-size: var(--text-sm);
-  color: var(--color-muted);
-}
-.terms a {
-  text-decoration-color: var(--color-edge);
-}
-.terms a:hover {
-  color: var(--color-ink);
-  text-decoration-color: currentColor;
 }
 @media (max-width: 60rem) {
   .hero {
@@ -764,114 +754,395 @@ html:not(.js) .needs-js {
   }
 }
 
-/* features: rows parted by hairlines */
+/* features: six tiles, each opening on a small piece of the product */
 .features {
   padding-top: var(--section-gap);
 }
 .features h2 {
   max-width: 20ch;
 }
-.rows {
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-2xl) var(--gap-columns);
   margin: var(--space-2xl) 0 0;
   padding: 0;
   list-style: none;
-  border-bottom: 1px solid var(--color-rule);
 }
-.rows li {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  column-gap: var(--gap-columns);
-  align-items: baseline;
-  padding-block: var(--space-lg);
-  border-top: 1px solid var(--color-rule);
+.tiles li {
+  min-width: 0;
 }
-.rows h3 {
-  grid-column: 1 / span 5;
-}
-.rows p {
-  grid-column: 7 / -1;
-  color: var(--color-muted);
+.tiles h3 {
+  margin-top: var(--space-lg);
   font-size: var(--text-lg);
-  line-height: 1.5;
-  max-width: 44ch;
+}
+.tiles p {
+  margin-top: var(--space-xs);
+  color: var(--color-muted);
+  max-width: 38ch;
+}
+.art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  gap: var(--space-sm);
+  height: 168px;
+  padding: var(--space-lg);
+  border-radius: var(--radius-card);
+  background: var(--color-paper-2);
+  font-size: var(--text-xs);
+  user-select: none;
+}
+.chip,
+.toolbar,
+.player,
+.voice,
+.masked,
+.shake {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  box-shadow: 0 8px 20px -14px color-mix(in oklch, var(--color-ink) 40%, transparent);
+}
+.chip {
+  position: absolute;
+  right: var(--space-lg);
+  bottom: var(--space-md);
+  padding: var(--space-2xs) var(--space-sm);
+  font-weight: 500;
+}
+/* screenshot: a page with the captured area marked */
+.art-page {
+  position: relative;
+  width: 70%;
+  height: 100%;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-well);
+  background: var(--color-paper);
+}
+.art-page i {
+  position: absolute;
+  left: 10%;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--color-paper-3);
+}
+.art-page i:nth-child(1) {
+  top: 14%;
+  width: 40%;
+}
+.art-page i:nth-child(2) {
+  top: 34%;
+  width: 70%;
+}
+.art-page i:nth-child(3) {
+  top: 54%;
+  width: 56%;
+}
+.art-page i:nth-child(4) {
+  top: 74%;
+  width: 30%;
+}
+.sel {
+  position: absolute;
+  inset: 26% 14% 30% 6%;
+  border: 2px dashed var(--color-accent);
+  border-radius: 4px;
+  background: color-mix(in oklch, var(--color-accent) 10%, transparent);
+}
+/* annotations: the editor's tools */
+.toolbar {
+  padding: var(--space-2xs);
+}
+.toolbar span {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  color: var(--color-ink-2);
+}
+.toolbar .on {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+.toolbar .glyph {
+  font: 600 var(--text-sm) / 1 var(--font-body);
+}
+/* replay: the player, and a field it never records */
+.player {
+  width: 100%;
+  max-width: 280px;
+  padding: var(--space-2xs) var(--space-sm) var(--space-2xs) var(--space-2xs);
+}
+.play {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-ink);
+  color: var(--color-paper);
+}
+.play svg {
+  margin-left: 2px;
+}
+.track {
+  flex: 1;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--color-paper-3);
+  overflow: hidden;
+}
+.track span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: var(--color-accent);
+}
+.time {
+  font-family: var(--font-outlier);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+.masked {
+  padding: var(--space-2xs) var(--space-sm);
+  color: var(--color-muted);
+}
+.masked b {
+  color: var(--color-ink);
+  letter-spacing: 0.1em;
+}
+/* voice: a recorded note */
+.voice {
+  width: 100%;
+  max-width: 280px;
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--color-ink-2);
+}
+.wave {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+}
+.wave i {
+  flex: 1;
+  height: var(--h);
+  border-radius: 2px;
+  background: var(--color-accent);
+}
+/* issues: the default label per kind */
+.labels {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-xs);
+}
+.lab {
+  padding: 2px var(--space-sm);
+  border: 1px solid;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+.lab.bug {
+  border-color: oklch(62% 0.17 28 / 0.5);
+  background: oklch(62% 0.17 28 / 0.12);
+  color: oklch(52% 0.16 28);
+}
+.lab.enh {
+  border-color: oklch(62% 0.14 250 / 0.5);
+  background: oklch(62% 0.14 250 / 0.12);
+  color: oklch(50% 0.14 250);
+}
+.lab.fb {
+  border-color: oklch(62% 0.12 150 / 0.5);
+  background: oklch(62% 0.12 150 / 0.12);
+  color: oklch(46% 0.11 150);
+}
+/* android: the sheet on a phone */
+.phone {
+  position: relative;
+  width: 84px;
+  height: 100%;
+  border: 2px solid var(--color-ink-2);
+  border-radius: 14px;
+  background: var(--color-paper);
+  overflow: hidden;
+}
+.sheet {
+  position: absolute;
+  inset: auto 0 0;
+  display: grid;
+  gap: 4px;
+  padding: 8px 6px 6px;
+  border-top: 1px solid var(--color-rule);
+  border-radius: 10px 10px 0 0;
+  background: var(--color-paper);
+  box-shadow: 0 -6px 16px -10px color-mix(in oklch, var(--color-ink) 50%, transparent);
+  font-size: 7px;
+}
+.sheet i {
+  height: 6px;
+  border-radius: 2px;
+  background: var(--color-paper-3);
+}
+.sheet em {
+  padding: 2px;
+  border-radius: 3px;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-style: normal;
+  text-align: center;
+}
+.art--row {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+}
+.shake {
+  padding: var(--space-2xs) var(--space-sm);
+  color: var(--color-muted);
+  font-family: var(--font-outlier);
 }
 @media (max-width: 60rem) {
-  .rows h3,
-  .rows p {
-    grid-column: 1 / -1;
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .rows p {
-    margin-top: var(--space-xs);
-    font-size: var(--text-md);
+}
+@media (max-width: 40rem) {
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-xl);
   }
 }
 
-/* get started: a real ordered list */
+/* get started: the steps beside one install panel with a tab per platform */
 .start {
   padding-top: var(--section-gap-l);
 }
-.start-head {
+.start .container {
   display: grid;
   grid-template-columns: repeat(12, minmax(0, 1fr));
   column-gap: var(--gap-columns);
-  align-items: end;
+  align-items: start;
 }
-.start-head h2 {
-  grid-column: 1 / span 6;
+.start-copy {
+  grid-column: 1 / span 5;
 }
-.start-head p {
-  grid-column: 8 / -1;
+.start-lead {
+  margin-top: var(--space-md);
   color: var(--color-muted);
   font-size: var(--text-lg);
   line-height: 1.5;
 }
 .steps {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--gap-columns);
-  margin: var(--space-2xl) 0 0;
+  gap: var(--space-lg);
+  margin: var(--space-xl) 0 0;
   padding: 0;
   list-style: none;
   counter-reset: step;
 }
-.step {
-  min-width: 0;
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--color-ink);
+.steps li {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  column-gap: var(--space-sm);
   counter-increment: step;
-  display: flex;
-  flex-direction: column;
 }
-.step::before {
+.steps li::before {
   content: counter(step);
-  font: 600 var(--text-section)/1 var(--font-display);
-  letter-spacing: var(--tracking-display);
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  font: 600 var(--text-sm) / 1 var(--font-body);
 }
-.step h3 {
-  margin-top: var(--space-xl);
+.steps h3 {
+  font-size: var(--text-lg);
+  line-height: 2rem;
 }
-.step p {
-  margin-top: var(--space-xs);
+.steps p {
   color: var(--color-muted);
+}
+.install {
+  grid-column: 7 / -1;
+  align-self: center;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+  background: var(--color-paper);
+  box-shadow: 0 24px 56px -32px color-mix(in oklch, var(--color-ink) 35%, transparent);
+}
+.tabs {
+  display: flex;
+  gap: var(--space-3xs);
+  margin-bottom: var(--space-sm);
+  padding: var(--space-3xs);
+  border-radius: var(--radius-control);
+  background: var(--color-paper-2);
+  width: fit-content;
+}
+.tabs [role="tab"] {
+  min-height: 36px;
+  padding: 0 var(--space-md);
+  border: 0;
+  border-radius: calc(var(--radius-control) - 2px);
+  background: transparent;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+.tabs [role="tab"]:hover {
+  color: var(--color-ink);
+}
+.tabs [aria-selected="true"] {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  box-shadow: 0 1px 2px color-mix(in oklch, var(--color-ink) 12%, transparent);
+}
+/* without the script every panel shows, each under its own label */
+.panel + .panel {
+  margin-top: var(--space-sm);
+}
+.js .panel + .panel {
+  margin-top: 0;
+}
+.panel-label {
+  margin-bottom: var(--space-2xs);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+.js .panel-label {
+  display: none;
+}
+.panel[hidden] {
+  display: none;
 }
 .code {
   display: flex;
   align-items: flex-start;
-  margin-top: auto;
+  min-height: 120px;
   border-radius: var(--radius-well);
-  background: var(--color-paper-2);
-  font: 400 var(--text-xs)/1.6 var(--font-outlier);
-}
-.step p + .code {
-  margin-top: var(--space-lg);
+  background: var(--color-stage);
+  color: var(--color-on-stage);
+  font: 400 var(--text-sm) / 1.7 var(--font-outlier);
 }
 .code pre {
   flex: 1;
   min-width: 0;
   margin: 0;
-  padding: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   font: inherit;
@@ -879,9 +1150,11 @@ html:not(.js) .needs-js {
 .copy {
   flex: none;
   margin: var(--space-2xs) var(--space-2xs) 0 0;
+  color: color-mix(in oklch, var(--color-on-stage) 70%, transparent);
 }
 .copy:hover {
-  background: var(--color-paper-3);
+  background: var(--color-stage-2);
+  color: var(--color-on-stage);
 }
 .js .copy .ok {
   opacity: 0;
@@ -895,29 +1168,39 @@ html:not(.js) .needs-js {
   opacity: 0;
   transform: scale(0.6);
 }
+.install-note {
+  margin-top: var(--space-sm);
+  padding-inline: var(--space-2xs);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+.install-note a:hover {
+  color: var(--color-ink);
+}
+@media (max-width: 40rem) {
+  .code {
+    font-size: var(--text-xs);
+  }
+  .code pre {
+    padding: var(--space-md);
+  }
+}
 @media (max-width: 60rem) {
-  .start-head h2,
-  .start-head p {
+  .start-copy,
+  .install {
     grid-column: 1 / -1;
   }
-  .start-head p {
-    margin-top: var(--space-md);
-    font-size: var(--text-md);
-  }
-  .steps {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-xl);
-  }
-  .step h3 {
-    margin-top: var(--space-md);
+  .install {
+    margin-top: var(--space-xl);
   }
 }
 
-/* close: a change of paper */
+/* close: the page ends on the dark stage, with the one honey button */
 .close {
   margin-top: var(--section-gap-l);
   padding-block: var(--section-gap-s);
-  background: var(--color-paper-2);
+  background: var(--color-stage);
+  color: var(--color-on-stage);
 }
 .close .container {
   display: grid;
@@ -933,12 +1216,30 @@ html:not(.js) .needs-js {
   grid-column: 1 / span 7;
   margin-top: var(--space-md);
   font-size: var(--text-lead);
-  color: var(--color-muted);
+  color: color-mix(in oklch, var(--color-on-stage) 70%, transparent);
 }
 .close .ctas {
   grid-column: 9 / -1;
   grid-row: 1 / span 2;
   justify-content: flex-end;
+}
+.btn--accent {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+}
+.btn--accent:hover {
+  border-color: color-mix(in oklch, var(--color-accent) 85%, white);
+  background: color-mix(in oklch, var(--color-accent) 85%, white);
+}
+.btn--on-stage {
+  border-color: var(--color-stage-edge);
+  background: transparent;
+  color: var(--color-on-stage);
+}
+.btn--on-stage:hover {
+  border-color: var(--color-on-stage);
+  background: var(--color-stage-2);
 }
 @media (max-width: 60rem) {
   .close h2,
@@ -953,30 +1254,20 @@ html:not(.js) .needs-js {
   }
 }
 
-/* footer: the wordmark over the links */
+/* footer: one compact line */
 .footer {
-  padding-block: var(--space-3xl) var(--space-xl);
+  padding-block: var(--space-xl);
 }
 .footer .container {
-  display: grid;
-  grid-template-columns: repeat(12, minmax(0, 1fr));
-  column-gap: var(--gap-columns);
-  row-gap: var(--space-2xl);
-  align-items: end;
-}
-.footer .logo {
-  grid-column: 1 / span 6;
-  font-size: var(--text-2xl);
-  gap: var(--space-sm);
-}
-.footer .logo svg {
-  width: 40px;
-  height: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
 }
 .footer-links {
-  grid-column: 7 / -1;
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: var(--space-2xs);
   margin: 0;
   padding: 0;
@@ -988,6 +1279,7 @@ html:not(.js) .needs-js {
   min-height: 44px;
   padding: 0 var(--space-sm);
   color: var(--color-muted);
+  font-size: var(--text-sm);
   text-decoration: none;
   transition: color var(--dur-short) var(--ease-out);
 }
@@ -995,19 +1287,36 @@ html:not(.js) .needs-js {
   color: var(--color-ink);
 }
 .legal {
-  grid-column: 1 / -1;
-  padding-top: var(--space-lg);
-  border-top: 1px solid var(--color-rule);
   font-size: var(--text-sm);
   color: var(--color-muted);
 }
-@media (max-width: 40rem) {
-  .footer .logo,
-  .footer-links {
-    grid-column: 1 / -1;
-  }
-  .footer-links {
-    justify-content: flex-start;
-    margin-left: calc(-1 * var(--space-sm));
-  }
+
+/* hero facts: four short claims under the actions */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2xs) var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: 400 var(--text-xs) / 1.6 var(--font-outlier);
+  color: var(--color-muted);
+}
+.facts li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+.facts li::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+.facts a {
+  text-decoration-color: var(--color-edge);
+}
+.facts a:hover {
+  color: var(--color-ink);
 }

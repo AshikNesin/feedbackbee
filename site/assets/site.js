@@ -1,4 +1,4 @@
-// FeedbackBee site: copy buttons and the demo player.
+// FeedbackBee site: copy buttons, the setup tabs and the demo player.
 document.querySelectorAll(".copy").forEach(function (btn) {
   var timer;
   btn.addEventListener("click", function () {
@@ -35,3 +35,27 @@ if (v && playBtn) {
     v.controls = false;
   });
 }
+
+// Setup tabs: one panel at a time with the script (all three, labeled, without it).
+var tabs = Array.prototype.slice.call(document.querySelectorAll('.tabs [role="tab"]'));
+function selectTab(tab, focus) {
+  tabs.forEach(function (t) {
+    var on = t === tab;
+    t.setAttribute("aria-selected", on ? "true" : "false");
+    t.tabIndex = on ? 0 : -1;
+    document.getElementById(t.getAttribute("aria-controls")).hidden = !on;
+  });
+  if (focus) tab.focus();
+}
+tabs.forEach(function (tab, i) {
+  tab.addEventListener("click", function () {
+    selectTab(tab, false);
+  });
+  tab.addEventListener("keydown", function (e) {
+    var step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    selectTab(tabs[(i + step + tabs.length) % tabs.length], true);
+  });
+});
+if (tabs.length) selectTab(tabs[0], false);
