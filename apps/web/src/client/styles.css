@@ -101,3 +101,56 @@ aside a.font-semibold > span.truncate,
 .min-h-screen span.font-heading.font-semibold {
   letter-spacing: -0.025em;
 }
+
+/* Code snippets (components/CodeBlock.tsx, lib/highlight.tsx): a quiet,
+   warm palette that reads on paper. Honey marks strings, as on the site. */
+.code-block {
+  --tok-tag: oklch(46% 0.13 255);
+  --tok-attr: oklch(47% 0.11 155);
+  --tok-str: oklch(52% 0.12 65);
+  --tok-kw: oklch(50% 0.16 25);
+  --tok-fn: oklch(45% 0.13 300);
+  --tok-type: oklch(42% 0.1 220);
+  --tok-num: oklch(50% 0.14 40);
+  --tok-com: oklch(58% 0.01 85);
+  --tok-punc: oklch(48% 0.01 85);
+}
+.dark .code-block {
+  --tok-tag: oklch(76% 0.11 255);
+  --tok-attr: oklch(78% 0.11 155);
+  --tok-str: oklch(83% 0.13 82);
+  --tok-kw: oklch(74% 0.14 25);
+  --tok-fn: oklch(78% 0.11 300);
+  --tok-type: oklch(78% 0.09 220);
+  --tok-num: oklch(78% 0.12 40);
+  --tok-com: oklch(62% 0.01 85);
+  --tok-punc: oklch(70% 0.01 85);
+}
+.tok-tag {
+  color: var(--tok-tag);
+}
+.tok-attr {
+  color: var(--tok-attr);
+}
+.tok-str {
+  color: var(--tok-str);
+}
+.tok-kw {
+  color: var(--tok-kw);
+}
+.tok-fn {
+  color: var(--tok-fn);
+}
+.tok-type {
+  color: var(--tok-type);
+}
+.tok-num {
+  color: var(--tok-num);
+}
+.tok-com {
+  color: var(--tok-com);
+  font-style: italic;
+}
+.tok-punc {
+  color: var(--tok-punc);
+}

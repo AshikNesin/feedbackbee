@@ -1,4 +1,5 @@
-import { Code } from "lucide-react";
+import type { ReactNode } from "react";
+import { Code, Globe, Smartphone, type LucideIcon } from "lucide-react";
 import { Button } from "@groot/ui/button";
 import {
   Dialog,
@@ -9,27 +10,117 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@groot/ui/dialog";
-import { Text } from "@groot/ui/typography";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@groot/ui/tabs";
+import { Text, monoClass } from "@groot/ui/typography";
 import type { ProjectDTO } from "../../../server/wire-types";
-import { CopyBlock } from "../../components/CopyBlock";
+import { CodeBlock } from "../../components/CodeBlock";
+import type { CodeLang } from "../../lib/highlight";
 
-/** The queue stub lets pages call FeedbackBee.open() before embed.js has loaded. */
-const STUB =
-  '<script>window.FeedbackBee=window.FeedbackBee||{q:[]};"init ready identify setContext open close on off reset".split(" ").map(function(m){window.FeedbackBee[m]=function(){var a=[].slice.call(arguments);return new Promise(function(r,j){window.FeedbackBee.q.push([m,a,r,j])})}})</script>';
+/** The queue stub: lets a page call FeedbackBee.open() before embed.js has loaded. */
+const STUB = `<script>
+  window.FeedbackBee = window.FeedbackBee || { q: [] };
+  "init ready identify setContext open close on off reset"
+    .split(" ")
+    .map(function (m) {
+      window.FeedbackBee[m] = function () {
+        var a = [].slice.call(arguments);
+        return new Promise(function (r, j) {
+          window.FeedbackBee.q.push([m, a, r, j]);
+        });
+      };
+    });
+</script>`;
 
-/** Install snippets for the web widget and the Android SDK. */
-export function SetupDialog({
-  project,
-  defaultOpen,
-}: {
-  project: ProjectDTO;
-  defaultOpen?: boolean;
-}) {
+interface Step {
+  text: ReactNode;
+  code?: { source: string; lang: CodeLang };
+}
+
+const Mono = ({ children }: { children: ReactNode }) => (
+  <code className={monoClass}>{children}</code>
+);
+
+function webSteps(project: ProjectDTO, origin: string): Step[] {
+  return [
+    {
+      text: (
+        <>
+          Paste before the closing <Mono>&lt;/body&gt;</Mono> tag. A pill appears in the corner.
+        </>
+      ),
+      code: {
+        lang: "html",
+        source: `<script\n  src="${origin}/embed.js"\n  data-project="${project.slug}"\n  async\n></script>`,
+      },
+    },
+    {
+      text: (
+        <>
+          Optional: to open it from your own button, add <Mono>data-headless</Mono> to hide the
+          pill, and paste this stub above the script so <Mono>FeedbackBee.open()</Mono> works before
+          it has loaded.
+        </>
+      ),
+      code: { lang: "html", source: STUB },
+    },
+    { text: <>Send a test report: it shows up here and as an issue in {project.githubRepo}.</> },
+  ];
+}
+
+function androidSteps(project: ProjectDTO, origin: string): Step[] {
+  return [
+    {
+      text: (
+        <>
+          Add the SDK from a checkout of FeedbackBee (it is not on Maven yet). In{" "}
+          <Mono>settings.gradle.kts</Mono> and <Mono>app/build.gradle.kts</Mono>:
+        </>
+      ),
+      code: {
+        lang: "kotlin",
+        source: `// settings.gradle.kts
+include(":feedbackbee-sdk")
+project(":feedbackbee-sdk").projectDir =
+    file("../feedbackbee/android/sdk")
+
+// app/build.gradle.kts
+dependencies {
+    implementation(project(":feedbackbee-sdk"))
+}`,
+      },
+    },
+    {
+      text: (
+        <>
+          Init it once in your <Mono>Application</Mono> class. Shake to report is on.
+        </>
+      ),
+      code: {
+        lang: "kotlin",
+        source: `class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        FeedbackBee.init(
+            this,
+            projectId = "${project.slug}",
+            endpoint = "${origin}",
+        )
+    }
+}`,
+      },
+    },
+    {
+      text: <>Or open it from your own button:</>,
+      code: { lang: "kotlin", source: "FeedbackBee.open()" },
+    },
+  ];
+}
+
+/** Install steps for the web widget and the Android SDK, the project's values filled in. */
+export function SetupDialog({ project }: { project: ProjectDTO }) {
   const origin = window.location.origin;
-  const web = `${STUB}\n<script src="${origin}/embed.js" data-project="${project.slug}" async></script>`;
-  const android = `FeedbackBee.init(this, projectId = "${project.slug}", endpoint = "${origin}")`;
   return (
-    <Dialog defaultOpen={defaultOpen}>
+    <Dialog>
       <DialogTrigger asChild>
         <Button variant="outline">
           <Code className="size-4" />
@@ -43,34 +134,91 @@ export function SetupDialog({
             New feedback shows up here and as an issue in {project.githubRepo}.
           </DialogDescription>
         </DialogHeader>
-        <DialogBody className="space-y-6">
-          <section className="space-y-2">
-            <h3>
-              <Text variant="title">Web</Text>
-            </h3>
-            <p>
-              <Text tone="muted">
-                Paste before the closing <code>&lt;/body&gt;</code> tag. Add{" "}
-                <code>data-headless</code> to hide the pill and open it from your own UI with{" "}
-                <code>FeedbackBee.open()</code>.
-              </Text>
-            </p>
-            <CopyBlock code={web} />
-          </section>
-          <section className="space-y-2">
-            <h3>
-              <Text variant="title">Android</Text>
-            </h3>
-            <p>
-              <Text tone="muted">
-                Call from <code>Application.onCreate</code>, then <code>FeedbackBee.open()</code> or
-                shake to report.
-              </Text>
-            </p>
-            <CopyBlock code={android} />
-          </section>
+        <DialogBody>
+          <Tabs defaultValue="web" className="gap-4">
+            <TabsList variant="line" className="w-full justify-start gap-3 border-b border-border">
+              <TabsTrigger value="web" className="flex-none">
+                <Globe className="size-4" />
+                Web
+              </TabsTrigger>
+              <TabsTrigger value="android" className="flex-none">
+                <Smartphone className="size-4" />
+                Android
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="web">
+              <SetupSteps
+                icon={Globe}
+                title="Any website"
+                kind="One script tag; extras load when someone uses them"
+                steps={webSteps(project, origin)}
+              />
+            </TabsContent>
+            <TabsContent value="android">
+              <SetupSteps
+                icon={Smartphone}
+                title="Android app"
+                kind="Kotlin SDK, minSdk 26"
+                steps={androidSteps(project, origin)}
+              />
+            </TabsContent>
+          </Tabs>
         </DialogBody>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** A framed list of numbered steps, each with its snippet (the 404less setup card). */
+function SetupSteps({
+  icon: Icon,
+  title,
+  kind,
+  steps,
+}: {
+  icon: LucideIcon;
+  title: string;
+  kind: string;
+  steps: Step[];
+}) {
+  return (
+    <section aria-label={title} className="overflow-hidden rounded-2xl border border-border">
+      <header className="flex items-center gap-3 border-b border-border bg-muted/40 px-4 py-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-xl border border-border bg-background">
+          <Icon className="size-4" />
+        </span>
+        <div className="min-w-0">
+          <p>
+            <Text className="font-medium">{title}</Text>
+          </p>
+          <p>
+            <Text variant="meta">{kind}</Text>
+          </p>
+        </div>
+      </header>
+      <ol className="space-y-4 p-4">
+        {steps.map((step, i) => (
+          <li key={i} className="flex gap-3">
+            <span className="grid size-6 shrink-0 place-items-center rounded-full bg-honey text-honey-foreground">
+              <Text variant="meta" className="font-semibold text-honey-foreground">
+                {i + 1}
+              </Text>
+            </span>
+            <div className="min-w-0 flex-1 space-y-2 pt-0.5">
+              <p>
+                <Text>{step.text}</Text>
+              </p>
+              {step.code && (
+                <CodeBlock
+                  code={step.code.source}
+                  lang={step.code.lang}
+                  label={`Copy step ${i + 1}`}
+                />
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
