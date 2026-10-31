@@ -1,0 +1,103 @@
+/* FeedbackBee dashboard: groot's design tokens and kit styles, with the
+   website's look on top (site/assets/site.css): warm paper, ink, the honey
+   accent, Geist. Values mirror the site's tokens so the two read as one
+   product. Light is the default (main.tsx); the shell's theme switcher stays,
+   and dark gets the same warm cast. */
+@import "@groot/shell/index.css";
+
+@theme inline {
+  /* Geist and Geist Mono, loaded in index.html, as on the website */
+  --font-sans: "Geist", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --color-honey: var(--honey);
+  --color-honey-foreground: var(--honey-foreground);
+}
+
+:root {
+  color-scheme: light;
+  /* the site's corners: 10px controls, 12px cards (groot derives xl/2xl from this) */
+  --radius: 0.5rem;
+
+  /* paper and ink */
+  --background: oklch(98.5% 0.004 85);
+  --foreground: oklch(20% 0.008 85);
+  --card: oklch(99.4% 0.002 85);
+  --card-foreground: oklch(20% 0.008 85);
+  --popover: oklch(99.4% 0.002 85);
+  --popover-foreground: oklch(20% 0.008 85);
+  --secondary: oklch(96% 0.006 85);
+  --secondary-foreground: oklch(20% 0.008 85);
+  --muted: oklch(96% 0.006 85);
+  --muted-foreground: oklch(48% 0.01 85);
+  --accent: oklch(93% 0.008 85);
+  --accent-foreground: oklch(20% 0.008 85);
+
+  /* the one filled button is ink, as on the site */
+  --primary: oklch(20% 0.008 85);
+  --primary-foreground: oklch(98.5% 0.004 85);
+
+  /* honey: the brand mark, focus, the active page */
+  --honey: oklch(80.5% 0.165 82);
+  --honey-foreground: oklch(21% 0.006 285);
+
+  --border: oklch(90.5% 0.008 85);
+  --input: oklch(88% 0.009 85);
+  --ring: oklch(53% 0.13 70);
+
+  --chart-1: oklch(80.5% 0.165 82);
+  --chart-2: oklch(34% 0.008 85);
+  --chart-3: oklch(48% 0.01 85);
+  --chart-4: oklch(72% 0.01 85);
+  --chart-5: oklch(90.5% 0.008 85);
+
+  --sidebar: oklch(96% 0.006 85);
+  --sidebar-foreground: oklch(20% 0.008 85);
+  --sidebar-primary: oklch(20% 0.008 85);
+  --sidebar-primary-foreground: oklch(80.5% 0.165 82);
+  --sidebar-accent: oklch(20% 0.008 85 / 6%);
+  --sidebar-accent-foreground: oklch(20% 0.008 85);
+  --sidebar-border: oklch(90.5% 0.008 85);
+  --sidebar-ring: oklch(53% 0.13 70);
+}
+
+/* dark: the site's former dark palette, warm, with the same honey */
+.dark {
+  --background: oklch(16% 0.005 85);
+  --foreground: oklch(94% 0.005 85);
+  --card: oklch(20% 0.006 85);
+  --card-foreground: oklch(94% 0.005 85);
+  --popover: oklch(20% 0.006 85);
+  --popover-foreground: oklch(94% 0.005 85);
+  --secondary: oklch(24% 0.007 85);
+  --secondary-foreground: oklch(94% 0.005 85);
+  --muted: oklch(24% 0.007 85);
+  --muted-foreground: oklch(70% 0.008 85);
+  --accent: oklch(27% 0.007 85);
+  --accent-foreground: oklch(94% 0.005 85);
+  --primary: oklch(94% 0.005 85);
+  --primary-foreground: oklch(16% 0.005 85);
+  --border: oklch(27% 0.007 85);
+  --input: oklch(30% 0.008 85);
+  --ring: oklch(82% 0.15 82);
+  --sidebar: oklch(18% 0.005 85);
+  --sidebar-foreground: oklch(94% 0.005 85);
+  --sidebar-primary: oklch(94% 0.005 85);
+  --sidebar-primary-foreground: oklch(21% 0.006 285);
+  --sidebar-accent: oklch(94% 0.005 85 / 8%);
+  --sidebar-accent-foreground: oklch(94% 0.005 85);
+  --sidebar-border: oklch(27% 0.007 85);
+  --sidebar-ring: oklch(82% 0.15 82);
+}
+
+::selection {
+  background: color-mix(in oklab, var(--honey) 35%, transparent);
+}
+
+/* The wordmark, set like the website's logo (tight grotesk). The shell renders
+   it as the semibold label beside the brand tile, in the sidebar and on the
+   login page. */
+aside a.font-semibold > span.truncate,
+.min-h-screen span.font-heading.font-semibold {
+  letter-spacing: -0.025em;
+}

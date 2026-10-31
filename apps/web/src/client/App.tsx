@@ -19,6 +19,7 @@ import {
 import { Settings } from "@groot/shell/pages/settings/Settings";
 import { Login } from "@groot/shell/pages/auth/Login";
 import { GrootUIProvider } from "@groot/ui/provider";
+import { BeeMark } from "./components/BeeMark";
 import { ProjectInbox } from "./pages/ProjectInbox";
 import { Projects } from "./pages/Projects";
 
@@ -32,7 +33,7 @@ const PAGES: Array<NavDestination & { element: ReactNode }> = [
 ];
 
 const SHELL_CONFIG: ShellConfig = {
-  brand: { label: "FeedbackBee", icon: MessageSquareText, to: "/projects" },
+  brand: { label: "FeedbackBee", icon: BeeMark, to: "/projects" },
   nav: PAGES,
   login: {
     tagline: "Feedback that lands in GitHub.",

@@ -2,9 +2,11 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
-import "@groot/shell/index.css";
-import { initTheme } from "@groot/shell/lib/theme";
+import "./styles.css";
+import { initTheme, setDefaultTheme } from "@groot/shell/lib/theme";
 
+// Light by default, like the website; the shell's theme switcher still offers dark.
+setDefaultTheme("light");
 initTheme();
 
 const queryClient = new QueryClient({
