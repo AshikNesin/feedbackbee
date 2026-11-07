@@ -30,6 +30,7 @@ import io.nesin.feedbackbee.FeedbackViewModel
 import io.nesin.feedbackbee.annotate.AnnotationDialogFragment
 import io.nesin.feedbackbee.capture.ScreenshotCapture
 import io.nesin.feedbackbee.record.VoiceRecorder
+import io.nesin.feedbackbee.ui.SheetTheme
 import io.nesin.feedbackbee.ui.dp
 import io.nesin.feedbackbee.upload.collectDeviceInfo
 import kotlinx.coroutines.launch
@@ -54,7 +55,11 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     // Deprecated for edge-to-edge windows only; a floating dialog still needs it to rise above the keyboard.
     @Suppress("DEPRECATION")
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
-        Dialog(requireContext(), android.R.style.Theme_DeviceDefault_Dialog_NoActionBar).apply {
+        Dialog(
+            requireContext(),
+            if (SheetTheme(requireActivity()).isDark) android.R.style.Theme_DeviceDefault_Dialog_NoActionBar
+            else android.R.style.Theme_DeviceDefault_Light_Dialog_NoActionBar,
+        ).apply {
             window?.apply {
                 setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
                 setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
@@ -64,7 +69,7 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
         }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
-        val view = FeedbackSheetView(requireContext(), this)
+        val view = FeedbackSheetView(requireDialog().context, this)
         sheet = view
         view.setVoicePermissionDenied(voicePermissionDenied)
         if (savedInstanceState == null) {
