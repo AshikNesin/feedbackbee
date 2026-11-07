@@ -2,14 +2,16 @@ package io.nesin.feedbackbee.ui
 
 import android.content.Context
 import android.content.res.ColorStateList
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
+import android.util.TypedValue
 import android.widget.Button
 import android.widget.TextView
 
-/** Same tokens as the web widget, so the two feel like one product. Light only, like the web panel. */
+/** Base light palette; the screenshot annotation overlay keeps its fixed styling. */
 internal object Theme {
     val Ink = Color.parseColor("#18181B")
     val Muted = Color.parseColor("#71717A")
@@ -20,6 +22,25 @@ internal object Theme {
     val Error = Color.parseColor("#DC2626")
     val Panel = Color.WHITE
     val Overlay = Color.parseColor("#18181B")
+}
+
+internal class SheetTheme(context: Context) {
+    val isDark = TypedValue().let { value ->
+        if (context.theme.resolveAttribute(android.R.attr.isLightTheme, value, true)) {
+            value.data == 0
+        } else {
+            context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
+        }
+    }
+    val Ink = if (isDark) Color.parseColor("#F4F4F5") else Theme.Ink
+    val Muted = if (isDark) Color.parseColor("#A1A1AA") else Theme.Muted
+    val Tile = if (isDark) Color.parseColor("#27272A") else Theme.Tile
+    val Border = if (isDark) Color.parseColor("#3F3F46") else Theme.Border
+    val TileInk = if (isDark) Color.parseColor("#D4D4D8") else Theme.TileInk
+    val Focus = if (isDark) Color.parseColor("#60A5FA") else Theme.Focus
+    val Error = if (isDark) Color.parseColor("#F87171") else Theme.Error
+    val Panel = if (isDark) Color.parseColor("#18181B") else Theme.Panel
+    val OnPrimary = if (isDark) Color.parseColor("#18181B") else Color.WHITE
 }
 
 internal fun Context.dp(value: Int): Int = dpF(value.toFloat()).toInt()
