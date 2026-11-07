@@ -22,6 +22,7 @@
     "tests/server/app/todo.jobs.test.ts",
     "tests/e2e/storage.spec.ts",
     "tests/e2e/todos.spec.ts",
-    "tests/e2e/verify-job-selection.spec.ts"
+    "tests/e2e/verify-job-selection.spec.ts",
+    "tests/client/github/**"
   ]
 }

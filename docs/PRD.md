@@ -19,7 +19,8 @@ FeedbackBee gives any project a five-minute feedback loop. Embed one script tag 
 ## Non-goals for v1
 
 - Boards, voting, roadmaps, changelogs, or a public feedback portal. Issues are the workspace.
-- OAuth device flows or GitHub Apps. PATs are the auth model for v1.
+- Manual GitHub credential entry and OAuth device flows. GitHub access uses a
+  private GitHub App registered from the Dashboard Settings manifest.
 - iOS, Flutter, React Native SDKs.
 - Video transcoding, GIF conversion, or frame-accurate trimming.
 - Email notifications (GitHub already notifies the repo's watchers).
@@ -48,8 +49,7 @@ The unit of tenancy. Creating a project captures the GitHub wiring up front.
 | `id`          | uuid      |                                                                                          |
 | `name`        | text      | Human name, e.g. "myapp.dev"                                                             |
 | `slug`        | text      | URL-safe, unique, used in the embed snippet                                              |
-| `github_repo` | text      | `owner/repo`, required to create issues                                                  |
-| `github_repo` | text      | `owner/repo` the issues are created in. Auth comes from the global `GITHUB_TOKEN` secret |
+| `github_repo` | text      | `owner/repo` selected from a GitHub App installation, required to create issues          |
 | `labels_map`  | json      | Feedback kind to GitHub label. Defaults: bug→`bug`, idea→`enhancement`, other→`feedback` |
 | `created_at`  | timestamp |                                                                                          |
 
@@ -109,7 +109,7 @@ On each feedback submission:
 1. Upload media (if any) to R2 under `p/<project>/f/<feedback-id>/<filename>`.
 2. Insert the feedback row in D1 with state `pending`.
 3. Create the GitHub issue via REST (`POST /repos/{owner}/{repo}/issues`) with a body template: reporter text, context block (key/value table), media links (the R2 public URLs), and the recorder's email if given.
-4. Attach media to the issue via the issue-comment upload path if the token scope allows; otherwise the body links to R2 URLs. On failure, retry once, then mark `issue_error` with the GitHub API error text.
+4. Link attachments from R2 in the issue body. Refresh the installation token once after a definitive 401; do not replay ambiguous network or 5xx failures, which could duplicate an issue. Keep failed reports as `issue_error` with a sanitized GitHub error.
 5. Update the row with `issue_number`, `issue_url`, and state `created`.
 
 Labels: the project's `labels_map` maps the widget kind to repo labels. GitHub auto-creates labels it does not find when the token has push access; otherwise the issue is created unlabeled and the state records the label failure.
@@ -164,7 +164,10 @@ Authenticated (groot's JWT cookie; passkeys optional):
 
 ### 8. Security
 
-- GitHub auth is one fine-grained PAT held as the `GITHUB_TOKEN` Worker secret, set once per deployment. Projects store only `owner/repo`. Rotating the token is one `wrangler secret put`, no project edits. The token never appears in any API response.
+- Each deployment registers one private GitHub App from **Settings → GitHub**. The owner may be a personal account or an organization. The manifest grants Issues write and only GitHub's mandatory repository metadata permission; webhook delivery is inactive because all GitHub API traffic is outbound. No GitHub credentials are pasted manually.
+- `FEEDBACKBEE_APP_KEY` is a required random base64-encoded 32-byte Worker secret (`openssl rand -base64 32`). The server exchanges the manifest registration code and encrypts the App private key in D1 with this key. Keep the secret outside D1 and its backups. Installation access is discovered by refreshing from GitHub; users install the App on selected repositories and choose a repository for each project. Installation tokens remain in memory, expire, and are refreshed automatically.
+- One App is supported per deployment; multiple installations are usable when GitHub's private App ownership rules permit them. Disconnect removes the local connection only: it does not uninstall or delete the GitHub App and does not remove existing feedback. Reconnect by connecting again and selecting the same repositories. Losing `FEEDBACKBEE_APP_KEY` requires disconnecting and re-registering; key rotation is not supported, so the existing key must not be casually changed.
+- The registration callback must use the deployment's canonical public HTTPS `ORIGIN`. The Worker can infer `ORIGIN` from the first request, but production should configure it explicitly before registering. Local registration requires a public HTTPS tunnel and an explicit tunnel `ORIGIN`.
 - Media uploads are capped (screenshot 10 MB, recording 200 MB, 5 min). Type sniffed at the boundary by magic bytes, not extension.
 - `embed.js` sets `rendered` state only after the project slug resolves. Unknown slugs render a friendly "project not found" note, never an error.
 - Rate limit: 20 submissions per IP per hour per project, tracked in D1. Excess returns 429 with a plain message.
@@ -187,15 +190,15 @@ Recordings are the pressure point. 200 MB caps and 5-minute limits keep a self-h
 Sequenced as verifiable units. Each milestone ends in a state you can run and check.
 
 1. **M1 API core.** Worker boots, D1 migrated, project CRUD, feedback submit with media to R2, media serve. Verified with vitest in workerd against `SELF.fetch()`.
-2. **M2 GitHub bridge.** Issue creation on submit, states, label mapping, retry-then-error. Verified with a stubbed GitHub REST endpoint in tests.
+2. **M2 GitHub bridge.** Issue creation on submit, states, label mapping, token renewal and retained delivery errors. Verified with a stubbed GitHub REST endpoint in tests.
 3. **M3 Widget.** `embed.js` with panel, screenshot + annotate, recording with cap, upload. Verified by driving it in a real browser against the local Worker.
 4. **M4 Dashboard.** Login, projects, feedback list, snippet copy. Verified in the browser.
 5. **M5 Android SDK.** Init, shake detect, screenshot + annotate, upload. Verified by compiling the AAR and driving the demo app in an emulator.
-6. **M6 Deploy + docs.** `wrangler deploy` green, README complete, token rotation documented.
+6. **M6 Deploy + docs.** `wrangler deploy` green, README complete, GitHub App registration documented.
 
 ## Open decisions
 
 - **In-app annotation library for Android.** Build pen/box/arrow on raw `Canvas` (chosen) versus wrapping a third-party annotation lib. Raw Canvas keeps the SDK dependency-free.
 - **Recording codec.** WebM/VP9 everywhere (chosen). H.264 would need a transcode path, which is a non-goal.
-- **Issue media attach.** Try the upload-then-embed path when the token allows; always include R2 links. The fallback is the contract.
+- **Issue media attach.** Try the upload-then-embed path when the GitHub App installation allows; always include R2 links. The fallback is the contract.
 - **Multi-owner teams.** Deferred. The schema anticipates it (owner id on project) but v1 ships single-owner.
