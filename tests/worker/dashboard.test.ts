@@ -1,9 +1,16 @@
 import { SELF, env } from "cloudflare:test";
-import { expect, test } from "vitest";
+import { afterAll, beforeAll, expect, test } from "vitest";
+import { network, stubGithubApp } from "./gh-server";
 import { OWNER, ORIGIN, api, createProject, login } from "./helpers";
 
 // Auth (groot core + the first-owner bootstrap), the dashboard API and the
 // public scripts. Tests share one D1, so the owner exists after the first login.
+
+beforeAll(() => {
+  network.enable();
+  stubGithubApp();
+});
+afterAll(() => network.disable());
 
 test("the first sign-in creates the owner; later strangers are refused", async () => {
   const cookie = await login();
