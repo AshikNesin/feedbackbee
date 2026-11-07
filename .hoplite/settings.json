@@ -1,0 +1,37 @@
+{
+	"version": 1,
+	"ports": {
+		"preview": 3000,
+		"additional": {}
+	},
+	"services": [
+		{
+			"name": "postgres",
+			"startCommand": "postgres -D .hoplite/postgres-data",
+			"healthCheck": {
+				"kind": "tcp",
+				"port": 5432
+			},
+			"timeoutSeconds": 60,
+			"env": {
+				"DATABASE_URL": "postgresql://postgres:postgres@127.0.0.1:5432/postgres"
+			},
+			"inferred": true
+		}
+	],
+	"scripts": {
+		"setup": {
+			"enabled": true,
+			"command": null
+		},
+		"run": {
+			"enabled": true,
+			"command": "NODE_ENV=development PORT=3000 pnpm exec tsx scripts/dev.ts"
+		},
+		"archive": {
+			"enabled": true,
+			"command": null
+		}
+	},
+	"mcpServers": []
+}
