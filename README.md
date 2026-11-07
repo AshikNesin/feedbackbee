@@ -22,7 +22,7 @@ One inbox per project, filtered by type. Rows expand to the screenshot, session 
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee)
 
-One click provisions D1 + R2, builds, and deploys; migrations apply on the first request. Open `/app` on the deployed URL and the first sign-in creates your owner account (the website from `site/` is served at `/`). Then set one secret: `pnpm exec wrangler secret put GITHUB_TOKEN` (fine-grained PAT, Issues: Read and Write).
+One click provisions D1 + R2, builds, and deploys; migrations apply on the first request. Before connecting GitHub, set the required encryption secret with `openssl rand -base64 32 | pnpm exec wrangler secret put FEEDBACKBEE_APP_KEY`. Keep this Worker secret outside D1 and its backups; do not change or lose it. Open `/app` on the deployed URL and the first sign-in creates your owner account (the website from `site/` is served at `/`). In **Settings → GitHub**, register a private GitHub App from the manifest, choose a personal or organization owner, then install it on the repositories you want to use. FeedbackBee does not accept manually pasted GitHub credentials.
 
 - **PRD**: [docs/PRD.md](docs/PRD.md)
 - **Upload contract**: [docs/CONTRACT.md](docs/CONTRACT.md)
@@ -55,7 +55,7 @@ pnpm test:worker   # FeedbackBee's integration suite, in workerd
 pnpm test          # groot's server suites
 ```
 
-Set `GITHUB_TOKEN` in `.env` (for `pnpm dev`) or `.dev.vars` (for `pnpm dev:worker`) to file real issues. `GET /demo` hosts a demo page with the widget; the `demo` project is provisioned on first visit.
+For local GitHub integration, set `FEEDBACKBEE_APP_KEY` in `.env` (`pnpm dev`) or `.dev.vars` (`pnpm dev:worker`) using `openssl rand -base64 32`. GitHub App registration requires a public HTTPS callback: run local development behind an HTTPS tunnel and set `ORIGIN` explicitly to that tunnel URL. `GET /demo` hosts a demo page with the widget; the `demo` project is provisioned on first visit.
 
 ## Inspiration
 
