@@ -56,7 +56,8 @@ test("a report files a labelled issue and answers 201 in the envelope", async ()
   });
   const gh = ghCalls.at(-1)!;
   expect(gh.path).toBe("/repos/ashik/myapp/issues");
-  expect(gh.auth).toBe(`Bearer ${env.GITHUB_TOKEN}`);
+  expect(gh.auth).toBe("Bearer test-installation-token");
+  expect(gh.auth).not.toContain("ghp_");
   expect(gh.body.labels).toEqual(["bug"]);
   expect(gh.body.title).toMatch(/^Issue: Cart total shows NaN/);
   expect(gh.body.body).toContain("![image 1](https://example.com/f/p/");
