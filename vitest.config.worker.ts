@@ -18,7 +18,7 @@ export default defineConfig({
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
         bindings: {
-          GITHUB_TOKEN: "ghp_testtoken1234567890abcdefgh", // gitleaks:allow (fake, GitHub is stubbed)
+          FEEDBACKBEE_APP_KEY: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
           LOG_LEVEL: "silent",
           // A dashboard allow-list must not affect the public submit endpoint.
           CORS_ALLOWED_ORIGINS: "https://dashboard.feedbackbee.test",
