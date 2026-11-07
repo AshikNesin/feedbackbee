@@ -65,7 +65,6 @@ class FeedbackSheetTest {
             val panel = if (dark) Color.rgb(24, 24, 27) else Color.WHITE
             val ink = if (dark) Color.rgb(244, 244, 245) else Color.rgb(24, 24, 27)
             assertEquals(panel, (sheet.background as GradientDrawable).color!!.defaultColor)
-            assertEquals(panel, fragment.requireDialog().window!!.navigationBarColor)
 
             sheet.render(FeedbackState.Choosing())
             assertEquals(ink, sheet.descendants().filterIsInstance<TextView>().first { it.text == "Share feedback" }.currentTextColor)

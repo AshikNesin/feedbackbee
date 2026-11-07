@@ -30,7 +30,6 @@ import io.nesin.feedbackbee.FeedbackViewModel
 import io.nesin.feedbackbee.annotate.AnnotationDialogFragment
 import io.nesin.feedbackbee.capture.ScreenshotCapture
 import io.nesin.feedbackbee.record.VoiceRecorder
-import androidx.core.view.WindowInsetsControllerCompat
 import io.nesin.feedbackbee.ui.SheetTheme
 import io.nesin.feedbackbee.ui.dp
 import io.nesin.feedbackbee.upload.collectDeviceInfo
@@ -65,9 +64,6 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
                 setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
                 setGravity(Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
                 setDimAmount(DIM)
-                val colors = SheetTheme(requireActivity())
-                navigationBarColor = colors.Panel
-                WindowInsetsControllerCompat(this, decorView).isAppearanceLightNavigationBars = !colors.isDark
                 setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
             }
         }
