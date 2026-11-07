@@ -1,4 +1,5 @@
-import { SELF } from "cloudflare:test";
+import { env, SELF } from "cloudflare:test";
+import { ghAuthCalls, stubGithubApp, githubPrivateKey } from "./gh-server";
 
 export const ORIGIN = "https://example.com";
 export const OWNER = { email: "owner@test.dev", password: "hunter2boogaloo" }; // gitleaks:allow (test-only account)
@@ -60,18 +61,44 @@ export async function api(
 
 let counter = 0;
 
+let seededGithubApp: Promise<void> | undefined;
+
+/** Seed the shared test app with an AES-GCM encrypted, generated RSA key. */
+export function ensureGithubApp(): Promise<void> {
+  stubGithubApp();
+  seededGithubApp ??= (async () => {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await crypto.subtle.importKey("raw", new Uint8Array(32), "AES-GCM", false, ["encrypt"]);
+    const encrypted = new Uint8Array(await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, additionalData: new TextEncoder().encode("feedbackbee:github:v1") },
+      key,
+      new TextEncoder().encode(await githubPrivateKey()),
+    ));
+    const encode = (bytes: Uint8Array) => {
+      let binary = "";
+      for (const byte of bytes) binary += String.fromCharCode(byte);
+      return btoa(binary);
+    };
+    await env.DB.prepare(
+      "INSERT OR IGNORE INTO github_apps (id, app_id, slug, name, private_key) VALUES (1, 321, 'feedbackbee-test', 'FeedbackBee test', ?)",
+    ).bind(`v1.${encode(iv)}.${encode(encrypted)}`).run();
+  })();
+  return seededGithubApp;
+}
+
 /** Create a project with a unique slug; returns it. */
 export async function createProject(
   cookie: string,
   prefix = "app",
   extra: Record<string, unknown> = {},
 ) {
+  await ensureGithubApp();
   const slug = `${prefix}-${Date.now().toString(36)}-${counter++}`;
   const { status, body } = await api(cookie, "/projects", {
     method: "POST",
     body: { name: "My App", slug, githubRepo: "ashik/myapp", ...extra },
   });
-  if (status !== 201) throw new Error(`create project failed: ${status} ${JSON.stringify(body)}`);
+  if (status !== 201) throw new Error(`create project failed: ${status} ${JSON.stringify(body)}; GitHub calls=${JSON.stringify(ghAuthCalls)}`);
   return body.data as { id: string; slug: string };
 }
 

@@ -1,5 +1,8 @@
 # FeedbackBee → groot onboarding (record)
 
+Historical record: GitHub authentication now uses the dashboard GitHub App flow,
+not the PAT approach below. See `docs/DEPLOY.md` for current setup.
+
 Onboarded onto groot `main` @ `1a38cc2` (v3.0.0), the commit 404less is synced
 to, on 2026-10-31. Reference child: `~/Code/404less`. The app was new, so
 backward compatibility was dropped: fresh schema, every endpoint versioned,
