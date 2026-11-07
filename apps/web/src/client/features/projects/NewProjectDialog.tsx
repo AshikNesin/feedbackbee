@@ -15,6 +15,7 @@ import { Text } from "@groot/ui/typography";
 import type { ProjectDTO } from "../../../server/wire-types";
 import { useCreateProject } from "./useProjects";
 import { errorMessage } from "../../lib/errors";
+import { GithubRepositorySelect } from "../github/GithubRepositorySelect";
 
 const toSlug = (value: string) =>
   value
@@ -36,6 +37,7 @@ export function NewProjectDialog({
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [githubRepo, setGithubRepo] = useState("");
+  const [repoError, setRepoError] = useState("");
   const create = useCreateProject((project) => {
     onOpenChange(false);
     setName("");
@@ -47,6 +49,10 @@ export function NewProjectDialog({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (!githubRepo) {
+      setRepoError("Choose an accessible GitHub repository.");
+      return;
+    }
     create.mutate({
       name: name.trim(),
       slug: slug.replace(/-+$/, ""),
@@ -96,21 +102,16 @@ export function NewProjectDialog({
                 }}
               />
             </Field>
-            <Field
-              label="GitHub repo"
-              htmlFor="np-repo"
-              hint="Issues are filed with this deployment's GitHub token."
-            >
-              <Input
-                id="np-repo"
-                value={githubRepo}
-                required
-                placeholder="owner/repo"
-                autoCapitalize="off"
-                spellCheck={false}
-                onChange={(e) => setGithubRepo(e.target.value)}
-              />
-            </Field>
+            <GithubRepositorySelect
+              id="np-repo"
+              value={githubRepo}
+              required
+              onChange={(repo) => {
+                setGithubRepo(repo);
+                setRepoError("");
+              }}
+            />
+            {repoError && <Text tone="destructive">{repoError}</Text>}
             {create.error && <Text tone="destructive">{errorMessage(create.error)}</Text>}
           </DialogBody>
           <DialogFooter>

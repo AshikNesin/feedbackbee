@@ -70,7 +70,7 @@
   // Report attachments: images, recordings, voice notes. Served at /f/<key>.
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "feedbackbee-media" }],
 
-  // Non-secret configuration. GITHUB_TOKEN is a secret (`wrangler secret put`).
+  // Non-secret configuration. FEEDBACKBEE_APP_KEY is a secret (`wrangler secret put`).
   // Optional: ORIGIN + RP_ID (your public domain; default: the first request's
   // host), MEDIA_BASE / DASHBOARD_BASE (origins used in GitHub issue links).
   "vars": {
