@@ -1,12 +1,12 @@
+import { createGithubIssue } from "../api/github/github.client";
+import { safeGithubError } from "../api/github/github.service";
 import type { Feedback, FeedbackKind, LabelsMap } from "../db/schema";
 import { isReplayKey } from "./media";
 
 /**
- * GitHub issues for feedback. Auth is the deployment's one fine-grained PAT
- * (`GITHUB_TOKEN`); it only ever travels to api.github.com.
+ * GitHub issues for feedback, authenticated with the deployment's GitHub App.
  */
 
-const GITHUB_API = "https://api.github.com";
 
 const KIND_TITLES: Record<FeedbackKind, string> = {
   issue: "Issue",
@@ -69,32 +69,14 @@ export function issueLabels(kind: FeedbackKind, labels: LabelsMap): string[] {
 
 export type IssueResult = { ok: true; number: number; url: string } | { ok: false; error: string };
 
-/** Create an issue in `repo` (`owner/repo`). A 5xx is retried once after 300 ms. */
+/** GitHub failures must not discard a report already saved in D1. */
 export async function createIssue(
-  token: string | undefined,
   repo: string,
   issue: { title: string; body: string; labels: string[] },
-  retry = true,
 ): Promise<IssueResult> {
-  if (!token) return { ok: false, error: "GITHUB_TOKEN secret is not set on the worker" };
-  const res = await fetch(`${GITHUB_API}/repos/${repo}/issues`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "feedbackbee",
-    },
-    body: JSON.stringify(issue),
-  });
-  if (res.ok) {
-    const data = (await res.json()) as { number: number; html_url: string };
-    return { ok: true, number: data.number, url: data.html_url };
+  try {
+    return { ok: true, ...await createGithubIssue(repo, issue) };
+  } catch (error) {
+    return { ok: false, error: safeGithubError(error) };
   }
-  const errorText = await res.text();
-  if (retry && res.status >= 500) {
-    await new Promise((resolve) => setTimeout(resolve, 300));
-    return createIssue(token, repo, issue, false);
-  }
-  return { ok: false, error: `GitHub ${res.status}: ${errorText.slice(0, 500)}` };
 }
