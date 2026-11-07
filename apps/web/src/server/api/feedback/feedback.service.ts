@@ -133,8 +133,8 @@ export async function submitFeedback(
     ),
   ]);
 
-  const { githubToken, mediaBase = request.origin, dashboardBase = request.origin } = runtime();
-  const issue = await createIssue(githubToken, project.githubRepo, {
+  const { mediaBase = request.origin, dashboardBase = request.origin } = runtime();
+  const issue = await createIssue(project.githubRepo, {
     title: issueTitle(row),
     labels: issueLabels(row.kind, project.labels),
     body: issueBody(row, {
