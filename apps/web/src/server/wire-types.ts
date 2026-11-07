@@ -12,3 +12,11 @@ type Wire<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] };
 export type ProjectDTO = Wire<Project>;
 export type FeedbackItemDTO = Wire<Feedback> & { images: string[] };
 export type FeedbackPageDTO = { items: FeedbackItemDTO[]; hasMore: boolean };
+
+export type GithubRepositoryDTO = { id: number; fullName: string; installationId: number };
+export type GithubSettingsDTO = {
+  encryptionConfigured: boolean;
+  app: { slug: string; name: string } | null;
+  repositories: GithubRepositoryDTO[];
+  connectionError: string | null;
+};

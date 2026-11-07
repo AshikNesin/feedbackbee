@@ -19,6 +19,7 @@ import type { FeedbackKind, ProjectDTO } from "../../../server/wire-types";
 import { KIND_LABELS } from "../feedback/format";
 import { useDeleteProject, useUpdateProject } from "./useProjects";
 import { errorMessage } from "../../lib/errors";
+import { GithubRepositorySelect } from "../github/GithubRepositorySelect";
 
 const KINDS = Object.keys(KIND_LABELS) as FeedbackKind[];
 
@@ -101,16 +102,12 @@ export function ProjectSettingsDialog({
             <Field label="Name" htmlFor="ps-name">
               <Input id="ps-name" value={name} required onChange={(e) => setName(e.target.value)} />
             </Field>
-            <Field label="GitHub repo" htmlFor="ps-repo">
-              <Input
-                id="ps-repo"
-                value={githubRepo}
-                required
-                autoCapitalize="off"
-                spellCheck={false}
-                onChange={(e) => setGithubRepo(e.target.value)}
-              />
-            </Field>
+            <GithubRepositorySelect
+              id="ps-repo"
+              value={githubRepo}
+              required
+              onChange={setGithubRepo}
+            />
             <Field
               label="Issue labels"
               description="Leave one empty to file that kind without a label."
