@@ -30,7 +30,7 @@ class MetadataJsonTest {
             ),
         )
         val parsed = JSONObject(json)
-        assertEquals(setOf("ok_key"), parsed.keySet())
+        assertEquals(setOf("ok_key"), parsed.keys().asSequence().toSet())
     }
 
     @Test

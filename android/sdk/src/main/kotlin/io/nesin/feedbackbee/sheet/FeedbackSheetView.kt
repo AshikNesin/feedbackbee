@@ -83,6 +83,7 @@ internal class FeedbackSheetView(
 
     private val noteField = field(hint = "What happened? What did you expect?", multiline = true)
     private val emailField = field(hint = "you@example.com", multiline = false)
+    private val emailLabel = fieldLabel("Email (optional)", emailField)
     private val screenshotImage = ImageView(context).apply {
         scaleType = ImageView.ScaleType.FIT_CENTER
         contentDescription = "Annotated screenshot"
@@ -372,8 +373,6 @@ internal class FeedbackSheetView(
             marginStart = context.dp(8)
         })
     }
-
-    private val emailLabel = fieldLabel("Email (optional)", emailField)
 
     private fun buildFormGroup() = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
