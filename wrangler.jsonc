@@ -7,7 +7,7 @@
 //
 //   pnpm exec wrangler login
 //   pnpm deploy:worker
-//   pnpm exec wrangler secret put GITHUB_TOKEN      (fine-grained PAT, Issues: read/write)
+//   pnpm exec wrangler secret put FEEDBACKBEE_APP_KEY      (base64-encoded 32-byte encryption key)
 //
 // Migrations apply on the first request (apps/web/src/server/worker/boot.ts).
 // groot's production secrets (JWT_SECRET_KEY, ADMIN_AUTH_KEY) are generated on
@@ -70,7 +70,7 @@
   // Report attachments: images, recordings, voice notes. Served at /f/<key>.
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "feedbackbee-media" }],
 
-  // Non-secret configuration. GITHUB_TOKEN is a secret (`wrangler secret put`).
+  // Non-secret configuration. FEEDBACKBEE_APP_KEY is a secret (`wrangler secret put`).
   // Optional: ORIGIN + RP_ID (your public domain; default: the first request's
   // host), MEDIA_BASE / DASHBOARD_BASE (origins used in GitHub issue links).
   "vars": {
