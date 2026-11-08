@@ -11,8 +11,8 @@
  *
  * What this guard owns: every .ts and .tsx file under the enumerated roots
  * must be a member of at least one program that CI typechecks (the root
- * tsconfig.json, apps/web/tsconfig.json, tests/e2e/tsconfig.json and the
- * kit-consumer fixture), and every repo-owned .d.ts under those roots must
+ * tsconfig.json, apps/web/tsconfig.json, tests/e2e/tsconfig.json, the
+ * kit-consumer fixture and a child's `typecheck:app` projects), and every repo-owned .d.ts under those roots must
  * pass a dedicated declarations pass. Membership is
  * what tsc actually compiles: include globs plus the import closure. A file
  * matched by a package tsconfig that no script or CI step runs does not
@@ -35,12 +35,31 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 // The kit-consumer fixture (`pnpm typecheck:kit`) imports every public kit
 // entrypoint, so kit code is covered whether or not an app uses it: a child
 // that never mounts jobs or storage still typechecks them.
-const CHECKED_PROJECTS = [
+const KIT_PROJECTS = [
   "tsconfig.json",
   "apps/web/tsconfig.json",
   "tests/e2e/tsconfig.json",
   "tests/kit-consumers/tsconfig.json",
 ];
+
+/**
+ * A child app's own typecheck projects: every `-p <dir>` in the root
+ * package.json's `typecheck:app` script, which the "Typecheck (app projects)"
+ * gate runs. Groot has none; a child with, say, a Workers test suite under its
+ * own tsconfig lists it there instead of editing this synced file.
+ */
+function appProjects(): string[] {
+  const manifest = path.join(repoRoot, "package.json");
+  if (!fs.existsSync(manifest)) return [];
+  const script: unknown = JSON.parse(fs.readFileSync(manifest, "utf8")).scripts?.["typecheck:app"];
+  if (typeof script !== "string") return [];
+  return [...script.matchAll(/(?:^|\s)(?:-p|--project)\s+(\S+)/g)].map(([, project]) => {
+    const relative = project.replace(/^\.\//, "").replace(/\/$/, "");
+    return relative.endsWith(".json") ? relative : `${relative}/tsconfig.json`;
+  });
+}
+
+const CHECKED_PROJECTS = [...KIT_PROJECTS, ...appProjects()];
 const SOURCE_EXTENSION = /\.(ts|tsx)$/;
 const DECLARATION_EXTENSION = /\.d\.ts$/;
 

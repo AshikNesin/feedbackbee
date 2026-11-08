@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import { withRepoCopy } from "./repo-copy";
@@ -74,6 +74,31 @@ describe("typecheck coverage", () => {
         expect(run.stderr.match(/not covered by any checked typecheck project: .*/g)).toEqual([
           "not covered by any checked typecheck project: packages/ui/src/orphan-coverage-probe.tsx",
         ]);
+      }),
+    TIMEOUT,
+  );
+
+  it(
+    "counts the projects a child lists in its typecheck:app script",
+    () =>
+      withRepoCopy((root) => {
+        mkdirSync(path.join(root, "tests/worker"), { recursive: true });
+        writeFileSync(path.join(root, "tests/worker/probe.test.ts"), "export const probe = 1;\n");
+        expect(runCoverageScript(root).stderr).toContain(
+          "not covered by any checked typecheck project: tests/worker/probe.test.ts",
+        );
+
+        writeFileSync(
+          path.join(root, "tests/worker/tsconfig.json"),
+          JSON.stringify({ extends: "../../tsconfig.json", include: ["./**/*"] }),
+        );
+        writeFileSync(
+          path.join(root, "package.json"),
+          JSON.stringify({ scripts: { "typecheck:app": "tsc --noEmit -p tests/worker" } }),
+        );
+        const run = runCoverageScript(root);
+        expect(run.stderr).toBe("");
+        expect(run.status).toBe(0);
       }),
     TIMEOUT,
   );

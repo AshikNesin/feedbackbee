@@ -155,7 +155,10 @@ for (const step of runSteps) {
 const { scripts } = JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as {
   scripts: Record<string, string>;
 };
-const gateCommands = gates.flatMap((gate) => (typeof gate.run === "string" ? [gate.run] : []));
+// `pnpm run --if-present x` runs script x, like `pnpm x`.
+const gateCommands = gates.flatMap((gate) =>
+  typeof gate.run === "string" ? [gate.run.replace(/^pnpm run (--if-present )?/, "pnpm ")] : [],
+);
 for (const script of Object.keys(scripts)) {
   if (!/^(check|typecheck):/.test(script) || POST_BUILD_CHECKS.includes(script)) continue;
   if (

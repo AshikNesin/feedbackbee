@@ -71,3 +71,40 @@ describe("check-doc-refs", () => {
     expect(lines).toEqual(["0 dangling references in 4 docs"]);
   });
 });
+
+describe("check-doc-refs in a child project", () => {
+  let child: string;
+  const CHILD_TREE: Record<string, string> = {
+    "package.json": JSON.stringify({ name: "child-app" }),
+    ".groot/boilerplate-sync.json": JSON.stringify({
+      boilerplate: { name: "groot" },
+      additional_exclusions: ["docs/PRD.md"],
+    }),
+    "AGENTS.md": "Start in `src/missing-app.ts`.\n",
+    "docs/features/todos.md": "Groot's demo lives in `src/todo/Todos.tsx`.\n",
+    ".agents/skills/groot-sync/SKILL.md": "See `tests/server/jobs/queue.test.ts`.\n",
+    "docs/PRD.md": "The widget is `src/widget.ts`.\n",
+  };
+
+  beforeAll(() => {
+    child = mkdtempSync(path.join(tmpdir(), "doc-refs-child-"));
+    for (const [file, body] of Object.entries(CHILD_TREE)) {
+      mkdirSync(path.dirname(path.join(child, file)), { recursive: true });
+      writeFileSync(path.join(child, file), body);
+    }
+    execFileSync("git", ["init", "-q"], { cwd: child });
+    execFileSync("git", ["add", "."], { cwd: child });
+  });
+
+  afterAll(() => rmSync(child, { recursive: true, force: true }));
+
+  it("checks the docs the child owns and skips the ones synced from groot", () => {
+    const result = spawnSync("node", [SCRIPT], { cwd: child, encoding: "utf8" });
+    expect(result.status).toBe(1);
+    expect(result.stdout.trim().split("\n")).toEqual([
+      "AGENTS.md:1  missing path src/missing-app.ts. Fix the path or delete the sentence.",
+      "docs/PRD.md:1  missing path src/widget.ts. Fix the path or delete the sentence.",
+      "2 dangling references in 2 docs",
+    ]);
+  });
+});

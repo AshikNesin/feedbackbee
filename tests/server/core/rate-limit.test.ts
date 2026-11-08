@@ -5,6 +5,7 @@ import { rateLimit } from "@groot/core/middlewares/rate-limit.middleware";
 import { ok } from "@groot/core/utils/api-response.utils";
 import { peerClientAddress } from "@groot/core/utils/client-ip";
 import type { AppEnv } from "@groot/core/types";
+import * as authService from "@groot/core/auth/auth.service";
 import { createTestApp, setAppConfig } from "../helpers";
 
 /**
@@ -200,6 +201,13 @@ describe("rateLimit middleware", () => {
 describe("sign-in rate limit", () => {
   it("limits a client that rotates addresses inside one IPv6 /64", async () => {
     const app = createTestApp({ clientAddress: fromTestPeer });
+    // A user exists, so every attempt is a wrong password: a child whose first
+    // sign-in creates the owner (on an empty users table) answers 401 here too.
+    await authService.createUser({
+      email: "owner@example.com",
+      password: "correct horse battery staple",
+      name: "Owner",
+    });
     const statuses: number[] = [];
     for (let i = 1; i <= 25; i++) {
       const response = await app.request("/api/v1/auth/login", {

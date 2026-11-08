@@ -10,6 +10,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
+import micromatch from "micromatch";
 import path from "node:path";
 
 const git = (args, options = {}) =>
@@ -55,12 +56,28 @@ const PNPM_BUILTINS = new Set(
 );
 const isBin = (name) => existsSync(path.join("node_modules/.bin", name));
 
+// In a child project, docs synced from groot describe groot's tree (its todo
+// demo, release workflow, job suites) and are checked here in groot. The child
+// checks only the docs it owns: its own files plus synced-path files it keeps
+// out of sync through `additional_exclusions`. Mirrors the doc entries of
+// SYNC_PATTERNS in .groot/lib/patterns.ts.
+const SYNCED_DOCS = ["docs/**", ".agents/skills/**"];
+const SYNC_CONFIG = ".groot/boilerplate-sync.json";
+const syncedFromGroot = (() => {
+  if (!fileSet.has(SYNC_CONFIG) || !fileSet.has("package.json")) return () => false;
+  const config = JSON.parse(read(SYNC_CONFIG));
+  if (JSON.parse(read("package.json")).name === config.boilerplate?.name) return () => false;
+  const exclusions = config.additional_exclusions ?? [];
+  return (f) => micromatch.isMatch(f, SYNCED_DOCS) && !micromatch.isMatch(f, exclusions);
+})();
+
 const scanned = files.filter(
   (f) =>
     f.endsWith(".md") &&
     (["AGENTS.md", "CLAUDE.md", "GLOSSARY.md", "PRD.md", "README.md"].includes(f) ||
       f.startsWith("docs/") ||
-      f.startsWith(".agents/skills/")),
+      f.startsWith(".agents/skills/")) &&
+    !syncedFromGroot(f),
 );
 const checksLinksOnly = (md) => md.startsWith("docs/adr/");
 

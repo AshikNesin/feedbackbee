@@ -15,6 +15,8 @@ export const gates = [
   { name: "Typecheck (e2e tests)", run: "pnpm typecheck:e2e" },
   { name: "Typecheck coverage", run: "pnpm exec tsx scripts/check-typecheck-coverage.ts" },
   { name: "Typecheck kit consumers", run: "pnpm typecheck:kit" },
+  // A child's own tsconfigs (e.g. a Workers test suite); groot defines none.
+  { name: "Typecheck (app projects)", run: "pnpm run --if-present typecheck:app" },
   {
     name: "Kit export guard",
     run: "pnpm exec tsx scripts/check-kit-exports.ts --base origin/${GITHUB_BASE_REF:-main}",
