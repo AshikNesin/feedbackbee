@@ -102,3 +102,41 @@ test("labels come from the project's map; a kind without a label files unlabelle
   expect(issueLabels("issue", { issue: "needs-triage" })).toEqual(["needs-triage"]);
   expect(issueLabels("feature_request", { issue: "bug" })).toEqual([]);
 });
+
+test("GitHub's PKCS#1 PEM can sign a verifiable app JWT in workerd", async () => {
+  const { importAppKey } = await import("../../apps/web/src/server/api/github/github.crypto");
+  const { SignJWT, jwtVerify } = await import("jose");
+  const pair = await crypto.subtle.generateKey(
+    {
+      name: "RSASSA-PKCS1-v1_5",
+      modulusLength: 2048,
+      publicExponent: new Uint8Array([1, 0, 1]),
+      hash: "SHA-256",
+    },
+    true,
+    ["sign", "verify"],
+  );
+  const bytes = new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey));
+  const read = (offset: number) => {
+    let size = bytes[offset + 1]!;
+    let start = offset + 2;
+    if (size & 128) {
+      const lengthBytes = size & 127;
+      size = 0;
+      for (let i = 0; i < lengthBytes; i++) size = size * 256 + bytes[start++]!;
+    }
+    return { start, end: start + size };
+  };
+  const sequence = read(0);
+  const version = read(sequence.start);
+  const algorithm = read(version.end);
+  const key = read(algorithm.end);
+  const binary = Array.from(bytes.slice(key.start, key.end), (byte) =>
+    String.fromCharCode(byte),
+  ).join("");
+  const pem = `-----BEGIN RSA PRIVATE KEY-----\n${btoa(binary)}\n-----END RSA PRIVATE KEY-----`;
+  const jwt = await new SignJWT({ iss: "321" })
+    .setProtectedHeader({ alg: "RS256" })
+    .sign(await importAppKey(pem));
+  expect((await jwtVerify(jwt, pair.publicKey, { algorithms: ["RS256"] })).payload.iss).toBe("321");
+});

@@ -16,12 +16,12 @@ import {
   type ShellConfig,
   ShellProvider,
 } from "@groot/shell/lib/shell-config";
-import { Settings } from "@groot/shell/pages/settings/Settings";
 import { Login } from "@groot/shell/pages/auth/Login";
 import { GrootUIProvider } from "@groot/ui/provider";
 import { BeeMark } from "./components/BeeMark";
 import { ProjectInbox } from "./pages/ProjectInbox";
 import { Projects } from "./pages/Projects";
+import { AppSettings } from "./pages/AppSettings";
 
 /**
  * Every page that has a place in the navigation, declared once: each entry
@@ -29,7 +29,7 @@ import { Projects } from "./pages/Projects";
  */
 const PAGES: Array<NavDestination & { element: ReactNode }> = [
   { label: "Projects", icon: FolderGit2, to: "/projects", primary: true, element: <Projects /> },
-  { label: "Settings", icon: SettingsIcon, to: "/settings", element: <Settings /> },
+  { label: "Settings", icon: SettingsIcon, to: "/settings", element: <AppSettings /> },
 ];
 
 const SHELL_CONFIG: ShellConfig = {
