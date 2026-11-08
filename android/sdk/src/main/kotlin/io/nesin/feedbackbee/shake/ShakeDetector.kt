@@ -21,7 +21,11 @@ internal class ShakeDetector(
     fun start() {
         if (listening || accelerometer == null) return
         analyzer.reset()
-        listening = sensorManager?.registerListener(this, accelerometer, SensorManager.SENSOR_DELAY_GAME) == true
+        // Lets sensor hubs with a FIFO deliver samples in batches so the CPU can sleep between them.
+        // Safe because the analyzer uses each sample's own timestamp; a shake fires at most 100 ms later.
+        listening = sensorManager?.registerListener(
+            this, accelerometer, SensorManager.SENSOR_DELAY_GAME, MAX_REPORT_LATENCY_US,
+        ) == true
     }
 
     fun stop() {
@@ -40,5 +44,6 @@ internal class ShakeDetector(
 
     private companion object {
         const val NANOS_PER_MILLI = 1_000_000L
+        const val MAX_REPORT_LATENCY_US = 100_000
     }
 }

@@ -3,6 +3,7 @@ package io.nesin.feedbackbee
 import android.app.Application
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.Looper
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
@@ -17,6 +18,8 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.RuntimeEnvironment
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -80,6 +83,34 @@ class FeedbackSheetTest {
             })
             sheet.render(FeedbackState.Sent(null))
             assertEquals(panel, (sheet.background as GradientDrawable).color!!.defaultColor)
+        }
+    }
+
+    /** React Native's MainActivity handles uiMode itself, so the activity is not recreated on a switch. */
+    @Test
+    @Config(qualifiers = "notnight")
+    fun liveSwitchToDarkRebuildsTheSheetAndKeepsTheDraft() {
+        Robolectric.buildActivity(FragmentActivity::class.java).use { controller ->
+            controller.get().setTheme(android.R.style.Theme_Material_Light_NoActionBar)
+            val activity = controller.setup().get()
+            FeedbackBee.open(OpenOptions(kind = FeedbackKind.Issue, text = "Draft survives"))
+            activity.supportFragmentManager.executePendingTransactions()
+            val before = activity.supportFragmentManager.fragments.filterIsInstance<FeedbackSheetFragment>().single()
+            assertEquals(Color.WHITE, ((before.requireView() as FeedbackSheetView).background as GradientDrawable).color!!.defaultColor)
+
+            // What AppCompat's DayNight does without recreating: new night qualifier, theme re-applied in place.
+            RuntimeEnvironment.setQualifiers("+night")
+            activity.setTheme(android.R.style.Theme_Material_NoActionBar)
+            before.onConfigurationChanged(activity.resources.configuration)
+            shadowOf(Looper.getMainLooper()).idle()
+            activity.supportFragmentManager.executePendingTransactions()
+
+            val after = activity.supportFragmentManager.fragments.filterIsInstance<FeedbackSheetFragment>().single()
+            assertTrue(after !== before)
+            assertTrue(after.requireDialog().isShowing)
+            val sheet = after.requireView() as FeedbackSheetView
+            assertEquals(Color.rgb(24, 24, 27), (sheet.background as GradientDrawable).color!!.defaultColor)
+            assertEquals("Draft survives", sheet.descendants().filterIsInstance<EditText>().first().text.toString())
         }
     }
 

@@ -5,7 +5,7 @@ the Cloudflare free tier. FeedbackBee is a child of the
 [groot](https://github.com/AshikNesin/groot) boilerplate: `packages/*`, root
 configs, `scripts/`, `docs/` and `.groot/` are synced from groot
 (`pnpm groot:sync`); FeedbackBee's own code lives in `apps/web/`, `tests/worker/`,
-`android/` and `site/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
+`android/`, `apple/`, `react-native/` and `site/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
 the product docs are [`docs/PRD.md`](./docs/PRD.md) and the upload contract
 [`docs/CONTRACT.md`](./docs/CONTRACT.md).
 
@@ -16,15 +16,16 @@ Use **pnpm** for everything. Don't call `vp` directly (use `pnpm check`,
 
 - **Never edit synced files for app needs.** `packages/**`, `scripts/**` (except
   `scripts/seed.ts`), `*.config.*`, `tsconfig*.json`, `.github/workflows/**`,
-  `docs/**` (except `CONTRACT.md`, `DEPLOY.md`, `PRD.md`, `screenshots/`) come
+  `docs/**` (except `CONTRACT.md`, `DEPLOY.md`, `PRD.md`, `WIDGET.md`, `screenshots/`) come
   from groot. A real fix belongs in groot first (as `uploadPaths` was); a
   FeedbackBee-only file goes in an app-owned path or in
   `.groot/boilerplate-sync.json` → `additional_exclusions`.
 - **Packages never import from `apps/`.** Apps import packages, never the reverse.
 - **The upload contract is versioned.** `POST /api/v1/feedback` is called by
-  shipped widgets and Android apps. A change to its fields or responses updates
-  `docs/CONTRACT.md`, the widget (`apps/web/src/server/embed/widget.js`) and the
-  Android SDK (`android/sdk/.../upload/`) together; a breaking change needs a new
+  shipped widgets and mobile apps. A change to its fields or responses updates
+  `docs/CONTRACT.md`, the widget (`apps/web/src/server/embed/widget.js`, documented in `docs/WIDGET.md`), the
+  Android SDK (`android/sdk/.../upload/`) and the Apple SDK
+  (`apple/Sources/FeedbackBee/Upload/`, iOS + macOS) together; a breaking change needs a new
   version path. It answers CORS `*` (`openCorsPaths`) and sets its own size
   caps (`uploadPaths`) in `app.ts`.
 - **GitHub auth uses one GitHub App per deployment**, registered from the
@@ -125,3 +126,9 @@ one with its credentials. The dashboard API (`/api/v1/projects…`) sits behind
 - `pnpm deploy:worker`: build + `wrangler deploy` (migrations apply on first request)
 - `pnpm groot:check` / `pnpm groot:sync`: boilerplate updates
 - Android: `cd android && ./gradlew :sdk:assembleRelease :app:assembleDebug :sdk:testReleaseUnitTest`
+- iOS + macOS: `cd apple && swift test` (core on Linux; on a Mac it also builds the AppKit layer);
+  the UIKit layer builds with
+  `xcodebuild build -scheme FeedbackBee -destination "generic/platform=iOS Simulator"`
+- React Native: `cd react-native && pnpm install --ignore-workspace && pnpm typecheck && pnpm codegen`.
+  It vendors `apple/` and `android/` sources (`pnpm vendor`); a native SDK API change
+  may need its bridge (`react-native/ios`, `react-native/android`) updated too

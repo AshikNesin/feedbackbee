@@ -50,11 +50,12 @@ FeedbackBee.init(application, projectId = "myapp", endpoint = "https://bee.examp
 FeedbackBee.show() // open the sheet yourself
 ```
 
-| Parameter   | Default  | Notes                                                                                                            |
-| ----------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `projectId` | required | From your dashboard. A blank id throws `IllegalArgumentException`.                                               |
-| `endpoint`  | required | Your FeedbackBee website or Worker base URL, including `https://`. No default server. A trailing `/` is trimmed. |
-| `shake`     | `true`   | `false` removes the accelerometer listener entirely.                                                             |
+| Parameter         | Default  | Notes                                                                                                                                  |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `projectId`       | required | From your dashboard. A blank id throws `IllegalArgumentException`.                                                                     |
+| `endpoint`        | required | Your FeedbackBee website or Worker base URL, including `https://`. No default server. A trailing `/` is trimmed.                       |
+| `shake`           | `true`   | `false` removes the accelerometer listener entirely.                                                                                   |
+| `currentActivity` | `null`   | Only for bridges that init after an activity resumed (the React Native module passes it). `Application.onCreate` callers leave it out. |
 
 **Upgrading:** add `endpoint` to existing `init` calls. The argument order is application, project id, endpoint,
 then optional `shake`. `DEFAULT_ENDPOINT` has been removed. Blank or malformed URLs are rejected immediately,
@@ -79,20 +80,27 @@ the only consumers of the old `bug` / `idea` / `feedback` values, and current Wo
 
 ## Shake
 
-|                  |                                                                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Triggers         | Three firm jolts (above 15 m/s², gravity included) within 1.5 seconds. A long push counts once; peaks under 120 ms apart count once. |
-| Runs             | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz). Nothing runs in the background.                             |
-| Can't stack      | Shakes are ignored while a sheet is open, and the counter resets after each trigger.                                                 |
-| Turn it off      | `FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)`                                   |
-| Open manually    | `FeedbackBee.open()`, for example from a "Send feedback" menu item.                                                                  |
-| No accelerometer | Logged once at init. Use `open()`.                                                                                                   |
+|                  |                                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Triggers         | Three firm jolts (above 15 m/s², gravity included) within 1.5 seconds. A long push counts once; peaks under 120 ms apart count once.                |
+| Runs             | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz), batched up to 100 ms so the CPU can sleep. Nothing runs in the background. |
+| Can't stack      | Shakes are ignored while a sheet is open, and the counter resets after each trigger.                                                                |
+| Turn it off      | `FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)`                                                  |
+| Open manually    | `FeedbackBee.open()`, for example from a "Send feedback" menu item.                                                                                 |
+| No accelerometer | Logged once at init. Use `open()`.                                                                                                                  |
 
 The detection logic is plain Kotlin (`ShakeAnalyzer`) with JUnit tests for a shake and several non-shakes.
 
 ## What the user sees
 
-The sheet mirrors the web widget: a white panel, 360dp wide at most, rounded top corners.
+<p>
+  <img src="../docs/screenshots/clients/android-picker.png" alt="Android kind picker in light and dark mode" width="49%" />
+  <img src="../docs/screenshots/clients/android-form.png" alt="Android feedback form in light and dark mode" width="49%" />
+</p>
+
+Rendered by `SheetScreenshotTest` (Robolectric native graphics); set `FEEDBACKBEE_SNAPSHOT_DIR` to write the PNGs.
+
+The sheet mirrors the web widget: a panel 360dp wide at most, with rounded top corners, in light or dark to match the app.
 
 1. **Share feedback.** Three simple rows: Report an issue, Share an idea, Something else. A close button top-right.
 2. **Report an issue / Share an idea / Tell us more.** A back arrow, labeled feedback and optional email fields,
@@ -120,6 +128,37 @@ an `.m4a` file with a 25 MB and 300-second cap.
 The sheet renders from one sealed state, not scattered flags:
 `Choosing → Draft → Annotating | RecordingAudio → WithScreenshot → Uploading → Sent | Failed`. It lives in an
 activity-scoped `ViewModel`, so rotation and fold/unfold keep the draft, attachments and an in-flight upload.
+
+## Light and dark mode
+
+The sheet matches the host app, not just the system:
+
+- If the activity's theme says whether it is light (`android:isLightTheme`, set by every Material, AppCompat and
+  DayNight theme), the sheet follows it. An app that forces a light theme gets a light sheet even when the phone is in
+  dark mode, and the reverse.
+- Otherwise it follows the system night mode.
+- `AppCompatDelegate.setDefaultNightMode(...)` (and React Native's `Appearance.setColorScheme`) work, because they
+  change the activity's theme.
+- Switching while the sheet is open works too. A normal activity is recreated with the sheet and its draft. An activity
+  that handles `uiMode` itself (React Native's `MainActivity` declares it) is not recreated, so the SDK rebuilds the
+  sheet for the new appearance and keeps the draft.
+- The screenshot annotator is always dark, so the red markup reads on any screenshot.
+
+The palette is shared with the web widget and the iOS and macOS sheets:
+
+| Token      | Light     | Dark      | Used for                                |
+| ---------- | --------- | --------- | --------------------------------------- |
+| Panel      | `#FFFFFF` | `#18181B` | Sheet background, field background      |
+| Ink        | `#18181B` | `#F4F4F5` | Titles, text, primary button fill       |
+| Muted      | `#71717A` | `#A1A1AA` | Subtitles, hints, placeholder           |
+| Tile       | `#F4F4F5` | `#27272A` | Icon tiles, voice-note rows             |
+| Border     | `#E4E4E7` | `#3F3F46` | Field and tile borders                  |
+| Focus      | `#2563EB` | `#60A5FA` | Focused field border                    |
+| Error      | `#DC2626` | `#F87171` | Error line, Stop button                 |
+| Annotation | `#FF3B30` | `#FF3B30` | Pen, box and arrow strokes (both modes) |
+
+`FeedbackSheetTest` checks the colors for each combination of light or dark system and light or dark app theme, plus
+a live switch that keeps the draft.
 
 ## Manifest permissions for the host app
 
