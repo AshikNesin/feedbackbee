@@ -1,14 +1,14 @@
-# FeedbackBee's mobile SDKs: ios/, react-native/ and android/.
+# FeedbackBee's native SDKs: apple/ (iOS + macOS), react-native/ and android/.
 # App-owned: listed in .groot/boilerplate-sync.json additional_exclusions.
 name: Mobile SDKs
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths: ["ios/**", "react-native/**", "android/**", ".github/workflows/mobile-sdks.yml"]
+    paths: ["apple/**", "react-native/**", "android/**", ".github/workflows/mobile-sdks.yml"]
   push:
     branches: ["main"]
-    paths: ["ios/**", "react-native/**", "android/**", ".github/workflows/mobile-sdks.yml"]
+    paths: ["apple/**", "react-native/**", "android/**", ".github/workflows/mobile-sdks.yml"]
 
 permissions:
   contents: read
@@ -19,16 +19,16 @@ concurrency:
 
 jobs:
   ios:
-    name: iOS SDK
+    name: Apple SDK (iOS + macOS)
     runs-on: macos-15
     defaults:
       run:
-        working-directory: ios
+        working-directory: apple
     steps:
       - uses: actions/checkout@v5
       - name: Build for iOS (UIKit layer)
         run: xcodebuild build -scheme FeedbackBee -destination "generic/platform=iOS Simulator" -quiet
-      - name: Core tests
+      - name: Core tests + macOS build (AppKit layer)
         if: ${{ !cancelled() }}
         run: swift test
 

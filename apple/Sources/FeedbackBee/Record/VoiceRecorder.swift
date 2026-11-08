@@ -1,19 +1,32 @@
-#if canImport(UIKit)
+#if canImport(AVFoundation)
 import AVFoundation
-import UIKit
+import Foundation
 
-/// Records an AAC voice note in an `.m4a` file, at most five minutes. The host's audio session
-/// category is restored afterwards.
+/// Records an AAC voice note in an `.m4a` file, at most five minutes. On iOS the host's audio session
+/// category is restored afterwards; macOS has no audio session.
 @MainActor
 final class VoiceRecorder: NSObject {
     enum Permission { case granted, denied, undetermined }
 
-    /// iOS terminates an app that asks for the microphone without this key, so the mic button is hidden instead.
+    /// The OS terminates an app that asks for the microphone without the usage string (and a sandboxed
+    /// Mac app can't record without the audio-input entitlement), so the mic button is hidden instead.
     static var isAvailable: Bool {
-        Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") != nil
+        guard Bundle.main.object(forInfoDictionaryKey: "NSMicrophoneUsageDescription") != nil else { return false }
+        #if os(macOS)
+        return !Entitlements.isSandboxed || Entitlements.has("com.apple.security.device.audio-input")
+        #else
+        return true
+        #endif
     }
 
     static var permission: Permission {
+        #if os(macOS)
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized: return .granted
+        case .notDetermined: return .undetermined
+        default: return .denied
+        }
+        #else
         if #available(iOS 17.0, *) {
             switch AVAudioApplication.shared.recordPermission {
             case .granted: return .granted
@@ -26,34 +39,37 @@ final class VoiceRecorder: NSObject {
         case .denied: return .denied
         default: return .undetermined
         }
+        #endif
     }
 
     static func requestPermission(_ done: @escaping @MainActor (Bool) -> Void) {
         let deliver: @Sendable (Bool) -> Void = { granted in
             DispatchQueue.main.async { MainActor.assumeIsolated { done(granted) } }
         }
+        #if os(macOS)
+        AVCaptureDevice.requestAccess(for: .audio, completionHandler: deliver)
+        #else
         if #available(iOS 17.0, *) {
             AVAudioApplication.requestRecordPermission(completionHandler: deliver)
         } else {
             AVAudioSession.sharedInstance().requestRecordPermission(deliver)
         }
+        #endif
     }
 
     var onFinish: ((Result<AudioAttachment, Error>) -> Void)?
 
     private var recorder: AVAudioRecorder?
     private var startedAt: Date?
-    private var savedSession: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
     private var discardOnFinish = false
+    #if os(iOS)
+    private var savedSession: (AVAudioSession.Category, AVAudioSession.Mode, AVAudioSession.CategoryOptions)?
+    #endif
 
     var isRecording: Bool { recorder != nil }
 
     func start() throws -> Date {
-        let session = AVAudioSession.sharedInstance()
-        savedSession = (session.category, session.mode, session.categoryOptions)
-        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
-        try session.setActive(true)
-
+        try activateSession()
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("feedbackbee-voice-\(UUID().uuidString).m4a")
         let settings: [String: Any] = [
             AVFormatIDKey: Int(kAudioFormatMPEG4AAC),
@@ -111,13 +127,24 @@ final class VoiceRecorder: NSObject {
         onFinish?(.success(AudioAttachment(fileURL: url, seconds: seconds)))
     }
 
+    private func activateSession() throws {
+        #if os(iOS)
+        let session = AVAudioSession.sharedInstance()
+        savedSession = (session.category, session.mode, session.categoryOptions)
+        try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
+        try session.setActive(true)
+        #endif
+    }
+
     private func restoreSession() {
+        #if os(iOS)
         let session = AVAudioSession.sharedInstance()
         if let saved = savedSession {
             try? session.setCategory(saved.0, mode: saved.1, options: saved.2)
         }
         savedSession = nil
         try? session.setActive(false, options: .notifyOthersOnDeactivation)
+        #endif
     }
 }
 

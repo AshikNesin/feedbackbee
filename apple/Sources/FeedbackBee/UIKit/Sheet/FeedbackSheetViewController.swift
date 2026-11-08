@@ -253,12 +253,12 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
 
     private func storeScreenshot(_ annotated: AnnotatedScreenshot) {
         Task { [weak self] in
-            guard let processed = await ScreenshotCapture.process(annotated) else {
+            guard let processed = await ScreenshotEncoder.process(annotated) else {
                 self?.controller.reportProblem("The screenshot is too large to upload.")
                 return
             }
             guard let self else { return }
-            self.latestThumbnail = processed.thumbnail
+            self.latestThumbnail = processed.thumbnail.map { UIImage(cgImage: $0) }
             self.shownScreenshot = nil
             self.controller.attachScreenshot(processed.screenshot)
         }

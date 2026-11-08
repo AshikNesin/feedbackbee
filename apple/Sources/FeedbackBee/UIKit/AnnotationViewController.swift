@@ -1,64 +1,6 @@
 #if canImport(UIKit)
 import UIKit
 
-/// The annotator's result: the untouched capture plus the shapes, flattened later off the main thread.
-struct AnnotatedScreenshot: @unchecked Sendable {
-    let base: CGImage
-    let shapes: [Shape]
-    let strokeWidth: CGFloat
-
-    /// The capture with every shape drawn at full resolution. Thread-safe (Core Graphics only);
-    /// with no shapes it is the capture itself, so Save costs nothing extra.
-    func flattened() -> CGImage? {
-        guard !shapes.isEmpty else { return base }
-        guard let context = CGContext(
-            data: nil, width: base.width, height: base.height, bitsPerComponent: 8, bytesPerRow: 0,
-            space: CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue
-        ) else { return nil }
-        let height = CGFloat(base.height)
-        context.draw(base, in: CGRect(x: 0, y: 0, width: CGFloat(base.width), height: height))
-        // Shapes use top-left pixel coordinates; Core Graphics contexts are bottom-left.
-        context.translateBy(x: 0, y: height)
-        context.scaleBy(x: 1, y: -1)
-        context.setStrokeColor(CGColor(srgbRed: 1, green: 59 / 255, blue: 48 / 255, alpha: 1))
-        context.setLineWidth(strokeWidth)
-        context.setLineCap(.round)
-        context.setLineJoin(.round)
-        for shape in shapes {
-            context.addPath(shapePath(shape, strokeWidth: strokeWidth))
-            context.strokePath()
-        }
-        return context.makeImage()
-    }
-}
-
-/// A shape's outline in image pixel coordinates.
-func shapePath(_ shape: Shape, strokeWidth: CGFloat) -> CGPath {
-    let path = CGMutablePath()
-    func cg(_ point: Pt) -> CGPoint { CGPoint(x: point.x, y: point.y) }
-    switch shape {
-    case .pen(let points):
-        guard let first = points.first else { break }
-        path.move(to: cg(first))
-        if points.count == 1 { path.addLine(to: CGPoint(x: first.x + 0.01, y: first.y)) }
-        for index in points.indices.dropFirst() {
-            let previous = points[index - 1], current = points[index]
-            path.addQuadCurve(to: CGPoint(x: (previous.x + current.x) / 2, y: (previous.y + current.y) / 2), control: cg(previous))
-        }
-    case .box(let from, let to):
-        path.addRect(CGRect(x: min(from.x, to.x), y: min(from.y, to.y), width: abs(to.x - from.x), height: abs(to.y - from.y)))
-    case .arrow(let from, let to):
-        let (left, right) = arrowBarbs(from: from, to: to, length: Double(strokeWidth) * 5)
-        path.move(to: cg(from))
-        path.addLine(to: cg(to))
-        path.move(to: cg(left))
-        path.addLine(to: cg(to))
-        path.addLine(to: cg(right))
-    }
-    return path
-}
-
 /// Full-screen pen / box / arrow markup over a screenshot.
 final class AnnotationViewController: UIViewController {
     var onSave: ((AnnotatedScreenshot) -> Void)?
@@ -164,28 +106,7 @@ final class AnnotationCanvas: UIView {
     private var active: Shape?
     private var activePen: PenStroke?
 
-    /// Grows in place: no array copy and no path rebuild per touch.
-    private final class PenStroke {
-        var points: [Pt]
-        let path = CGMutablePath()
-
-        init(start: Pt) {
-            points = [start]
-            path.move(to: CGPoint(x: start.x, y: start.y))
-            path.addLine(to: CGPoint(x: start.x + 0.01, y: start.y))
-        }
-
-        func add(_ point: Pt) {
-            guard let previous = points.last else { return }
-            path.addQuadCurve(
-                to: CGPoint(x: (previous.x + point.x) / 2, y: (previous.y + point.y) / 2),
-                control: CGPoint(x: previous.x, y: previous.y)
-            )
-            points.append(point)
-        }
-    }
-
-    var result: AnnotatedScreenshot { AnnotatedScreenshot(base: image, shapes: shapes, strokeWidth: strokeWidth) }
+    var result: AnnotatedScreenshot { AnnotatedScreenshot(base: image, shapes: shapes) }
 
     init(image: CGImage, pointScale: CGFloat) {
         self.image = image

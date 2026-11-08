@@ -9,7 +9,7 @@ const repo = path.dirname(root);
 const vendor = path.join(root, "vendor");
 
 const copies = [
-  ["ios/Sources/FeedbackBee", "ios/FeedbackBee"],
+  ["apple/Sources/FeedbackBee", "ios/FeedbackBee"],
   ["android/sdk/src/main/kotlin", "android/kotlin"],
   ["android/sdk/src/main/res", "android/res"],
 ];

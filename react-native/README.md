@@ -2,7 +2,7 @@
 
 Shake-to-feedback with annotated screenshots and voice notes, filed as GitHub issues by your FeedbackBee Worker.
 
-This package is a thin TurboModule over the native [iOS](../ios/README.md) and [Android](../android/README.md) SDKs.
+This package is a thin TurboModule over the native [iOS](../apple/README.md) and [Android](../android/README.md) SDKs.
 The sheet, screenshot, annotation, recording and upload are all native, so:
 
 - **No JS work while the sheet is open.** Nothing renders in React, nothing crosses the bridge per keystroke or stroke.

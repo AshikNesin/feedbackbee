@@ -63,9 +63,9 @@ settings.local.json
 /android/local.properties
 .hallmark/
 
-# iOS SDK and React Native package
-/ios/.build
-/ios/.swiftpm
+# Apple (iOS + macOS) SDK and React Native package
+/apple/.build
+/apple/.swiftpm
 /react-native/node_modules
 /react-native/lib
 /react-native/build

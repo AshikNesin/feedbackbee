@@ -1,6 +1,6 @@
 # Upload contract (v1): `POST /api/v1/feedback`
 
-The web widget and the Android and iOS SDKs (React Native apps use those two) post
+The web widget and the Android and Apple (iOS, macOS) SDKs (React Native apps use the native ones) post
 `multipart/form-data` to this one endpoint.
 It is public (no auth), answers CORS `*` without credentials, and is rate-limited
 to 20 reports per hour per project and IP. A project may limit which websites
@@ -25,7 +25,7 @@ can post to it (see [Allowed origins](#allowed-origins)). Implemented in
 | `metadata`             | text   | no           | JSON object, max 4 KB, 20 keys (`[A-Za-z0-9_.-]{1,40}`), values string (≤500 chars), number or boolean |
 | `url`                  | text   | no           | Page URL (web) or deep link (app), max 2048                                                            |
 | `app_version`          | text   | no           | Max 64                                                                                                 |
-| `os_name`              | text   | no           | `web`, `android`, `ios`                                                                                |
+| `os_name`              | text   | no           | `web`, `android`, `ios`, `macos`                                                                       |
 | `os_version`           | text   | no           | Max 64                                                                                                 |
 | `device_model`         | text   | no           | Max 128                                                                                                |
 | `screen_w`, `screen_h` | number | no           | Web sends the viewport size                                                                            |
@@ -59,7 +59,7 @@ for its subdomains (not the bare domain; list that too). Empty, the default,
 accepts any site. With a list, a request whose `Origin` header is not on it is
 refused with `403` before anything is stored or filed.
 
-A request without an `Origin` header passes: native apps (the Android and iOS SDKs)
+A request without an `Origin` header passes: native apps (the Android and Apple SDKs)
 send none. The check is a browser control: it stops other websites from
 using your widget's project id, not scripts, which can send any header. The
 rate limit applies to everyone.

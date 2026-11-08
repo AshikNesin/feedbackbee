@@ -2,7 +2,7 @@ import XCTest
 @testable import FeedbackBee
 
 final class FeedbackControllerTests: XCTestCase {
-    private let device = DeviceInfo(appVersion: nil, osVersion: "18.1", deviceModel: "iPhone16,1", screenWidth: 1, screenHeight: 1)
+    private let device = DeviceInfo(appVersion: nil, osName: "ios", osVersion: "18.1", deviceModel: "iPhone16,1", screenWidth: 1, screenHeight: 1)
     private let config = try! FeedbackConfig.create(projectId: "myapp", endpoint: "https://bee.example.dev")
 
     @MainActor func testPickerThenFormKeepsDraftOnBack() async {

@@ -2,6 +2,8 @@ import Foundation
 
 struct DeviceInfo: Equatable, Sendable {
     let appVersion: String?
+    /// `ios` or `macos` (the contract's `os_name`).
+    let osName: String
     let osVersion: String
     let deviceModel: String
     let screenWidth: Int
@@ -52,7 +54,7 @@ enum UploadRequestBuilder {
         return nil
     }
 
-    /// Field for field the same parts the Android SDK sends (docs/CONTRACT.md), with `os_name=ios`.
+    /// Field for field the same parts the Android SDK sends (docs/CONTRACT.md), with `os_name` `ios` or `macos`.
     static func body(for request: UploadRequest) -> MultipartBody {
         let device = request.device
         var parts: [Part] = [
@@ -64,7 +66,7 @@ enum UploadRequestBuilder {
             parts.append(.text(name: "email", value: email))
         }
         if let version = device.appVersion { parts.append(.text(name: "app_version", value: version)) }
-        parts.append(.text(name: "os_name", value: "ios"))
+        parts.append(.text(name: "os_name", value: device.osName))
         parts.append(.text(name: "os_version", value: device.osVersion))
         parts.append(.text(name: "device_model", value: device.deviceModel))
         parts.append(.text(name: "screen_w", value: String(device.screenWidth)))

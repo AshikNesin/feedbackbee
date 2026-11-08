@@ -2,7 +2,7 @@ import XCTest
 @testable import FeedbackBee
 
 final class UploadTests: XCTestCase {
-    private let device = DeviceInfo(appVersion: "1.2.3", osVersion: "18.1", deviceModel: "iPhone16,1", screenWidth: 1179, screenHeight: 2556)
+    private let device = DeviceInfo(appVersion: "1.2.3", osName: "ios", osVersion: "18.1", deviceModel: "iPhone16,1", screenWidth: 1179, screenHeight: 2556)
 
     private func render(_ body: MultipartBody) throws -> String {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("fbb-test-\(UUID().uuidString)")
@@ -67,6 +67,12 @@ final class UploadTests: XCTestCase {
         XCTAssertEqual(field("metadata"), #"{"plan":"pro"}"#)
         XCTAssertTrue(text.contains("name=\"image\"; filename=\"screenshot.png\"\r\nContent-Type: image/png"))
         XCTAssertNil(field("audio_seconds"))
+    }
+
+    func testMacReportsItsOwnOSName() throws {
+        let mac = DeviceInfo(appVersion: nil, osName: "macos", osVersion: "15.1.0", deviceModel: "Mac14,2", screenWidth: 3024, screenHeight: 1964)
+        let request = UploadRequest(project: "p", kind: .issue, text: "x", email: nil, device: mac, screenshotPNG: nil, audio: nil)
+        XCTAssertTrue(try render(UploadRequestBuilder.body(for: request)).contains("name=\"os_name\"\r\n\r\nmacos\r\n"))
     }
 
     func testPreflightRejectsOversizedAttachments() {
