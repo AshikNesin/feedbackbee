@@ -30,6 +30,9 @@ jobs:
           cache: pnpm
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+      # check:tokens shells out to ripgrep, which GitHub's ubuntu image doesn't ship.
+      - name: Install ripgrep
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
 
       - name: Typecheck (server)
         run: pnpm exec tsc --noEmit
