@@ -3,6 +3,8 @@
 # ADMIN_AUTH_KEY) are generated on first boot and kept in the local D1, and
 # ORIGIN/RP_ID come from the first request (apps/web/src/server/worker/boot.ts).
 #
-# Fine-grained PAT with Issues: Read and Write on the repos your projects use.
-# Without it, reports are stored but no issue is filed (state "issue_error").
-GITHUB_TOKEN=
+# Generate with `openssl rand -base64 32`; keep this encryption key outside D1.
+# Then connect a GitHub App in Settings. For local registration, set ORIGIN
+# to your public HTTPS tunnel origin. Without a connected app, reports are
+# stored but no issue is filed (state "issue_error").
+FEEDBACKBEE_ENCRYPTION_KEY=

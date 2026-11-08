@@ -9,8 +9,10 @@ import type { MediaStore } from "./lib/media";
  */
 export interface AppRuntime {
   media: MediaStore;
-  /** Fine-grained PAT (Issues: read/write). One per deployment, a Worker secret, never stored in D1. */
-  githubToken?: string;
+  /** Base64 32-byte encryption key, kept outside the database. */
+  encryptionKey?: string;
+  /** Canonical origin for GitHub redirects. */
+  publicOrigin?: string;
   /** Public origin for media links in GitHub issues. Default: the request's origin. */
   mediaBase?: string;
   /** Public origin of the dashboard for the "view in FeedbackBee" link. Default: the request's origin. */
@@ -22,7 +24,8 @@ let current: AppRuntime | undefined;
 export function setRuntime(media: MediaStore, env: EnvSource): void {
   current = {
     media,
-    githubToken: env.GITHUB_TOKEN || undefined,
+    encryptionKey: env.FEEDBACKBEE_ENCRYPTION_KEY || undefined,
+    publicOrigin: env.ORIGIN?.replace(/\/+$/, "") || undefined,
     mediaBase: env.MEDIA_BASE?.replace(/\/+$/, "") || undefined,
     dashboardBase: env.DASHBOARD_BASE?.replace(/\/+$/, "") || undefined,
   };

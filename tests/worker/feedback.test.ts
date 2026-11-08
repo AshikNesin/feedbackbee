@@ -1,6 +1,6 @@
-import { SELF, env } from "cloudflare:test";
+import { SELF } from "cloudflare:test";
 import { afterAll, afterEach, beforeAll, expect, test } from "vitest";
-import { ghCalls, network, stubGithub } from "./gh-server";
+import { ghCalls, network, stubGithub, stubGithubApp } from "./gh-server";
 import {
   ORIGIN,
   api,
@@ -15,11 +15,13 @@ import {
 
 // POST /api/v1/feedback: the public submit endpoint (docs/CONTRACT.md).
 
-const okGithub = () =>
-  stubGithub(() => ({
+const okGithub = () => {
+  stubGithubApp();
+  return stubGithub(() => ({
     status: 201,
     json: { number: 42, html_url: "https://github.com/ashik/myapp/issues/42" },
   }));
+};
 
 beforeAll(() => {
   network.enable();
@@ -56,7 +58,8 @@ test("a report files a labelled issue and answers 201 in the envelope", async ()
   });
   const gh = ghCalls.at(-1)!;
   expect(gh.path).toBe("/repos/ashik/myapp/issues");
-  expect(gh.auth).toBe(`Bearer ${env.GITHUB_TOKEN}`);
+  expect(gh.auth).toBe("Bearer test-installation-token");
+  expect(gh.auth).not.toContain("ghp_");
   expect(gh.body.labels).toEqual(["bug"]);
   expect(gh.body.title).toMatch(/^Issue: Cart total shows NaN/);
   expect(gh.body.body).toContain("![image 1](https://example.com/f/p/");
