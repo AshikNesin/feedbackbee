@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/d1";
 import { migrateD1 } from "@groot/core/database/d1";
 import { kv } from "@groot/core/database/schema";
 import { logger } from "@groot/core/logger";
+import { openD1 } from "../db/d1";
 import { r2Media } from "../lib/media";
 import { migrations } from "../../../drizzle";
 import { startWebApp } from "../app";
@@ -22,7 +22,7 @@ export function bootWorker(bindings: WorkerBindings, origin: string): Promise<We
     const applied = await migrateD1(bindings.DB, migrations);
     const app = startWebApp({
       env: await envSource(bindings, origin),
-      db: drizzle(bindings.DB),
+      db: openD1(bindings.DB),
       media: r2Media(bindings.MEDIA),
     });
     if (applied.length > 0) logger.info({ applied }, "Database migrations applied");
@@ -48,7 +48,7 @@ async function envSource(bindings: WorkerBindings, origin: string) {
     if (typeof value === "string") source[key] = value;
   }
   if (source.NODE_ENV !== "production") return source;
-  const db = drizzle(bindings.DB);
+  const db = openD1(bindings.DB);
   source.JWT_SECRET_KEY ||= await instanceSecret(db, "feedbackbee:jwt_secret_key");
   source.ADMIN_AUTH_KEY ||= await instanceSecret(db, "feedbackbee:admin_auth_key");
   source.ORIGIN ||= origin;
@@ -57,7 +57,7 @@ async function envSource(bindings: WorkerBindings, origin: string) {
 }
 
 /** A random secret created on first use and read back on every boot after. */
-async function instanceSecret(db: ReturnType<typeof drizzle>, key: string): Promise<string> {
+async function instanceSecret(db: ReturnType<typeof openD1>, key: string): Promise<string> {
   const read = async () => {
     const [row] = await db.select({ value: kv.value }).from(kv).where(eq(kv.key, key)).limit(1);
     return row ? (JSON.parse(row.value) as string) : undefined;

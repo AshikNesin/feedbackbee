@@ -41,7 +41,14 @@ export const JOB_ACTION_UI: Record<
   delete: { label: "Delete", icon: Trash2, destructive: true },
 };
 
-/** Patch shape for the URL-synced query params (matches the nuqs setter). */
+/**
+ * Patch shape for the URL-synced query params (matches the nuqs setter).
+ *
+ * @deprecated The jobs list filter is `useJobsFilter()`
+ * (`@groot/jobs/client/useJobsFilter`): change it through its intent setters
+ * (`setState`, `setQueue`, `setSearch`, `setPreset`, `goToPage`, `clear`),
+ * which also reset the page. Removed in the next major.
+ */
 export type JobsQueryPatch = Partial<{
   state: string;
   queue: string;

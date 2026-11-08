@@ -165,6 +165,11 @@ curl -H "Authorization: Bearer $TOKEN" $BASE/api/v1/settings
 # One setting → 200; unknown → 404
 curl -H "Authorization: Bearer $TOKEN" $BASE/api/v1/settings/app-name
 
+# Create a new key → 201 { key, value, metadata }; a key that exists → 409, its value untouched
+curl -H "Authorization: Bearer $TOKEN" -X POST $BASE/api/v1/settings \
+  -H "Content-Type: application/json" \
+  -d '{"key":"app-name","value":"My App","metadata":{"description":"Shown in the header"}}'
+
 # Create or update → 200 { key, value, metadata: { description?, updatedAt } }
 curl -H "Authorization: Bearer $TOKEN" -X PUT $BASE/api/v1/settings/app-name \
   -H "Content-Type: application/json" \

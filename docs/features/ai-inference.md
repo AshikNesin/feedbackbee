@@ -4,7 +4,7 @@ Built-in LLM access via [`@earendil-works/pi-ai`](https://github.com/earendil-wo
 
 The adapter lives in `packages/ai` (`@groot/ai`). It simplifies common operations: text completion, streaming, structured data extraction with Zod, typed prompt tasks, and embeddings.
 
-Import from the barrel (`@groot/ai`) or one of the explicit entrypoints in `packages/ai/package.json` (`@groot/ai/client`, `/capabilities`, `/messages`, `/model`, `/prompt`, `/schema`, `/types`); no other deep path resolves. `apps/web` does not depend on `@groot/ai` out of the box: add `"@groot/ai": "workspace:*"` to `apps/web/package.json` before importing it there. The pi-ai and OpenAI SDKs are dependencies of `@groot/ai` only, so app code reaches pi-ai through `ai.raw()` rather than importing it.
+Import from the barrel (`@groot/ai`) or one of the explicit entrypoints in `packages/ai/package.json` (`@groot/ai/client`, `/capabilities`, `/messages`, `/model`, `/prompt`, `/schema`, `/testing`, `/types`); no other deep path resolves. `apps/web` does not depend on `@groot/ai` out of the box: add `"@groot/ai": "workspace:*"` to `apps/web/package.json` before importing it there. The pi-ai and OpenAI SDKs are dependencies of `@groot/ai` only, so app code reaches pi-ai through `ai.raw()` rather than importing it.
 
 ## Basic usage
 
@@ -56,6 +56,8 @@ const ai = new AI({
 ```
 
 A custom model defaults to text and image input without reasoning; set `reasoning: true` or `input` in the config to change that.
+
+`model` also takes an already-resolved pi-ai model, used as-is (`baseUrl`, `headers`, `reasoning` and `input` are then ignored, and `provider` is only a label). `withModel(id)` on such a client keeps its API, provider and endpoint and swaps the id.
 
 ## Structured output (Zod)
 
@@ -149,4 +151,31 @@ const vectors = await ai.embed(["text one", "text two"]);
 const { model, complete, stream } = ai.raw();
 ```
 
+A model pi-ai knows the thinking levels of (catalog models with a `thinkingLevelMap`) gets `reasoning` as asked, and pi-ai clamps it. Any other model, such as a custom endpoint's, gets it capped at `maxReasoningEffort(model.id)` (so `"max"` becomes `"xhigh"` on `glm-5.2` and `"high"` on an unknown id), and none at all when that model takes no effort control (`kimi-k2*`, `minimax*`, ...). `clampReasoningEffort(modelId, level)` is the same rule as a function.
+
 `embed` always calls the OpenAI API, whatever `provider` and `baseUrl` say, and sends the config's `apiKey` when one is set (otherwise `OPENAI_API_KEY`). Use a separate client for embeddings when the main one holds another provider's key. `embeddingModel` in the config picks the model.
+
+## Testing code that calls the client
+
+`@groot/ai/testing` re-exports pi-ai's faux provider. It answers with scripted
+messages through the same `complete` / `stream` path a real provider takes, so
+tool-call extraction, stop reasons, streaming and the reasoning cap all run
+without a network:
+
+```typescript
+import { AI } from "@groot/ai";
+import { fauxAssistantMessage, fauxToolCall, registerFauxProvider } from "@groot/ai/testing";
+
+const faux = registerFauxProvider({ models: [{ id: "my-model", reasoning: true }] });
+const ai = new AI({ provider: "faux", model: faux.getModel() });
+
+faux.setResponses([fauxAssistantMessage(fauxToolCall("extract_data", { name: "Jane", age: 28 }))]);
+await ai.generateObject({ prompt: "Jane is 28.", schema }); // { name: "Jane", age: 28 }
+
+faux.unregister();
+```
+
+A response can also be a function of `(transcript, options, state, model)` to
+check what the client sent; `fauxAssistantMessage([], { stopReason: "error",
+errorMessage })` scripts a provider failure. `tests/server/ai/client.test.ts`
+covers the client this way.

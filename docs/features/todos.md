@@ -11,7 +11,7 @@ feature the same way, follow
 apps/web/src/server/api/todo/
 ├── todo.routes.ts   # Hono router, mounted at /api/v1/todos
 ├── todo.service.ts  # Drizzle queries + Boom errors
-├── todo.schema.ts   # Zod schemas
+├── todo.schema.ts   # Zod schemas and the `Todo` wire type the client imports
 └── todo.jobs.ts     # todo-cleanup, todo-summary handlers
 apps/web/src/server/db/schema.ts   # the `todos` table
 ```
@@ -55,7 +55,21 @@ export const createTodoSchema = z.object({
   completed: z.boolean().optional().default(false),
 });
 export const updateTodoSchema = createTodoSchema.partial();
+
+// The request bodies and the response, as the client sees them over JSON.
+export type CreateTodoInput = z.input<typeof createTodoSchema>;
+export type UpdateTodoInput = z.input<typeof updateTodoSchema>;
+export interface Todo {
+  id: number;
+  title: string;
+  completed: boolean;
+  createdAt: string; // ISO string
+  updatedAt: string;
+}
 ```
+
+`tests/server/api/todos.test.ts` checks `Todo` against the table's row type,
+so a new column fails the type check until the wire type has it.
 
 ```ts
 // todo.routes.ts
@@ -104,7 +118,7 @@ export async function create({ data }: { data: CreateTodoDTO }): Promise<Todo> {
 rather than an empty result.
 
 The router is mounted in `apps/web/src/server/app.ts` on the protected sub-app,
-which already runs `jwtAuthMiddleware`: `api.route("/todos", todoRoutes)`.
+which already runs `requireSession`: `api.route("/todos", todoRoutes)`.
 
 ## Background jobs
 
@@ -144,8 +158,14 @@ export function registerTodoJobs(): void {
 
 ## Client
 
-- `apps/web/src/client/pages/todo/` — the `Todos` page and its React Query hooks
-  (`hooks/useTodos.ts`); each mutation invalidates the `["todos"]` query.
+- `apps/web/src/client/pages/todo/` — the `Todos` page and `hooks/useTodos.ts`:
+  `useTodos()` (the `TODOS_KEY` query) and `todosApi` (`create`, `update`,
+  `remove`), typed with the wire types imported type-only from
+  `todo.schema.ts`, never copied.
+- The page runs each call through `useAction` (`@groot/shell/lib/feedback`):
+  it toasts the outcome, words a failure with `describeError` (the server's
+  message, an offline sentence, or the action's fallback), ignores a second
+  click while one runs, and invalidates `TODOS_KEY`.
 - The page is one entry in the `PAGES` list in `apps/web/src/client/App.tsx`,
   which gives it the `/todos` route and its navigation entries.
 - Requests go through `apiClient` from `@groot/shell/lib/api`, which unwraps the

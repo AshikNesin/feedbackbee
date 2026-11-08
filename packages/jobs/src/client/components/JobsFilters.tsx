@@ -9,59 +9,56 @@ import {
 } from "@groot/ui/dropdown-menu";
 import { Input } from "@groot/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@groot/ui/tabs";
-import {
-  primaryOptions,
-  secondaryOptions,
-  type JobsQueryPatch,
-  type StateTab,
-} from "@groot/jobs/client/constants";
+import { primaryOptions, secondaryOptions, STATE_TABS } from "@groot/jobs/client/constants";
 import { useAvailableJobs } from "@groot/jobs/client/queries";
+import type { JobsDatePreset, JobsFilter } from "@groot/jobs/client/useJobsFilter";
 import { useState } from "react";
 import { Calendar as CalendarIcon, Filter, MoreHorizontal, Search, X } from "lucide-react";
 
-type QueryParams = {
-  state: string;
-  queue: string;
-  search: string;
-  datePreset: string;
-};
+const DATE_PRESETS: { value: JobsDatePreset; label: string }[] = [
+  { value: "today", label: "Today" },
+  { value: "last-7-days", label: "Last 7 Days" },
+  { value: "this-month", label: "This Month" },
+  { value: "all", label: "All Time" },
+];
 
 type Props = {
-  queryParams: QueryParams;
-  setQueryParams: (patch: JobsQueryPatch) => void;
-  activeSecondaryTab?: { value: StateTab; label: string };
-  hasActiveFilters: boolean;
-  handlePresetChange: (value: string) => void;
-  handleClearFilters: () => void;
+  /** The jobs list filter (`useJobsFilter()`). */
+  filter: JobsFilter;
 };
 
 /** State tabs + search + queue + date-preset filters for the jobs list. */
-export function JobsFilters({
-  queryParams,
-  setQueryParams,
-  activeSecondaryTab,
-  hasActiveFilters,
-  handlePresetChange,
-  handleClearFilters,
-}: Props) {
+export function JobsFilters({ filter }: Props) {
+  const { activeSecondaryTab } = filter;
   const availableJobs = useAvailableJobs();
   const [queueSearch, setQueueSearch] = useState("");
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <Tabs
-        value={queryParams.state}
-        onValueChange={(value) => setQueryParams({ state: value, page: 0 })}
+        value={filter.state}
+        onValueChange={(value) => {
+          const tab = STATE_TABS.find((t) => t.value === value);
+          if (tab) filter.setState(tab.value);
+        }}
       >
-        <TabsList>
-          {primaryOptions.map((option) => (
-            <TabsTrigger key={option.value} value={option.value}>
-              {option.label}
-            </TabsTrigger>
-          ))}
+        {/* These tabs filter one list (there are no tab panels to control),
+            and the overflow menu sits beside the tab list, not inside it:
+            a tablist may only hold tabs. */}
+        <div className="bg-muted inline-flex h-9 items-center rounded-xl p-[3px]">
+          <TabsList className="h-full bg-transparent p-0">
+            {primaryOptions.map((option) => (
+              <TabsTrigger key={option.value} value={option.value} aria-controls={undefined}>
+                {option.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
+                aria-label={
+                  activeSecondaryTab ? `State: ${activeSecondaryTab.label}` : "More job states"
+                }
                 className={`inline-flex h-[calc(100%-1px)] items-center justify-center whitespace-nowrap rounded-lg border border-transparent px-1.5 py-0.5 text-sm font-medium focus-visible:outline-none ${
                   activeSecondaryTab
                     ? "bg-background text-foreground shadow-sm dark:border-input dark:bg-input/30"
@@ -77,16 +74,13 @@ export function JobsFilters({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
               {secondaryOptions.map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onSelect={() => setQueryParams({ state: option.value, page: 0 })}
-                >
+                <DropdownMenuItem key={option.value} onSelect={() => filter.setState(option.value)}>
                   {option.label}
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-        </TabsList>
+        </div>
       </Tabs>
 
       <div className="flex items-center gap-2 shrink-0">
@@ -94,8 +88,8 @@ export function JobsFilters({
           <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search..."
-            value={queryParams.search}
-            onChange={(e) => setQueryParams({ search: e.target.value, page: 0 })}
+            value={filter.search}
+            onChange={(e) => filter.setSearch(e.target.value)}
             className="pl-9"
           />
         </div>
@@ -109,7 +103,7 @@ export function JobsFilters({
               <Button variant="outline">
                 <Filter className="size-4" />
                 <span className="hidden md:inline max-w-[6rem] truncate">
-                  {queryParams.queue !== "all" ? queryParams.queue : "Queue"}
+                  {filter.queue !== "all" ? filter.queue : "Queue"}
                 </span>
               </Button>
             </DropdownMenuTrigger>
@@ -129,15 +123,12 @@ export function JobsFilters({
               </div>
               <DropdownMenuSeparator />
               <div className="max-h-[200px] overflow-y-auto">
-                <DropdownMenuItem onSelect={() => setQueryParams({ queue: "all", page: 0 })}>
+                <DropdownMenuItem onSelect={() => filter.setQueue("all")}>
                   All Queues
                 </DropdownMenuItem>
                 {availableJobs.map((jobName) =>
                   jobName.toLowerCase().includes(queueSearch.toLowerCase()) ? (
-                    <DropdownMenuItem
-                      key={jobName}
-                      onSelect={() => setQueryParams({ queue: jobName, page: 0 })}
-                    >
+                    <DropdownMenuItem key={jobName} onSelect={() => filter.setQueue(jobName)}>
                       {jobName}
                     </DropdownMenuItem>
                   ) : null,
@@ -151,34 +142,28 @@ export function JobsFilters({
             <Button variant="outline">
               <CalendarIcon className="size-4" />
               <span className="hidden md:inline">
-                {queryParams.datePreset !== "all"
-                  ? queryParams.datePreset.replace(/-/g, " ")
+                {filter.preset !== "all"
+                  ? DATE_PRESETS.find((p) => p.value === filter.preset)?.label
                   : "Date"}
               </span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => handlePresetChange("today")}>Today</DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handlePresetChange("last-7-days")}>
-              Last 7 Days
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handlePresetChange("this-month")}>
-              This Month
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => handlePresetChange("all")}>All Time</DropdownMenuItem>
+            {DATE_PRESETS.map(({ value, label }) => (
+              <DropdownMenuItem key={value} onSelect={() => filter.setPreset(value)}>
+                {label}
+              </DropdownMenuItem>
+            ))}
           </DropdownMenuContent>
         </DropdownMenu>
-        {queryParams.queue !== "all" && (
+        {filter.queue !== "all" && (
           <Badge variant="secondary" className="h-9 gap-1 px-3 whitespace-nowrap">
-            {queryParams.queue}
-            <X
-              className="size-3 cursor-pointer"
-              onClick={() => setQueryParams({ queue: "all", page: 0 })}
-            />
+            {filter.queue}
+            <X className="size-3 cursor-pointer" onClick={() => filter.setQueue("all")} />
           </Badge>
         )}
-        {hasActiveFilters && (
-          <Button variant="ghost" onClick={handleClearFilters}>
+        {filter.hasActiveFilters && (
+          <Button variant="ghost" onClick={filter.clear}>
             Clear
           </Button>
         )}

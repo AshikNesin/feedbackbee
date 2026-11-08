@@ -1,43 +1,14 @@
-import { SignJWT, jwtVerify } from "jose";
-import ms from "ms";
-import { Boom } from "../errors";
-import { env } from "../env";
-import { config } from "../config";
-import { utf8Encode } from "./encoding.utils";
-import type { AuthUser } from "../types";
+import { verifySessionToken } from "../session";
+import { sessionLifetimeMs, signSessionToken } from "../session/token";
 
-const ALGORITHM = "HS256";
+// The session token now lives in `@groot/core/session`. These aliases keep old
+// imports working until the next major.
 
-function secret(): Uint8Array {
-  return utf8Encode(env.JWT_SECRET_KEY);
-}
+/** @deprecated Sign in with `startSession` from `@groot/core/session`, or `signSessionToken` from `@groot/core/session/token`. */
+export const generateToken = signSessionToken;
 
-/** Token lifetime in milliseconds, from `config.auth.jwtExpiresIn` (e.g. "30d"). */
-export function jwtExpiresInMs(): number {
-  const parsed = ms(config.auth.jwtExpiresIn as ms.StringValue);
-  if (typeof parsed !== "number" || Number.isNaN(parsed)) {
-    throw new Error(`Invalid auth.jwtExpiresIn: ${config.auth.jwtExpiresIn}`);
-  }
-  return parsed;
-}
+/** @deprecated Use `verifySessionToken` from `@groot/core/session`, or guard routes with `requireSession`. */
+export const verifyToken = verifySessionToken;
 
-export async function generateToken(user: AuthUser): Promise<string> {
-  return new SignJWT({ userId: user.userId, email: user.email })
-    .setProtectedHeader({ alg: ALGORITHM })
-    .setIssuedAt()
-    .setExpirationTime(config.auth.jwtExpiresIn)
-    .sign(secret());
-}
-
-export async function verifyToken(token: string): Promise<AuthUser> {
-  try {
-    const { payload } = await jwtVerify(token, secret(), { algorithms: [ALGORITHM] });
-    if (typeof payload.userId !== "number" || typeof payload.email !== "string") {
-      throw Boom.unauthorized("Invalid token payload");
-    }
-    return { userId: payload.userId, email: payload.email };
-  } catch (error) {
-    if (Boom.isHttpError(error)) throw error;
-    throw Boom.unauthorized("Invalid or expired token");
-  }
-}
+/** @deprecated Use `sessionLifetimeMs` from `@groot/core/session/token`. */
+export const jwtExpiresInMs = sessionLifetimeMs;

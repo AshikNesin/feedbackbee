@@ -45,11 +45,18 @@ export type AnyModel = PiAIModel<any>;
 export interface AIConfig {
   /**
    * Provider name. For catalog models this is a pi-ai provider id
-   * (e.g. "openai", "anthropic"); for custom endpoints it's just a label.
+   * (e.g. "openai", "anthropic"); for custom endpoints or a resolved `model`
+   * it's just a label.
    */
   provider: string;
-  /** Model ID (e.g. "gpt-4o-mini", "claude-sonnet-4-6", or a gateway id like "google/gemini-3-flash-preview") */
-  model: string;
+  /**
+   * Model ID (e.g. "gpt-4o-mini", "claude-sonnet-4-6", or a gateway id like
+   * "google/gemini-3-flash-preview"), or an already-resolved pi-ai model,
+   * used as-is: one built for another provider, or pi-ai's faux model in tests
+   * (`registerFauxProvider().getModel()`). With a resolved model, `baseUrl`,
+   * `headers`, `reasoning` and `input` are ignored.
+   */
+  model: string | AnyModel;
   /** Optional API key (overrides the provider's environment variable) */
   apiKey?: string;
   /**

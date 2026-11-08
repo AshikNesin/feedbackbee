@@ -1,5 +1,321 @@
 # @groot/jobs
 
+## 3.0.0
+
+### Major Changes
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`2479a3d`](https://github.com/AshikNesin/groot/commit/2479a3d61d3555c78aa75347d610cec77a106ecf) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(jobs): the jobs list filter behind one interface, with server-side search
+  
+  - **`useJobsFilter()`** (new `@groot/jobs/client/useJobsFilter`) owns the
+    list's URL params (`?state&queue&search&datePreset&page`). Its intent
+    setters (`setState`, `setQueue`, `setSearch`, `setPreset`, `clear`) go back
+    to the first page; `goToPage` pages. `listParams()` maps the filter to the
+    list endpoint's params, and `filterKey` changes with the filter and the page
+    (`Jobs` keys `JobsTable` on it to clear the row selection).
+  - **Date presets are stored by name.** `?datePreset=today` used to be written
+    with the absolute dates of the day it was clicked, so a shared link went
+    stale; the preset is now resolved when the query runs. Old `startDate` and
+    `endDate` URL params are ignored.
+  - **Search runs on the server.** `GET /api/v1/jobs` takes `search` (a
+    substring of the job's name or id, case-insensitive; `getJobs()` takes it as
+    an option), so a search pages through every match and `total` counts them
+    all. It used to filter only the 50 rows of the current page and report that
+    page's matches as the total.
+  - **Changed props.** `JobsStats` and `JobsFilters` take `filter` (from
+    `useJobsFilter()`), and `JobsTable` takes `state`, `page` and `onPage` in
+    place of `queryParams` and `setQueryParams`. `useJobs()` returns `filter`
+    in place of `queryParams`, `setQueryParams`, `handlePresetChange`,
+    `handleClearFilters`, `activeSecondaryTab` and `hasActiveFilters` (all on
+    the filter now). `JobsQueryPatch` (`@groot/jobs/client/constants`) is
+    deprecated and removed in the next major.
+
+### Minor Changes
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`c6fffd9`](https://github.com/AshikNesin/groot/commit/c6fffd9d63951f916dec196228137b43af47b56a) Thanks [@AshikNesin](https://github.com/AshikNesin)! - refactor(jobs): one transitions module and one runner
+  
+  - New `@groot/jobs/server/transitions`: `enqueue(spec)` is the only insert into
+    `jobs` (used by `addJob()`, schedule fires and `rerun`), and
+    `apply(job | jobId, event)` runs each lifecycle action and tick outcome as one
+    compare-and-set `UPDATE … RETURNING`. It owns the not-found
+    (`JOB_NOT_FOUND`) and wrong-state (`400`, now with code
+    `JOB_ACTION_NOT_ALLOWED`) errors, and `getJobById` (re-exported from
+    `queries`).
+  - One retry policy: a job that times out while `active` now backs off like a
+    handler failure (`runAt = now + retryDelay × 2^retryCount`), logs
+    "Job <name> timed out" to `job_logs` and calls `reportError()`. Before, it was
+    retried immediately with no log line and no report. A failure is reported
+    only by the writer whose compare-and-set wins.
+  - Every transition that lands a job in `created` and due nudges the inline tick,
+    so `resumeJob()` (and `rerunJob()`, a schedule fire, a zero-delay retry) now
+    runs promptly on Workers instead of waiting for the next cron fire.
+  - Tick outcomes are guarded by the claim's `startedAt` too, so a run that
+    outlived its timeout cannot overwrite the attempt that replaced it.
+  - New `JobRunner` / `jobRunner` in `@groot/jobs/server/tick` owns the handler
+    registry, the in-flight tick and its re-run request, the poll timer and the
+    housekeeping schedule; `jobRunner.reset()` gives tests fresh state.
+    `worker.ts` is now functions over it, and `worker.ts` and `tick.ts` no longer
+    import each other.
+  - Deprecated: `clearJobHandlers()`; use `jobRunner.reset()`.
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`3541799`](https://github.com/AshikNesin/groot/commit/35417995eefbaddbd0f8bc3b0591b8c3c20f8818) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(shell): one mutation-feedback module, `@groot/shell/lib/feedback`
+  
+  Four idioms for "run, toast, invalidate" worded the same failure four ways:
+  a fixed "Unable to update setting" hid "Invalid JSON format", the jobs
+  dashboard showed "Bad Gateway", "Failed to fetch" or a raw `SyntaxError`, and
+  WebAuthn errors were worded twice. Now:
+  
+  - `describeError(error, fallback)` words every failure once: the server's
+    envelope message (`ApiError.fromServer`), an offline sentence for a request
+    that never left (`NetworkError`, which `apiClient` now throws, or a `fetch`
+    `TypeError`), a row of the one WebAuthn table (`WEBAUTHN_MESSAGES`,
+    `describeWebAuthnError`), the message of a plain `Error` the action threw,
+    else the fallback.
+  - `useAction(action, { confirm?, success?, errorTitle?, fallback, invalidate?, onSuccess? })`
+    returns `{ run, isPending }`: it confirms, runs once at a time, toasts and
+    awaits the invalidations. `toastError` and `toastSuccess` are the toasts on
+    their own.
+  - `PasskeyManager`, the settings page, the jobs dashboard (`useJobActions`,
+    `AddJobDialog`, `ScheduleJobDialog`, `ScheduledJobsPanel`) and the Todos
+    reference page use it. `useJobActions()` also returns `isPending`.
+  - `loginErrorDescription` is a 401 wrapper over `describeError`; a status-line
+    `ApiError` (not from the server) now reads as the fallback.
+  - New `parseJobData(text)` in `@groot/jobs/client/utils` refuses a payload
+    that is not JSON with a sentence.
+  - Deprecated: `useToastMutation` and `withJobToast`; both keep working and
+    now word errors with `describeError`.
+
+### Patch Changes
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`f44c850`](https://github.com/AshikNesin/groot/commit/f44c850f3f632ca54c01f6e265c643020ccfe4f8) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(core): `KvStore.take` and `KvStore.claim`, single-statement consume and claim
+  
+  - **`take(key)`** deletes a live entry and returns its value in one
+    `DELETE … RETURNING` (`undefined` when missing or expired). Of any number of
+    concurrent `take`s of one key, exactly one gets the value.
+  - **`claim(key, intervalMs)`** is one compare-and-set upsert that returns
+    `true` for at most one caller per interval, across processes and Workers
+    isolates. The value is the claim time in epoch ms; the row expires with the
+    claim.
+  - **Fix: passkey challenge replay.** Verification consumed a challenge with
+    `has()` then `delete()`, so two concurrent verifications of one challenge
+    could both pass. It now uses `take`.
+  - `@groot/jobs`: the tick's housekeeping slot is claimed with `kv.claim`
+    instead of a hand-written upsert on the `kv` table. The key and value format
+    (`jobs:housekeeping:lastRunAt`, epoch ms) are unchanged, so existing rows
+    keep working.
+- Updated dependencies [[`b3039be`](https://github.com/AshikNesin/groot/commit/b3039befd01979bcdc9f655fcf41e55a47a8e879), [`d9fcc26`](https://github.com/AshikNesin/groot/commit/d9fcc26278342e6ae725c6cda497400782548715), [`f44c850`](https://github.com/AshikNesin/groot/commit/f44c850f3f632ca54c01f6e265c643020ccfe4f8), [`3541799`](https://github.com/AshikNesin/groot/commit/35417995eefbaddbd0f8bc3b0591b8c3c20f8818), [`82718e6`](https://github.com/AshikNesin/groot/commit/82718e6c579bae0269f16d42f4e2a74c4ecdde3b), [`1abd148`](https://github.com/AshikNesin/groot/commit/1abd148fc59353dbc4b3f629af9449ec1eb25896), [`f4022b4`](https://github.com/AshikNesin/groot/commit/f4022b454292fa768d71aea5efd1a496501dfc57), [`494007f`](https://github.com/AshikNesin/groot/commit/494007f804a7ad3c83c2413b2222b1bc9d0b59ac), [`090e53c`](https://github.com/AshikNesin/groot/commit/090e53cd85acbd6cd9f755c96ead35b4d559596f), [`d58c2a8`](https://github.com/AshikNesin/groot/commit/d58c2a833a71bf8047b257f9bc9e9336a3cebd80)]:
+  - @groot/shell@3.0.0
+  - @groot/core@2.2.0
+  - @groot/ui@1.3.0
+
+## 2.0.2
+
+### Patch Changes
+
+- [#157](https://github.com/AshikNesin/groot/pull/157) [`c8f5658`](https://github.com/AshikNesin/groot/commit/c8f5658823f7a83fa42e640e4279be161d2df18c) Thanks [@AshikNesin](https://github.com/AshikNesin)! - fix(jobs): croner 11, so `?` in a schedule no longer fires every day
+  
+  croner 10 read `?` in the day-of-month or day-of-week field as `*`, so a
+  schedule like `0 0 ? * MON` ran daily. croner 11 reads it as "no constraint on
+  this field", and the job runs on Mondays only. Fixed-time schedules in a
+  daylight-saving spring-forward gap now run at the first valid time after the
+  gap (`30 2 * * *` runs at 3:00, not 3:30). `nextCronRun()` still never returns
+  the instant it starts from; new tests pin both behaviours.
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): take the latest compatible releases
+  
+  Vite+ 1.5 with Vitest 5.1, hono 4.13, jose 6.2.15, motion 14.10, Tailwind
+  4.3.5, wrangler 4.158 and jsdom 31. `@earendil-works/pi-ai` stays at 1.4.0:
+  1.5.0 drops `Type`, `TSchema` and `Static` from its `compat` entry, which
+  `@groot/ai` imports.
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): upgrade dependencies to the versions tiny-agents runs
+  
+  Every dependency groot shares with tiny-agents now matches its version, so a
+  sync no longer conflicts on version ranges.
+  
+  - **Majors.** Vite+ 1.4 with Vitest 5, Sentry 11 (`@sentry/node`,
+    `@sentry/cloudflare` and the build plugins), SimpleWebAuthn 14,
+    better-sqlite3 13, jsdom 30, `@testing-library/jest-dom` 7,
+    `@hookform/resolvers` 6, `@types/node` 26, changesets 3 (with
+    `@changesets/changelog-github` 1) and `openai` 7.
+  - **Minors and patches.** React 19.3, radix-ui 1.8, lucide-react 1.61, zod 4.6,
+    TanStack Query 5.104, the CodeMirror pins, pi-ai 1.4 and the rest.
+  - **Call sites.** Sentry 11 dropped `sendDefaultPii`; its `dataCollection`
+    defaults already attach user info, cookies and headers, so both entries just
+    drop the option. SimpleWebAuthn 14 renamed `AuthenticatorTransportFuture` to
+    `AuthenticatorTransport`.
+  - **Changesets 3** skips private packages unless asked, so
+    `.changeset/config.json` sets `privatePackages: { version: true, tag: false }`
+    to keep versioning the private kit packages (tags still come from the
+    release workflow).
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(kit): upstream the kit fixes and features made first in tiny-agents
+  
+  - **`@groot/ui`: Fluid motion in the primitives.** New `@groot/ui/motion`
+    entry (`spring` tiers, `useModalPresence`, `FluidHighlight`). `Dialog` and
+    `AlertDialog` spring in and stay mounted through their exit; `DialogContent`
+    gains `size` (`sm` 400px default, `md`, `lg`, `xl`) and `position`
+    (`center` / `top`). `TabsList` slides its selected pill (or `line`
+    underline) and shows a hover pill; `Tooltip` is an inverted chip that springs
+    in and fades out, with a 200ms provider delay; `Select`, `DropdownMenu` and
+    `Command` share one gliding row highlight; `CommandDialog` opens top-anchored
+    at `lg`, and `Command` gains a `CommandFooter` of keyboard hints. Existing
+    props are unchanged. Client tests should set
+    `MotionGlobalConfig.skipAnimations = true` (see `tests/client/setup.ts`).
+  - **`@groot/ui`: `Breadcrumbs`.** `<Breadcrumbs page={job.name}><Link to="/jobs">Jobs</Link></Breadcrumbs>`
+    places the list items and separators, so a separator can't land inside an
+    item. Storage (`@groot/shell`) and JobDetail (`@groot/jobs`) use it.
+  - **`@groot/shell`: login returns to the page that asked for it.**
+    `ProtectedRoute` passes the location to `/login`, and a successful password
+    or passkey sign-in goes back there (in-app paths only) instead of `/`.
+  - **`@groot/shell`: Inter is no longer imported by `index.css`.** Tailwind
+    inlined that `@import` before Vite saw it, so the font files were never
+    emitted and production served `index.html` in their place. Import it from
+    your client entry instead: `import "@fontsource-variable/inter";` before
+    `import "@groot/shell/index.css";`.
+  - **`@groot/shell`: fixes.** Auth pages use `min-h-dvh`; the dev demo
+    credentials have a space after the label; the page scrollbar follows the
+    theme; Storage's icon buttons have accessible names, its select column has a
+    screen-reader header, folders show `-` for Modified instead of the epoch,
+    folder names have readable contrast, and viewing a UTF-8 text file no longer
+    shows mojibake. The row buttons' names include the file name, so an e2e
+    locator like `getByRole("cell", { name })` needs `exact: true`. The passkey card title is a level-2 heading.
+  - **`@groot/jobs`: accessible state filter.** The overflow state menu sits
+    beside the tab list (a tablist may only hold tabs) and has a label.
+  - **`@groot/core`: fixes.** Storage downloads of `text/*` with no charset are
+    served as `charset=utf-8`. Login re-hashes a password stored with an older
+    PBKDF2 iteration count (`needsRehash`).
+  - **App: missing build files 404.** The Node SPA fallback answers a request for
+    a missing asset (`/assets/*`, common static extensions) with a 404 instead of
+    `index.html`, and the client reloads once when a lazy chunk fails to load
+    after a deploy.
+- Updated dependencies [[`4fda966`](https://github.com/AshikNesin/groot/commit/4fda966725221f125ccac8eaa4552dfdea5384e5), [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9), [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9), [`56dfce8`](https://github.com/AshikNesin/groot/commit/56dfce84d94dae5abb15646fa6067c193beef38f), [`b2ecb45`](https://github.com/AshikNesin/groot/commit/b2ecb452ac2ee6429a6d4c9b460a5df45b7b4a27), [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9), [`bd42693`](https://github.com/AshikNesin/groot/commit/bd426933e3274957888307f580b9949aa9ca6ffb), [`6e83765`](https://github.com/AshikNesin/groot/commit/6e83765462d2d7cab627c572fc20092f073859ba)]:
+  - @groot/shell@2.2.0
+  - @groot/core@2.1.1
+  - @groot/ui@1.2.0
+
+## 2.0.1
+
+### Patch Changes
+
+- Updated dependencies [[`b1661dd`](https://github.com/AshikNesin/groot/commit/b1661dd7e885d4a1ba3f64f6297032f6a2516c85), [`0bbf92f`](https://github.com/AshikNesin/groot/commit/0bbf92f21c56d4f7c8a0a874782a6787b8b83f53), [`4a97dbe`](https://github.com/AshikNesin/groot/commit/4a97dbef479531c72e160a000c2af0a214225ccb), [`1faa763`](https://github.com/AshikNesin/groot/commit/1faa7639c5a63dbb75f53b7006b9d551d78f845c)]:
+  - @groot/shell@2.1.0
+  - @groot/core@2.1.0
+  - @groot/ui@1.1.0
+
+## 2.0.0
+
+### Major Changes
+
+- [`28e8bd3`](https://github.com/AshikNesin/groot/commit/28e8bd3a8a45f12ce9474f6dd76b3396603cdcaa) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One HTTP-error module: `packages/core/src/errors` collapsed from six files into one `index.ts` holding `HttpError`, the `Boom` factories, the SQLite constraint mapping, the thrown-value normalisation and the error-reporting seam.
+
+  - **Breaking:** unused `Boom` factories removed (`paymentRequired`, `methodNotAllowed`, `notAcceptable`, `clientTimeout`, `gone`, `teapot`, `locked`, `illegal`, `internal`, `notImplemented`, `gatewayTimeout`). `Boom.boomify(err, { statusCode })` covers arbitrary statuses.
+  - **Breaking:** the object-form `BoomOptions` overload is gone; factories take `(message?, data?, code?)` and `code` is now any string, not just `ErrorCodeValue`.
+  - **Breaking:** `HttpError.isServer` removed (no readers); use `statusCode >= 500`.
+  - **Breaking:** `ErrorCode` keeps only the codes core itself uses (`VALIDATION_ERROR`, `NOT_FOUND`, `RATE_LIMIT_EXCEEDED`, `UPLOAD_RATE_LIMIT_EXCEEDED`, `INTERNAL_ERROR`); the `ErrorCodeEnum`/`ErrorCodeKey` aliases and `isDbConstraintError` are removed. The job-domain codes (`JOB_NOT_FOUND`, `JOB_NAME_INVALID`, `JOB_SCHEDULE_VALIDATION_ERROR`) moved from core into `@groot/jobs` as plain string codes.
+  - `toHttpError` is now the single normaliser the error handler uses: `HttpError` passes through, SQLite constraints map to 409/400, Hono's `HTTPException` keeps its status, anything else becomes a 500. `reportError`/`setErrorReporter` are unchanged.
+
+  Migration: replace removed factories with the nearest kept one or `boomify`; pass domain codes as string literals.
+
+- [`279f1ae`](https://github.com/AshikNesin/groot/commit/279f1aebbf52b4a1d25ecee2815c6da02a05d9a6) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Jobs dead-code removal.
+
+  - **Removed routes**: `GET /api/v1/jobs/status/failed` and `GET /api/v1/jobs/state/:state`. Both duplicated the list endpoint: use `GET /api/v1/jobs?state=failed` (and `limit`/`offset`). `DELETE /api/v1/jobs/state/:state` (purge) stays.
+  - **Removed server exports**: `getFailedJobs`, `getJobsByState`, `jobConfig` (read `config.jobs` from `@groot/core/config`), `workersRunning` (`startWorkers`/`stopWorkers` are the lifecycle), and the inferred `CreateJobDTO`/`ScheduleJobDTO` types (the `createJobSchema`/`scheduleJobSchema` validators stay).
+  - **Removed client exports**: `JobDataView` and the `JobsProvider` / `useJobDataLink` / `LinkResolver` / `LinkResolution` link-resolution context, with their subpaths. `JobJsonBlock` no longer takes part in link resolution — it renders the payload as plain pretty-printed JSON, so it loses its `stringifyWithLinks` export and the offset bookkeeping behind it.
+  - `JobOverview` uses the shared `formatDuration` from `@groot/shell/lib/utils`; `@groot/jobs` no longer depends on `dayjs`.
+  - **Removed tests**: `tests/server/jobs/constants.test.ts` and `validation.test.ts`; their unique assertions (the state list, `?state=` validation, limit/offset and `retryLimit` coercion) moved into `queue.test.ts` and `routes.test.ts`.
+
+- [`7d0e3ea`](https://github.com/AshikNesin/groot/commit/7d0e3eaefdb72c98948417eebda8db149e5f2d81) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Each jobs dialog owns its draft. `useJobs()` used to hold 16 pieces of state, 13 of them dialog drafts that `Jobs` passed back down as about 26 props. It now holds only the list: URL filters, the page of jobs and the row selection.
+
+  - **Removed `EditScheduledJobDialog`** (and its `@groot/jobs/client/components/EditScheduledJobDialog` subpath). `ScheduleJobDialog` does both jobs: `<ScheduleJobDialog />` creates a schedule and `<ScheduleJobDialog schedule={row} trigger={…} />` edits one. When editing, the name is fixed and the timezone is kept.
+  - **Removed `editScheduledJob()`, `PUT /api/v1/jobs/schedule/:jobName`, `jobsApi.editScheduledJob` and `editScheduledJobSchema`/`EditScheduledJobDTO`.** Schedules are keyed by name and an edit could not rename, so `scheduleJob()` / `POST /schedule` with the same `jobName` already did the same thing. It keeps `lastRunAt`, so an edit does not re-fire a run that was already made. One difference: an edit of a schedule that was deleted in the meantime now recreates it instead of answering 404.
+  - **Self-contained components**: `AddJobDialog`, `ScheduleJobDialog` (only `schedule?` and `trigger?`), `ScheduledJobsPanel` (no props) and `JobTypeSelect` (`{ id, value, onChange, disabled? }`) load, submit, toast and invalidate on their own. `JobsStats` takes `{ activeState, onSelectState }` and loads its own stats. `JobsFilters` loads job names itself and drops `availableJobs`, `queueSearch` and `setQueueSearch`. `JobsTable` takes `clearSelection` in place of `handleBulkRerun`/`handlePurge`.
+  - **`useJobs()`** no longer returns `stats`, `statsLoading`, `scheduledJobs`, `scheduledLoading`, `availableJobs`, `refreshing`, `queueSearch`, `handleRefresh`, `handlePurge`, `handleBulkRerun`, `openEditScheduledDialog`, `handleCancelScheduledJob`, `pageSize`, or any `addJob*`, `newJob*`, `scheduleJob*`, `scheduled*` or `editScheduled*` field. Its module is now `useJobs.ts`, still at the same subpath.
+  - **New `@groot/jobs/client/queries`**: `jobsKeys` (React Query keys, all under `["jobs"]`), `JOBS_STALE_TIME`, `useJobStats()`, `useAvailableJobs()` and `useScheduledJobs()`. `jobsKeys` moved here from `@groot/jobs/client/constants`.
+  - **`useJobActions()`** also returns `rerunMany(jobIds)` and `purge(state)`, both with confirmation. `stateLabel(state)` is exported from `@groot/jobs/client/constants`. `JobTypeDialogFields` is removed.
+  - **New `JobDataEditor`** (`@groot/jobs/client/components/JobDataEditor`): the CodeMirror JSON editor that the add and schedule dialogs share. The schedule dialog used a plain textarea before.
+
+- [`ec352a0`](https://github.com/AshikNesin/groot/commit/ec352a069f40a5b20a0863e5fc5cd5940d585e48) Thanks [@AshikNesin](https://github.com/AshikNesin)! - A job is identified by its id. `queueName` (a pg-boss leftover) is gone: the id is already a uuid primary key, so routes and the queue functions take it alone.
+
+  - **Routes**: `GET|DELETE /api/v1/jobs/:jobId`, `POST /:jobId/retry|cancel|resume|rerun`, `GET /:jobId/logs` (were `/:queueName/:jobId/…`). `POST /bulk-rerun` takes `{ jobIds: string[] }` and answers `[{ jobId, success, newJobId?, error? }]`. `POST /:jobId/rerun` answers `{ newJobId }` (no more `queueName`).
+  - **Queue functions**: `retryJob`, `cancelJob`, `resumeJob`, `rerunJob`, `deleteJob` now take a `jobId: string` in place of `{ queueName, jobId }`; `rerunJobs(ids: string[])` in place of `RerunJobOptions[]`; `getJobById(jobId)`. The `RerunJobOptions` type is removed; `BulkRerunResult` is keyed by `jobId`.
+  - **`jobsApi`**: every job method takes `jobId` alone; `rerunJobs(jobIds: string[])`.
+  - **Reserved job names are gone**: no route uses a name as a path segment any more, so names like `stats` or `schedule` are fine. `@groot/jobs/server/constants` and `isReservedQueueName`/`RESERVED_QUEUE_NAMES` are removed; `registerJobHandler` no longer rejects them.
+  - **Dashboard**: the detail page lives at `/jobs/:jobId` (was `/jobs/:queueName/:jobId`), and row selection is a `Set` of job ids owned by `JobsTable` (no more JSON-stringified keys built in three places). `useJobs()` no longer returns `selectedJobs`, `toggleJobSelection`, `toggleSelectAll` or `clearSelection`; `JobsTable` no longer takes them. `JobsTable` renders one accessible table for all screen sizes: each row is a `row` named `Job <name> (<short id>)` with a `Select job …` checkbox, an `Actions for job …` menu and a `View details for job …` link. The shared `JOBS_PAGE_SIZE` lives in `@groot/jobs/client/constants` (`useJobs`'s unread `pageSize` is removed).
+
+- [`0e4b35a`](https://github.com/AshikNesin/groot/commit/0e4b35ac1d7c0b935e79bff504a3cb5faed03158) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One job lifecycle module. Which action is allowed from which state now lives in `@groot/jobs/lifecycle`, and the queue, the jobs table and the job detail page all read it, so the buttons and the server rules cannot drift.
+
+  - **New `@groot/jobs/lifecycle`**: `JOB_STATES`, `JobState`, `VALID_JOB_STATES`, `isValidJobState`, `isTerminalJobState`, `JobAction`, `JOB_ACTIONS`, `canApplyJobAction(action, state)` and `allowedJobActions(state)`. Runtime-neutral, so both server and client import it. `@groot/jobs/server` re-exports it.
+  - **Moved**: `JOB_STATES`, `VALID_JOB_STATES`, `isValidJobState` and `JobState` left `@groot/jobs/server/constants`. Import them from `@groot/jobs/lifecycle` or `@groot/jobs/server`.
+  - **No lost updates**: `retryJob`, `cancelJob` and `resumeJob` are single compare-and-set updates (`WHERE id = ? AND state IN (…)`), and `deleteJob` is a single `DELETE … RETURNING`. A cancel that reaches a job the tick already completed no longer overwrites it. The status codes stay the same: 404 `JOB_NOT_FOUND` for an unknown job, 400 for a disallowed state. The 400 message is now `Cannot <action> a <state> job (allowed from: …)`.
+  - **Rerun is for finished jobs**: `rerunJob` (and each entry of `POST /bulk-rerun`) accepts only `completed` or `failed` jobs, which matches what the dashboard offers.
+  - **`useJobActions()`** (`@groot/jobs/client/useJobActions`) runs an action with the standard toast, the delete confirmation (now on the jobs table too, with the same wording as the detail page) and query invalidation. `JobActions` takes `{ job, onDeleted? }` in place of `state` plus five callbacks. `JobsTable` drops `onRetry`, `onRerun`, `onResume`, `onCancel` and `onDelete`. `useJobs()` no longer returns `handleRetry`, `handleRerun`, `handleResume`, `handleCancel` or `handleDelete`.
+  - **`useJobDetail()`** returns `{ job, logs, loading, error }`. Run actions through `useJobActions()` or `<JobActions job={job} />`. It fetches the logs right away (they used to wait 2 s for the first poll), then polls the job and its logs every 2 s while the job is `created` or `active`, and stops once the job finishes. Before, logs polled forever and the job status went stale. The module is now `useJobDetail.ts`, still at the same subpath.
+
+### Minor Changes
+
+- [`1f33ccc`](https://github.com/AshikNesin/groot/commit/1f33cccf00d1074e350194cdb03350fc4544b011) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Job housekeeping costs what it deletes, not what the tables hold.
+
+  - **Once per interval across isolates:** the 10-minute housekeeping gate was an
+    in-memory timestamp, so every fresh Workers isolate swept again, up to once
+    per cron fire. The last run time now lives in the `jobs:housekeeping:lastRunAt`
+    kv row, claimed with one compare-and-set upsert; the in-memory check stays as
+    a fast path for the Node poller.
+  - **No more orphan-log scan:** `housekeeping()`, `deleteJob()` and
+    `purgeJobsByState()` delete the logs of the jobs they remove through the new
+    `deleteJobLogs(ids)` (`@groot/jobs/server/logger`, chunked under D1's
+    100-parameter limit) instead of `DELETE … WHERE job_id NOT IN (SELECT id FROM
+jobs)`, which read every `job_logs` row. A job deleted while its handler runs
+    has its late log rows removed when the tick finishes it.
+  - **Indexes:** `kv_expires_at_idx` (`@groot/core`) and
+    `jobs_state_completed_at_idx` (`@groot/jobs`), in migration
+    `0001_housekeeping_indexes.sql`. The Worker applies it on its next first
+    request; Node on boot.
+
+  Logs orphaned before this release are no longer swept. To remove them once:
+  `DELETE FROM job_logs WHERE job_id NOT IN (SELECT id FROM jobs);`
+
+- [`b3a2a21`](https://github.com/AshikNesin/groot/commit/b3a2a210251e7557517804feda498a711591eeb8) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One wire-type source per slice: the server publishes its JSON response types once, and clients import them type-only (erased at build) instead of hand-copying shapes that drift.
+
+  - **`@groot/jobs`**: new `@groot/jobs/server/wire-types` — `Job`, `JobSchedule`, `JobLog`, `JobStats`, `BulkRerunResult`, derived from the schema rows with every timestamp as an ISO string. `@groot/jobs/client/types` re-exports them under the same names, so existing imports keep working.
+  - **`@groot/core`**: `SessionUser` (`auth.schema`), `PasskeySummary` with string dates (`passkey.schema`), `FileInfo` with a string `lastModified` plus `UploadFilesResult` (`storage.schema`) and `AppSetting` (`app-settings.schema`) are the single sources, each declared in a zod-only leaf so the client's type graph never pulls in server modules. The passkey service now serialises dates itself, matching what JSON always sent; the service modules re-export their wire types for server-side importers.
+  - **`@groot/shell`**: local copies removed — `useStorage`'s `StorageFile`/`UploadResult`, `store/auth`'s `SessionUser`, `services/passkey`'s `Passkey` and `useAppSettings`' `AppSetting` are now aliases of the core types. `@groot/shell` gains a (type-only) `@groot/core` dependency.
+
+  `AGENTS.md` documents the rule: type-only imports across the client/server boundary are allowed for wire types; each slice publishes them once, in a web-neutral leaf module, with dates as ISO strings.
+
+### Patch Changes
+
+- [`2861fa1`](https://github.com/AshikNesin/groot/commit/2861fa1b43fc745c4a83117d75587ecfcfb5df47) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One logger module: `packages/core/src/logger` collapsed from five files into one `index.ts` holding the logger, levels, breadcrumbs, the performance helper and two seams — a per-child **record sink** (`child(bindings, { sink })`, inherited by grandchildren) and the process-wide **scrubber** (`setScrubber`/`scrubValue`/`scrubText`) that runs every field and message through the app's secret redaction before anything is written.
+
+  - **Breaking:** `createRequestLogger`, `logBusinessEvent`, `clearBreadcrumbs`, `sanitizeRequestBody` and the `RequestDescriptor`/`LogBusinessEventOptions` types are removed. The request-logger middleware builds its child logger inline (`reqId`, `method`, `url`, `userAgent`, `ip` bindings unchanged); a failed request now logs one error line plus the request line instead of three.
+  - The jobs logger is now a core child logger with a persistence sink: `createJobLogger({ jobId, jobName, additionalContext })` and `flushJobLogs()` keep their signatures, argument handling and scrubbing come from core. Sinks fire regardless of the global console level (a `silent` console still leaves a job trail); rows are filtered by the sink, not the level.
+
+- [`1f59d1b`](https://github.com/AshikNesin/groot/commit/1f59d1b2190274f9a9cc362049e3ea4b29f26977) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Jobs dashboard fixes: cancelling a schedule URL-encodes the job name; the stats tiles show their state colours; a failed background poll keeps showing the loaded job instead of "Job Not Found"; persisted `fatal` log rows render as errors; the Add Job button is disabled while the request is in flight, so a double click no longer enqueues the job twice.
+
+- [`84750cd`](https://github.com/AshikNesin/groot/commit/84750cd5a3b5f8b4553b09573b3e80ebed784ce7) Thanks [@AshikNesin](https://github.com/AshikNesin)! - fix: staged secret scan, one Sentry release, `.env` in dev scripts
+
+  - The pre-commit hook runs `gitleaks protect --staged`. Without `--staged`
+    gitleaks read the working tree against the index, so already-staged content
+    (what the commit contains) was never scanned.
+  - `vite.config.ts` passes the computed release to `sentryVitePlugin`, so client
+    and server source maps upload under the same release when `SENTRY_RELEASE` is
+    unset.
+  - `pnpm dev`, `pnpm db:seed` and `pnpm db:migrate` load `.env` before resolving
+    `DATABASE_URL`; a `DATABASE_URL` in `.env` was ignored by the seed step and
+    the dev server.
+  - The client `QueryClient` no longer retries mutations, so a flaky network
+    cannot submit a POST twice.
+  - `pnpm groot:setup` treats portless as required (`pnpm dev` runs through it)
+    and installs it by default.
+  - `@groot/jobs`: a schedule without a timezone shows "Server time" on the
+    dashboard instead of "UTC", and the docs comments say what croner does (the
+    process time zone: UTC on Workers, `TZ` on Node). The no-handlers log no
+    longer names the removed `registerJobHandlers()` export.
+
+- Updated dependencies [[`5fe5d03`](https://github.com/AshikNesin/groot/commit/5fe5d0367001c380b64b4b0ed9583ba7cc0123ee), [`1a38cc2`](https://github.com/AshikNesin/groot/commit/1a38cc221122ba029a6820bcab9ea7f3ca9f402b), [`df27e7b`](https://github.com/AshikNesin/groot/commit/df27e7b99478ad44ee400f69ebd523d23a1ff404), [`a7a0f17`](https://github.com/AshikNesin/groot/commit/a7a0f1739e0de3e8b4770f81033f69cc1ef51863), [`e0a63a9`](https://github.com/AshikNesin/groot/commit/e0a63a9b46d73c1eaadee94280c12fc5f2c5b014), [`28e8bd3`](https://github.com/AshikNesin/groot/commit/28e8bd3a8a45f12ce9474f6dd76b3396603cdcaa), [`1f33ccc`](https://github.com/AshikNesin/groot/commit/1f33cccf00d1074e350194cdb03350fc4544b011), [`0eff25d`](https://github.com/AshikNesin/groot/commit/0eff25daff7315a63e28af7e419e13beac5e7ac9), [`2861fa1`](https://github.com/AshikNesin/groot/commit/2861fa1b43fc745c4a83117d75587ecfcfb5df47), [`9613dad`](https://github.com/AshikNesin/groot/commit/9613dad11d403526d08492a74b3b0546bda1c34e), [`869db96`](https://github.com/AshikNesin/groot/commit/869db96397cac115b16c05c4a4e4bf2cbfd5a1cc), [`1f59d1b`](https://github.com/AshikNesin/groot/commit/1f59d1b2190274f9a9cc362049e3ea4b29f26977), [`1f59d1b`](https://github.com/AshikNesin/groot/commit/1f59d1b2190274f9a9cc362049e3ea4b29f26977), [`a17ed96`](https://github.com/AshikNesin/groot/commit/a17ed960618f9e4bc38a57d4e8dd3f14bd16e0d7), [`cac0a3f`](https://github.com/AshikNesin/groot/commit/cac0a3f0222efb6c4442185f7bd51e05252b12c0), [`507b6dd`](https://github.com/AshikNesin/groot/commit/507b6dd55f5a3a3a26468e49fae970e7d87406c1), [`8532dc0`](https://github.com/AshikNesin/groot/commit/8532dc003cce91cc872b4a2508e5f5f5c7fc4529), [`f6a363f`](https://github.com/AshikNesin/groot/commit/f6a363f2d968f893756c723aa7abc4a172d4791f), [`becdce4`](https://github.com/AshikNesin/groot/commit/becdce4363122d09dd588cbb8eea3806be8c8ea7), [`29c96e1`](https://github.com/AshikNesin/groot/commit/29c96e120320efe5da8d04bfa75caaeb97a9409a), [`b3a2a21`](https://github.com/AshikNesin/groot/commit/b3a2a210251e7557517804feda498a711591eeb8)]:
+  - @groot/shell@2.0.0
+  - @groot/ui@1.0.0
+  - @groot/core@2.0.0
+
 ## 1.0.1
 
 ### Patch Changes

@@ -1,256 +1,105 @@
-import { useMemo, useRef, useState } from "react";
-import { parseAsString, useQueryState } from "nuqs";
-import { apiClient } from "@groot/shell/lib/api";
-import { toast } from "sonner";
-import { useConfirm } from "@groot/ui/primitives";
-import {
-  useCreateFolder,
-  useDeleteFiles,
-  useDeleteFolder,
-  useRenameFile,
-  useStorageFiles,
-  useUploadFiles,
-} from "./useStorage";
+import { useRef } from "react";
+import { toastError, toastSuccess } from "@groot/shell/lib/feedback";
+import { downloadFile, viewFile, type StorageFile } from "./useStorage";
+import { useStorageBrowser } from "./useStorageBrowser";
 
-/** Download a file via a programmatic blob URL. */
+/**
+ * Download a file via a programmatic blob URL; toasts the outcome, never rejects.
+ *
+ * @deprecated Use `actions.download(file)` from `useStorageBrowser()`, or
+ * `downloadFile(filePath, name)` from `./useStorage` (it rejects instead of toasting).
+ */
 export async function handleDownload(filePath: string, name: string): Promise<void> {
   try {
-    const blob = await apiClient.getBlob("/storage/files/download", { filePath });
-    const blobUrl = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = name;
-    link.click();
-    window.URL.revokeObjectURL(blobUrl);
-    toast.success("Success", { description: "File downloaded successfully" });
+    await downloadFile(filePath, name);
+    toastSuccess({ title: "Downloaded", description: "File downloaded successfully" });
   } catch (error) {
-    console.error(error);
-    toast.error("Download failed", { description: "Unable to download file" });
+    toastError(error, { title: "Download failed", fallback: "Unable to download file" });
   }
 }
 
-/** Open a file in a new tab. Opens the tab before the await so the browser ties
- * it to the click's user activation — opening after an await is popup-blocked. */
+/**
+ * Open a file in a new tab; toasts a failure, never rejects.
+ *
+ * @deprecated Use `actions.view(file)` from `useStorageBrowser()`, or
+ * `viewFile(filePath)` from `./useStorage` (it rejects instead of toasting).
+ */
 export async function handleView(filePath: string): Promise<void> {
-  const win = window.open("", "_blank");
   try {
-    const blob = await apiClient.getBlob("/storage/files/download", { filePath });
-    const blobUrl = window.URL.createObjectURL(blob);
-    if (win) {
-      win.location.href = blobUrl;
-    } else {
-      window.location.href = blobUrl; // popup blocked — fall back to same tab
-    }
-    // The new tab has loaded the blob by the time this fires; release it so the
-    // blob data isn't pinned for the page's lifetime (matches handleDownload).
-    setTimeout(() => window.URL.revokeObjectURL(blobUrl), 2000);
+    await viewFile(filePath);
   } catch (error) {
-    win?.close();
-    console.error(error);
-    toast.error("View failed", { description: "Unable to view file" });
+    toastError(error, { title: "View failed", fallback: "Unable to view file" });
   }
 }
 
-/** All state, mutations, and handlers for the Storage page. */
+/** A stand-in for a listing entry the caller named by key and name only. */
+function fileFor(files: StorageFile[], key: string, name: string): StorageFile {
+  return (
+    files.find((file) => file.key === key) ?? {
+      key,
+      name,
+      size: 0,
+      lastModified: new Date(0).toISOString(),
+      isDirectory: false,
+    }
+  );
+}
+
+/**
+ * The old flat surface of the Storage page, kept on top of `useStorageBrowser`.
+ * It gains the browser's fixes: the selection only counts files of the open
+ * folder, and a single-file delete confirms and leaves the selection.
+ * `createFolder` and `renameFile` now carry only `isPending`.
+ *
+ * @deprecated Use `useStorageBrowser()`, which returns
+ * `{ files, path, crumbs, selection, dialog, actions, fileActions, pending }`.
+ */
 export function useStorageActions() {
-  const [currentPath, setCurrentPath] = useQueryState("path", parseAsString.withDefault(""));
-  const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [folderDialogOpen, setFolderDialogOpen] = useState(false);
-  const [renameTarget, setRenameTarget] = useState<{ key: string; name: string } | null>(null);
+  const browser = useStorageBrowser();
+  const { files, path, selection, dialog, actions, pending } = browser;
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
-  const confirm = useConfirm();
-
-  const { data: files = [], isLoading, refetch: refetchFiles } = useStorageFiles(currentPath);
-  const uploadFiles = useUploadFiles();
-  const deleteFiles = useDeleteFiles();
-  const deleteFolder = useDeleteFolder();
-  const createFolder = useCreateFolder();
-  const renameFile = useRenameFile();
-
-  const breadcrumbs = useMemo(() => {
-    if (!currentPath) return [];
-    const parts = currentPath.split("/").filter(Boolean);
-    return parts.map((part, index) => ({
-      name: part,
-      path: `${parts.slice(0, index + 1).join("/")}/`,
-    }));
-  }, [currentPath]);
-
-  const fileCount = files.filter((f) => !f.isDirectory).length;
-
-  const navigateToFolder = (path: string) => {
-    setCurrentPath(path);
-    setSelectedFiles(new Set());
-  };
-
-  const toggleFileSelection = (fileKey: string) => {
-    const newSelection = new Set(selectedFiles);
-    if (newSelection.has(fileKey)) {
-      newSelection.delete(fileKey);
-    } else {
-      newSelection.add(fileKey);
-    }
-    setSelectedFiles(newSelection);
-  };
-
-  const selectAllFiles = () => {
-    const allFileKeys = files.flatMap((f) => (f.isDirectory ? [] : [f.key]));
-    setSelectedFiles(new Set(allFileKeys));
-  };
-
-  const clearSelection = () => setSelectedFiles(new Set());
-
-  const handleUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const filesList = event.target.files;
-    if (!filesList || !filesList.length) return;
-    const files = Array.from(filesList);
-    uploadFiles
-      .mutateAsync({ files, folder: currentPath })
-      .then(
-        (result) => ({
-          successCount: result.uploadedFiles.length,
-          failureCount: result.failedFiles.length,
-        }),
-        (error: unknown) => {
-          console.error(error);
-          return { successCount: 0, failureCount: files.length };
-        },
-      )
-      .then(({ successCount, failureCount }) => {
-        if (files.length === 1) {
-          if (failureCount) {
-            toast.error("Upload failed", { description: "Unable to upload file" });
-          } else {
-            toast.success("Upload complete", {
-              description: `${files[0].name} uploaded successfully`,
-            });
-          }
-        } else {
-          const description = `${successCount} uploaded${
-            failureCount ? `, ${failureCount} failed` : ""
-          }`;
-          if (failureCount) {
-            toast.error("Bulk upload complete", { description });
-          } else {
-            toast.success("Bulk upload complete", { description });
-          }
-        }
-      })
-      .finally(() => {
-        event.target.value = "";
-      });
-  };
-
-  const handleDeleteFile = async (key: string) => {
-    try {
-      await deleteFiles.mutateAsync([key]);
-      toast.success("Deleted", { description: "File removed" });
-    } catch (error) {
-      console.error(error);
-      toast.error("Delete failed", { description: "Unable to delete file" });
-    }
-  };
-
-  const handleDeleteSelected = async () => {
-    if (selectedFiles.size === 0) return;
-    if (
-      !(await confirm({
-        title: `Delete ${selectedFiles.size} file${selectedFiles.size === 1 ? "" : "s"}?`,
-        description: "Selected files will be permanently removed.",
-        confirmLabel: "Delete",
-        destructive: true,
-      }))
-    )
-      return;
-
-    try {
-      await deleteFiles.mutateAsync(Array.from(selectedFiles));
-      toast.success("Deleted", { description: `${selectedFiles.size} file(s) removed` });
-      clearSelection();
-    } catch (error) {
-      console.error(error);
-      toast.error("Delete failed", { description: "Unable to delete files" });
-    }
-  };
-
-  const handleDeleteFolder = async (folderKey: string) => {
-    if (
-      !(await confirm({
-        title: `Delete folder "${folderKey}"?`,
-        description: "The folder and everything inside it will be permanently deleted.",
-        confirmLabel: "Delete",
-        destructive: true,
-      }))
-    )
-      return;
-    try {
-      await deleteFolder.mutateAsync(folderKey);
-      toast.success("Folder deleted", { description: folderKey });
-    } catch (error) {
-      console.error(error);
-      toast.error("Delete failed", { description: "Unable to delete folder" });
-    }
-  };
-
-  const handleCreateFolder = async (name: string) => {
-    const trimmed = name.trim().replace(/\/+$/u, "");
-    if (!trimmed) return;
-    const path = `${currentPath}${trimmed}/`;
-    try {
-      await createFolder.mutateAsync(path);
-      toast.success("Folder created", { description: path });
-      setFolderDialogOpen(false);
-    } catch (error) {
-      console.error(error);
-      toast.error("Failed to create folder", { description: "Please try again" });
-    }
-  };
-
-  const handleRename = async (newName: string) => {
-    if (!renameTarget || !newName.trim()) return;
-    const newPath = `${currentPath}${newName.trim()}`;
-    try {
-      await renameFile.mutateAsync({ oldPath: renameTarget.key, newPath });
-      toast.success("File renamed", {
-        description: `${renameTarget.name} → ${newName.trim()}`,
-      });
-      setRenameTarget(null);
-      clearSelection();
-    } catch (error) {
-      console.error(error);
-      toast.error("Rename failed", { description: "Unable to rename file" });
-    }
-  };
-
-  const startRename = (key: string, name: string) => {
-    setRenameTarget({ key, name });
-  };
+  const renameTarget =
+    dialog?.kind === "rename" ? { key: dialog.file.key, name: dialog.file.name } : null;
 
   return {
     files,
-    isLoading,
-    refetchFiles,
-    breadcrumbs,
-    fileCount,
-    currentPath,
-    selectedFiles,
-    folderDialogOpen,
-    setFolderDialogOpen,
+    isLoading: browser.isLoading,
+    refetchFiles: actions.refresh,
+    breadcrumbs: browser.crumbs,
+    fileCount: selection.fileCount,
+    currentPath: path,
+    selectedFiles: new Set(selection.keys),
+    folderDialogOpen: dialog?.kind === "createFolder",
+    setFolderDialogOpen: (open: boolean) =>
+      open ? actions.openDialog({ kind: "createFolder" }) : actions.closeDialog(),
     renameTarget,
-    setRenameTarget,
+    setRenameTarget: (target: { key: string; name: string } | null) =>
+      target
+        ? actions.openDialog({ kind: "rename", file: fileFor(files, target.key, target.name) })
+        : actions.closeDialog(),
     uploadInputRef,
-    createFolder,
-    renameFile,
-    navigateToFolder,
-    toggleFileSelection,
-    selectAllFiles,
-    clearSelection,
-    handleUpload,
-    handleDeleteFile,
-    handleDeleteSelected,
-    handleDeleteFolder,
-    handleCreateFolder,
-    handleRename,
-    startRename,
+    createFolder: { isPending: pending.createFolder },
+    renameFile: { isPending: pending.rename },
+    navigateToFolder: actions.open,
+    toggleFileSelection: selection.toggle,
+    selectAllFiles: selection.selectAll,
+    clearSelection: selection.clear,
+    handleUpload: (event: React.ChangeEvent<HTMLInputElement>) => {
+      const input = event.target;
+      void actions.upload(Array.from(input.files ?? [])).finally(() => {
+        input.value = "";
+      });
+    },
+    handleDeleteFile: (key: string) =>
+      actions.removeFile(fileFor(files, key, key.slice(key.lastIndexOf("/") + 1))),
+    handleDeleteSelected: actions.removeSelection,
+    handleDeleteFolder: (folderKey: string) =>
+      actions.removeFolder({ ...fileFor(files, folderKey, folderKey), isDirectory: true }),
+    handleCreateFolder: actions.createFolder,
+    handleRename: async (newName: string) => {
+      if (dialog?.kind === "rename") await actions.rename(dialog.file, newName);
+    },
+    startRename: (key: string, name: string) =>
+      actions.openDialog({ kind: "rename", file: fileFor(files, key, name) }),
   };
 }

@@ -1,4 +1,5 @@
 import { apiClient } from "@groot/shell/lib/api";
+import { describeWebAuthnError } from "@groot/shell/lib/feedback";
 import { startRegistration } from "@simplewebauthn/browser";
 import type {
   PublicKeyCredentialCreationOptionsJSON,
@@ -43,14 +44,10 @@ class PasskeyService {
 
       return passkey;
     } catch (error: unknown) {
-      if (error instanceof Error && error.name === "NotAllowedError") {
-        throw new Error("Passkey registration was cancelled or not allowed. Please try again.");
-      }
-      if (error instanceof Error && error.name === "NotSupportedError") {
-        throw new Error(
-          "Passkeys are not supported in this browser. Please use a modern browser that supports WebAuthn.",
-        );
-      }
+      // Reword a WebAuthn failure from the shell's one table, keeping the
+      // browser's error as the cause.
+      const message = describeWebAuthnError(error);
+      if (message) throw new Error(message, { cause: error });
       throw error;
     }
   }

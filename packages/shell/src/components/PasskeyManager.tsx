@@ -15,7 +15,6 @@ import { Input } from "@groot/ui/input";
 import { Label } from "@groot/ui/label";
 import { Badge } from "@groot/ui/badge";
 import { Skeleton, SkeletonCard, SkeletonList } from "@groot/ui/loading-skeleton";
-import { useConfirm } from "@groot/ui/primitives";
 import {
   Cloud,
   KeyRound,
@@ -28,10 +27,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { z } from "zod";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Form, FormField } from "@groot/ui/form";
 import { formatDisplayDate } from "@groot/shell/lib/utils";
-import { useToastMutation } from "@groot/shell/hooks/useToastMutation";
+import { useAction } from "@groot/shell/lib/feedback";
 import { type Passkey, passkeyService } from "@groot/shell/services/passkey";
 
 const PASSKEYS_KEY = ["passkeys"] as const;
@@ -74,8 +73,6 @@ function PasskeyManagerSkeleton() {
 }
 
 export function PasskeyManager() {
-  const queryClient = useQueryClient();
-  const confirm = useConfirm();
   const passkeysQuery = useQuery({
     queryKey: PASSKEYS_KEY,
     queryFn: () => passkeyService.listPasskeys(),
@@ -86,58 +83,41 @@ export function PasskeyManager() {
   const [newPasskeyName, setNewPasskeyName] = useState("");
   const [passkeyToEdit, setPasskeyToEdit] = useState<Passkey | null>(null);
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: PASSKEYS_KEY });
-
-  const addMutation = useToastMutation(
-    (name: string | undefined) => passkeyService.registerPasskey(name),
-    {
-      success: "Passkey added successfully",
-      error: { title: "Add failed", description: "Unable to add passkey" },
-      onSuccess: invalidate,
-    },
-  );
-
-  const deleteMutation = useToastMutation((id: number) => passkeyService.deletePasskey(id), {
-    success: "Passkey deleted successfully",
-    error: { title: "Delete failed", description: "Unable to delete passkey" },
-    onSuccess: invalidate,
+  const add = useAction((name: string | undefined) => passkeyService.registerPasskey(name), {
+    success: "Passkey added successfully",
+    errorTitle: "Add failed",
+    fallback: "Unable to add passkey",
+    invalidate: [PASSKEYS_KEY],
+    onSuccess: () => setNewPasskeyName(""),
   });
 
-  const updateNameMutation = useToastMutation(
-    (vars: { id: number; name: string }) => passkeyService.updatePasskeyName(vars.id, vars.name),
-    {
-      success: "Passkey name updated successfully",
-      error: { title: "Update failed", description: "Unable to update passkey name" },
-      onSuccess: invalidate,
-    },
-  );
-
-  const handleAddPasskey = () => {
-    addMutation.mutate(newPasskeyName || undefined, {
-      onSuccess: () => setNewPasskeyName(""),
-    });
-  };
-
-  const handleDeletePasskey = async (passkey: Passkey) => {
-    const confirmed = await confirm({
+  const remove = useAction((passkey: Passkey) => passkeyService.deletePasskey(passkey.id), {
+    confirm: (passkey) => ({
       title: "Delete passkey",
       description: `Are you sure you want to delete “${passkey.credentialName || "this passkey"}”? You won’t be able to use it to sign in anymore.`,
       confirmLabel: "Delete",
       destructive: true,
-    });
-    if (confirmed) deleteMutation.mutate(passkey.id);
-  };
+    }),
+    success: "Passkey deleted successfully",
+    errorTitle: "Delete failed",
+    fallback: "Unable to delete passkey",
+    invalidate: [PASSKEYS_KEY],
+  });
+
+  const rename = useAction(
+    (vars: { id: number; name: string }) => passkeyService.updatePasskeyName(vars.id, vars.name),
+    {
+      success: "Passkey name updated successfully",
+      errorTitle: "Update failed",
+      fallback: "Unable to update passkey name",
+      invalidate: [PASSKEYS_KEY],
+      onSuccess: () => setPasskeyToEdit(null),
+    },
+  );
 
   const handleUpdatePasskeyName = (name: string) => {
     if (!passkeyToEdit) return;
-    updateNameMutation.mutate(
-      { id: passkeyToEdit.id, name },
-      {
-        onSuccess: () => {
-          setPasskeyToEdit(null);
-        },
-      },
-    );
+    void rename.run({ id: passkeyToEdit.id, name });
   };
 
   if (isLoading) {
@@ -149,7 +129,7 @@ export function PasskeyManager() {
       {/* Add a passkey */}
       <Card>
         <CardHeader className="border-b px-5 pb-4">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle aria-level={2} className="flex items-center gap-2">
             <Fingerprint className="size-4 text-primary" />
             Add a passkey
           </CardTitle>
@@ -167,12 +147,15 @@ export function PasskeyManager() {
               placeholder="e.g. My iPhone, Work Laptop"
               value={newPasskeyName}
               onChange={(e) => setNewPasskeyName(e.target.value)}
-              disabled={addMutation.isPending}
+              disabled={add.isPending}
             />
           </div>
-          <Button onClick={handleAddPasskey} disabled={addMutation.isPending}>
+          <Button
+            onClick={() => void add.run(newPasskeyName || undefined)}
+            disabled={add.isPending}
+          >
             <Plus className="size-3.5" />
-            {addMutation.isPending ? "Adding…" : "Add passkey"}
+            {add.isPending ? "Adding…" : "Add passkey"}
           </Button>
         </CardContent>
       </Card>
@@ -244,8 +227,8 @@ export function PasskeyManager() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => handleDeletePasskey(passkey)}
-                      disabled={!passkey.canDelete || deleteMutation.isPending}
+                      onClick={() => void remove.run(passkey)}
+                      disabled={!passkey.canDelete || remove.isPending}
                       title={
                         passkey.canDelete
                           ? undefined
@@ -286,8 +269,8 @@ export function PasskeyManager() {
               <Button type="button" variant="outline" onClick={() => setPasskeyToEdit(null)}>
                 Cancel
               </Button>
-              <Button type="submit" disabled={updateNameMutation.isPending}>
-                {updateNameMutation.isPending ? "Saving…" : "Save"}
+              <Button type="submit" disabled={rename.isPending}>
+                {rename.isPending ? "Saving…" : "Save"}
               </Button>
             </DialogFooter>
           </Form>

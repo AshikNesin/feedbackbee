@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { cn } from "@groot/ui/lib/utils";
 import { Circle, PanelLeftClose, PanelLeft } from "lucide-react";
-import type { NavDestination, ShellBrand } from "@groot/shell/lib/shell-config";
+import { isNavActive, type NavDestination, type ShellBrand } from "@groot/shell/lib/shell-config";
 import { CommandPaletteTrigger } from "./CommandPalette";
 
 interface SidebarNavProps {
@@ -46,8 +46,7 @@ export function SidebarNav({
   footer,
   brand,
 }: SidebarNavProps) {
-  const isActive = (item: NavDestination) =>
-    pathname === item.to || pathname.startsWith(item.to + "/");
+  const isActive = (item: NavDestination) => isNavActive(pathname, item.to);
 
   const { icon: BrandMark, to: brandTo, label: brandLabel } = brand;
 

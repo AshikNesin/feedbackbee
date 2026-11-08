@@ -35,4 +35,34 @@ describe("settings API", () => {
       404,
     );
   });
+
+  it("creates a setting once and refuses an existing key without touching it", async () => {
+    const { token } = await signIn(app);
+
+    const created = await api(app, "/api/v1/settings", {
+      method: "POST",
+      json: { key: "flags", value: { beta: true }, metadata: { description: "Feature flags" } },
+      token,
+    });
+    expect(created.status).toBe(201);
+    expect(created.body.data).toMatchObject({ key: "flags", value: { beta: true } });
+
+    const again = await api(app, "/api/v1/settings", {
+      method: "POST",
+      json: { key: "flags", value: {} },
+      token,
+    });
+    expect(again.status).toBe(409);
+    const kept = await api(app, "/api/v1/settings/flags", { token });
+    expect(kept.body.data).toMatchObject({ value: { beta: true } });
+
+    // PUT keeps its upsert semantics for saving.
+    const saved = await api(app, "/api/v1/settings/flags", {
+      method: "PUT",
+      json: { value: { beta: false } },
+      token,
+    });
+    expect(saved.status).toBe(200);
+    expect(saved.body.data).toMatchObject({ value: { beta: false } });
+  });
 });

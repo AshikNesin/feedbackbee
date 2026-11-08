@@ -30,8 +30,9 @@ const lines = [
   "",
 ];
 writeFileSync(`${OUT_DIR}/index.ts`, lines.join("\n"));
-// Format like the pre-commit hook would, so CI's drift check sees no diff.
-spawnSync("pnpm", ["exec", "vp", "fmt", `${OUT_DIR}/index.ts`], {
+// drizzle-kit writes JSON the formatter rewrites: format the whole folder like
+// the pre-commit hook would, so `pnpm check` and CI's drift check see no diff.
+spawnSync("pnpm", ["exec", "vp", "fmt", OUT_DIR], {
   stdio: "ignore",
   shell: process.platform === "win32",
 });

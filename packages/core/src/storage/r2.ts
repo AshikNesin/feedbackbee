@@ -1,4 +1,4 @@
-import type { R2Bucket, R2Object } from "@cloudflare/workers-types";
+import type { R2Bucket, R2ListOptions, R2Object } from "@cloudflare/workers-types";
 import {
   bodyContentType,
   bodyToBytes,
@@ -52,13 +52,12 @@ export function r2Storage(bucket: R2Bucket): StorageAdapter {
     },
 
     async list(options: ListOptions = {}): Promise<ListResult> {
-      const listOptions = {
+      const listOptions: R2ListOptions = {
         prefix: options.prefix,
         delimiter: options.delimiter,
         cursor: options.cursor,
         limit: Math.min(options.limit ?? MAX_LIST_LIMIT, MAX_LIST_LIMIT),
-        // Without it, listed objects carry no content type. The runtime supports
-        // it; the default (oldest compat date) typings do not declare it.
+        // Without it, listed objects carry no content type.
         include: ["httpMetadata"],
       };
       const page = await bucket.list(listOptions);

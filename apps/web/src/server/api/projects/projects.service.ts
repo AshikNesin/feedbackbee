@@ -4,7 +4,7 @@ import { batch, db, feedback, projects, type LabelsMap, type Project } from "../
 import { repositoryAccess } from "../github/github.client";
 import type { CreateProjectInput, UpdateProjectInput } from "./projects.schema";
 
-export const DEFAULT_LABELS: LabelsMap = {
+const DEFAULT_LABELS: LabelsMap = {
   issue: "bug",
   feature_request: "enhancement",
   other: "feedback",

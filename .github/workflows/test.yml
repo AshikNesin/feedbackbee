@@ -34,32 +34,10 @@ jobs:
       - name: Install ripgrep
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ripgrep
 
-      - name: Typecheck (server)
-        run: pnpm exec tsc --noEmit
-      - name: Typecheck (client)
-        run: pnpm typecheck:client
-      - name: Typecheck coverage
-        run: pnpm exec tsx scripts/check-typecheck-coverage.ts
-      - name: Typecheck kit consumers
-        run: pnpm typecheck:kit
-      - name: Kit export guard
-        run: pnpm exec tsx scripts/check-kit-exports.ts
-      - name: Changeset gate
-        run: pnpm check:changesets --base origin/${{ github.base_ref || 'main' }}
-      - name: Checks coverage
-        run: pnpm check:coverage
-      - name: Lint & format check
-        run: pnpm check
-      - name: Design tokens
-        run: pnpm check:tokens
-      - name: Migrations are up to date with the schema
-        run: |
-          pnpm db:generate --name ci-check
-          if git status --porcelain apps/web/drizzle | grep -q .; then
-            echo "::error::Schema changed without a migration. Run 'pnpm db:generate' and commit apps/web/drizzle."
-            git status --porcelain apps/web/drizzle
-            exit 1
-          fi
+      # Every static check (typechecks, lint, doc refs, dead code, migrations, ...)
+      # is one line in scripts/gates.mjs; this runs them all, as locally.
+      - name: Static gates (scripts/gates.mjs)
+        run: pnpm verify:static
 
       - name: Server tests
         run: pnpm test

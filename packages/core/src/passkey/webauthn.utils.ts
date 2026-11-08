@@ -1,6 +1,6 @@
 import {
   type AuthenticationResponseJSON,
-  type AuthenticatorTransportFuture,
+  type AuthenticatorTransport,
   type RegistrationResponseJSON,
   generateAuthenticationOptions,
   generateRegistrationOptions,
@@ -11,8 +11,8 @@ import { config } from "../config";
 import type { Passkey } from "../database";
 import type { PasskeyKind } from "./passkey.schema";
 
-function transports(passkey: Passkey): AuthenticatorTransportFuture[] {
-  return passkey.transports as AuthenticatorTransportFuture[];
+function transports(passkey: Passkey): AuthenticatorTransport[] {
+  return passkey.transports as AuthenticatorTransport[];
 }
 
 export async function generatePasskeyRegistrationOptions(

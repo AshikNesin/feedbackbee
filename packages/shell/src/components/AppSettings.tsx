@@ -12,10 +12,12 @@ import { Input } from "@groot/ui/input";
 import { Form, FormField, Field } from "@groot/ui/form";
 import { Skeleton, SkeletonCard, SkeletonList } from "@groot/ui/loading-skeleton";
 import { useConfirm } from "@groot/ui/primitives";
-import { Plus, RefreshCw, Search, Trash2, Save, FileJson } from "lucide-react";
-import { lazy, Suspense } from "react";
+import { Plus, RefreshCw, Search, Trash2, Save, FileJson, Undo2 } from "lucide-react";
+import { lazy, Suspense, useState } from "react";
 import { z } from "zod";
-import { useAppSettings } from "@groot/shell/hooks/useAppSettings";
+import { useAppSettingsData } from "@groot/shell/hooks/useAppSettingsData";
+import { useSettingDraft } from "@groot/shell/hooks/useSettingDraft";
+import { useAction } from "@groot/shell/lib/feedback";
 import { cn } from "@groot/ui/lib/utils";
 
 const settingKeySchema = z.object({
@@ -65,20 +67,75 @@ function AppSettingsSkeleton() {
 }
 
 export function AppSettings() {
-  const s = useAppSettings();
+  const data = useAppSettingsData();
   const confirm = useConfirm();
 
-  const handleDelete = async () => {
-    const confirmed = await confirm({
+  // Editor state: which setting is open, the list filter, the new-setting form.
+  const [userSelectedKey, setUserSelectedKey] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showNewSettingForm, setShowNewSettingForm] = useState(false);
+
+  // Selection: the user's explicit choice, else the first setting once loaded.
+  const selectedKey = userSelectedKey ?? data.settings[0]?.key ?? null;
+  const selected = selectedKey ? data.get(selectedKey) : null;
+  const draft = useSettingDraft(selected);
+
+  const filteredSettings = data.settings.filter((setting) =>
+    setting.key.toLowerCase().includes(searchQuery.toLowerCase()),
+  );
+
+  const save = useAction(
+    (key: string) => data.save(key, draft.parse(), draft.description || undefined),
+    {
+      success: (saved) => `"${saved.key}" updated successfully`,
+      errorTitle: "Save failed",
+      fallback: "Unable to update setting",
+    },
+  );
+
+  const remove = useAction((key: string) => data.remove(key), {
+    confirm: (key) => ({
       title: "Delete setting",
-      description: `Are you sure you want to delete “${s.selectedKey}”? This action cannot be undone.`,
+      description: `Are you sure you want to delete “${key}”? This action cannot be undone.`,
       confirmLabel: "Delete",
       destructive: true,
+    }),
+    success: "Setting deleted successfully",
+    errorTitle: "Delete failed",
+    fallback: "Unable to delete setting",
+    onSuccess: () => setUserSelectedKey(null),
+  });
+
+  const create = useAction((key: string) => data.create(key, {}, "New setting"), {
+    success: (created) => `"${created.key}" created successfully`,
+    errorTitle: "Create failed",
+    fallback: "Unable to create setting",
+    onSuccess: (created) => {
+      setUserSelectedKey(created.key);
+      setShowNewSettingForm(false);
+    },
+  });
+
+  /** Leaving a dirty draft (another setting, a new one) asks first. */
+  const leaveDraft = async (): Promise<boolean> =>
+    !draft.isDirty ||
+    confirm({
+      title: "Discard unsaved changes?",
+      description: `Your edits to “${selectedKey}” have not been saved.`,
+      confirmLabel: "Discard",
+      destructive: true,
     });
-    if (confirmed) s.confirmDelete();
+
+  const selectKey = async (key: string) => {
+    if (key === selectedKey) return;
+    if (await leaveDraft()) setUserSelectedKey(key);
   };
 
-  if (s.isLoading) {
+  const createSetting = async (key: string) => {
+    if (await leaveDraft()) await create.run(key);
+  };
+
+  if (data.isLoading) {
     return <AppSettingsSkeleton />;
   }
 
@@ -91,19 +148,19 @@ export function AppSettings() {
           <span>Application configuration stored as JSON.</span>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => s.refresh()}>
+          <Button variant="outline" size="sm" onClick={() => void data.refresh()}>
             <RefreshCw className="size-3.5" />
             Refresh
           </Button>
-          <Button size="sm" onClick={() => s.setShowNewSettingForm(true)}>
+          <Button size="sm" onClick={() => setShowNewSettingForm(true)}>
             <Plus className="size-3.5" />
-            Add Setting
+            Add setting
           </Button>
         </div>
       </div>
 
       {/* Add-setting inline form */}
-      {s.showNewSettingForm && (
+      {showNewSettingForm && (
         <Card>
           <CardHeader className="border-b">
             <CardTitle className="text-sm">New setting</CardTitle>
@@ -115,20 +172,16 @@ export function AppSettings() {
             <Form
               schema={settingKeySchema}
               defaultValues={{ key: "" }}
-              onSubmit={({ key }) => s.createSetting(key)}
+              onSubmit={({ key }) => createSetting(key)}
               className="flex items-start gap-2"
             >
               <FormField name="key" className="flex-1">
                 <Input placeholder="e.g. featureFlags, theme, rateLimits" />
               </FormField>
-              <Button type="submit" disabled={s.isCreating}>
-                {s.isCreating ? "Creating…" : "Create"}
+              <Button type="submit" disabled={create.isPending}>
+                {create.isPending ? "Creating…" : "Create"}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => s.setShowNewSettingForm(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setShowNewSettingForm(false)}>
                 Cancel
               </Button>
             </Form>
@@ -146,28 +199,28 @@ export function AppSettings() {
               <Input
                 type="search"
                 placeholder="Search settings…"
-                value={s.searchQuery}
-                onChange={(e) => s.setSearchQuery(e.target.value)}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
               />
             </div>
           </div>
           <div className="min-h-[120px] flex-1 p-1.5">
-            {s.settings.length === 0 ? (
+            {data.settings.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted-foreground">
                 No settings yet.
               </p>
-            ) : s.filteredSettings.length === 0 ? (
+            ) : filteredSettings.length === 0 ? (
               <p className="px-3 py-8 text-center text-sm text-muted-foreground">No matches.</p>
             ) : (
               <div className="space-y-0.5">
-                {s.filteredSettings.map((setting) => {
-                  const active = s.selectedKey === setting.key;
+                {filteredSettings.map((setting) => {
+                  const active = selectedKey === setting.key;
                   return (
                     <button
                       type="button"
                       key={setting.key}
-                      onClick={() => s.selectKey(setting.key)}
+                      onClick={() => void selectKey(setting.key)}
                       className={cn(
                         "w-full rounded-xl px-3 py-2 text-left",
                         active ? "bg-muted" : "hover:bg-muted",
@@ -196,18 +249,18 @@ export function AppSettings() {
 
         {/* Editor */}
         <Card className="gap-0 p-0">
-          {s.selectedKey ? (
+          {selectedKey ? (
             <>
               <CardHeader className="border-b px-5 py-4">
-                <CardTitle className="truncate">{s.selectedKey}</CardTitle>
+                <CardTitle className="truncate">{selectedKey}</CardTitle>
                 <CardDescription className="text-xs">
                   Edit the configuration below and save your changes.
                 </CardDescription>
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleDelete}
-                  disabled={s.isDeleting}
+                  onClick={() => void remove.run(selectedKey)}
+                  disabled={remove.isPending}
                   className="col-start-2 row-span-2 row-start-1 self-start justify-self-end text-destructive hover:text-destructive"
                 >
                   <Trash2 className="size-3.5" />
@@ -219,8 +272,8 @@ export function AppSettings() {
                 <Field label="Description" htmlFor="description">
                   <Input
                     id="description"
-                    value={s.description}
-                    onChange={(e) => s.setDescription(e.target.value)}
+                    value={draft.description}
+                    onChange={(e) => draft.setDescription(e.target.value)}
                     placeholder="Brief description of this setting"
                   />
                 </Field>
@@ -228,9 +281,9 @@ export function AppSettings() {
                   <div className="overflow-hidden rounded-xl border border-input">
                     <Suspense fallback={<div className="h-[400px]" />}>
                       <CodeMirrorEditor
-                        value={s.jsonValue}
+                        value={draft.jsonValue}
                         height="400px"
-                        onChange={(value) => s.setJsonValue(value)}
+                        onChange={(value) => draft.setJsonValue(value)}
                         basicSetup={{
                           lineNumbers: true,
                           highlightActiveLineGutter: true,
@@ -244,9 +297,26 @@ export function AppSettings() {
               </CardContent>
 
               <CardFooter className="mt-auto justify-end gap-2 px-5 py-3">
-                <Button size="sm" onClick={s.save} disabled={s.isSaving}>
+                {draft.isDirty && (
+                  <p className="mr-auto text-xs text-muted-foreground" role="status">
+                    {draft.serverChanged
+                      ? "Unsaved changes. The saved value changed since you started editing."
+                      : "Unsaved changes"}
+                  </p>
+                )}
+                {draft.isDirty && (
+                  <Button size="sm" variant="ghost" onClick={draft.discard}>
+                    <Undo2 className="size-3.5" />
+                    Discard
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  onClick={() => void save.run(selectedKey)}
+                  disabled={save.isPending}
+                >
                   <Save className="size-3.5" />
-                  {s.isSaving ? "Saving…" : "Save changes"}
+                  {save.isPending ? "Saving…" : "Save changes"}
                 </Button>
               </CardFooter>
             </>

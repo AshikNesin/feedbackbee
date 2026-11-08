@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { getModelCapabilities, maxReasoningEffort } from "@groot/ai";
+import { clampReasoningEffort, getModelCapabilities, maxReasoningEffort } from "@groot/ai";
 
 describe("getModelCapabilities", () => {
   it("treats gemini (incl. on vertex), claude and gpt models as document+image capable", () => {
@@ -80,5 +80,21 @@ describe("maxReasoningEffort", () => {
 
   it("prefers kimi-k3 over the kimi-k2 rule (first-match wins)", () => {
     expect(maxReasoningEffort("cline-pass/kimi-k3-fast")).toBe("max");
+  });
+});
+
+describe("clampReasoningEffort", () => {
+  it("keeps a level at or below the model's highest", () => {
+    expect(clampReasoningEffort("cline-pass/glm-5.2", "low")).toBe("low");
+    expect(clampReasoningEffort("cline-pass/glm-5.2", "xhigh")).toBe("xhigh");
+  });
+
+  it("caps a level above it", () => {
+    expect(clampReasoningEffort("cline-pass/glm-5.2", "max")).toBe("xhigh");
+    expect(clampReasoningEffort("some-brand-new-model", "xhigh")).toBe("high");
+  });
+
+  it("drops the level for a model without effort control", () => {
+    expect(clampReasoningEffort("cline-pass/minimax-m3", "high")).toBeUndefined();
   });
 });

@@ -36,7 +36,7 @@ const ROOT = new URL("..", import.meta.url).pathname;
  * Directories that ship client-side UI. Globs, so a new package or app is
  * scanned without editing this list.
  */
-const UI_ROOTS = ["packages/*/src", "apps/*/src/client"];
+const UI_ROOTS = ["packages/*/src", "packages/*/vendor", "apps/*/src/client"];
 const SRC_DIRS = [...new Set(UI_ROOTS.flatMap((root) => expandRoot(root)))].sort();
 
 /** Expand a root pattern (may contain one `*` segment) to existing dirs. */
@@ -159,7 +159,7 @@ const RULES: Rule[] = [
       "transition-colors/transition-all (DLS rule: instant color hover).\n" +
       "   Color changes on hover must be immediate. Keep transitions for\n" +
       "   transforms; remove the color transition.",
-    allow: [`${ROOT}packages/ui/src/`],
+    allow: [`${ROOT}packages/ui/src/`, `${ROOT}packages/ui/vendor/`],
   },
   {
     name: "inline-mono-full-step",

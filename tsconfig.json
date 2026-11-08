@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": ".",
+    "allowJs": true,
     "paths": {
       "@groot/ai": ["./packages/ai/src/index.ts"],
       "@groot/ai/*": ["./packages/ai/src/*"],
@@ -19,7 +20,9 @@
     "apps/web/src/server/**/*",
     "packages/ai/src/**/*",
     "packages/core/src/**/*",
-    "packages/jobs/src/server/**/*"
+    "packages/jobs/src/server/**/*",
+    "tests/server/**/*",
+    "tests/test-clock.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

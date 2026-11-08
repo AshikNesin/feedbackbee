@@ -16,12 +16,7 @@ import { Section } from "@groot/shell/components/layout/Section";
 import { formatLocaleDateTime, formatRelativeTime } from "@groot/shell/lib/utils";
 import { formatJobId } from "@groot/jobs/client/utils";
 import type { Job, JobAction } from "@groot/jobs/client/types";
-import {
-  JOB_ACTION_UI,
-  JOBS_PAGE_SIZE,
-  stateLabel,
-  type JobsQueryPatch,
-} from "@groot/jobs/client/constants";
+import { JOB_ACTION_UI, JOBS_PAGE_SIZE, stateLabel } from "@groot/jobs/client/constants";
 import { useJobActions } from "@groot/jobs/client/useJobActions";
 import { allowedJobActions } from "../../lifecycle";
 import { JobsTableSkeleton } from "./skeletons";
@@ -38,8 +33,11 @@ type Props = {
   total: number;
   error?: string | null;
   onErrorRetry?: () => void;
-  queryParams: { state: string; page: number };
-  setQueryParams: (patch: JobsQueryPatch) => void;
+  /** The state the list is filtered to ("all" for none): titles the section and picks what Purge removes. */
+  state: string;
+  /** Zero-based page index. */
+  page: number;
+  onPage: (page: number) => void;
 };
 
 /**
@@ -54,8 +52,9 @@ export function JobsTable({
   total,
   error,
   onErrorRetry,
-  queryParams,
-  setQueryParams,
+  state,
+  page,
+  onPage,
 }: Props) {
   const { run, rerunMany, purge } = useJobActions();
   const [selected, setSelected] = useState<ReadonlySet<string>>(new Set());
@@ -81,15 +80,15 @@ export function JobsTable({
           Rerun {selectedIds.length}
         </Button>
       )}
-      {queryParams.state !== "all" && (
+      {state !== "all" && (
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => void purge(queryParams.state)}
+          onClick={() => void purge(state)}
           className="text-destructive hover:text-destructive"
         >
           <Trash2 className="size-3.5" />
-          Purge {stateLabel(queryParams.state)}
+          Purge {stateLabel(state)}
         </Button>
       )}
     </>
@@ -97,7 +96,7 @@ export function JobsTable({
 
   return (
     <Section
-      title={queryParams.state === "all" ? "All jobs" : `${stateLabel(queryParams.state)} jobs`}
+      title={state === "all" ? "All jobs" : `${stateLabel(state)} jobs`}
       meta={`${jobs.length} of ${total}`}
       actions={sectionActions}
     >
@@ -123,8 +122,8 @@ export function JobsTable({
               icon={FileText}
               title="No jobs found"
               description={
-                queryParams.state !== "all"
-                  ? `No ${stateLabel(queryParams.state).toLowerCase()} jobs`
+                state !== "all"
+                  ? `No ${stateLabel(state).toLowerCase()} jobs`
                   : "The queue is empty"
               }
             />
@@ -182,22 +181,22 @@ export function JobsTable({
         {total > JOBS_PAGE_SIZE && (
           <div className="flex justify-between items-center">
             <div className="text-xs text-muted-foreground">
-              Page {queryParams.page + 1} of {Math.ceil(total / JOBS_PAGE_SIZE)}
+              Page {page + 1} of {Math.ceil(total / JOBS_PAGE_SIZE)}
             </div>
             <div className="flex gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setQueryParams({ page: Math.max(0, queryParams.page - 1) })}
-                disabled={queryParams.page === 0}
+                onClick={() => onPage(page - 1)}
+                disabled={page === 0}
               >
                 Previous
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setQueryParams({ page: queryParams.page + 1 })}
-                disabled={(queryParams.page + 1) * JOBS_PAGE_SIZE >= total}
+                onClick={() => onPage(page + 1)}
+                disabled={(page + 1) * JOBS_PAGE_SIZE >= total}
               >
                 Next
               </Button>

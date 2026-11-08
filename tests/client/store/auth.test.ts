@@ -26,6 +26,10 @@ const unauthorized: Route = {
   status: 401,
   body: { success: false, error: { code: "UNAUTHORIZED", message: "Invalid credentials" } },
 };
+const sessionInvalid: Route = {
+  status: 401,
+  body: { success: false, error: { code: "SESSION_INVALID", message: "Invalid or expired token" } },
+};
 
 beforeEach(() => {
   useAuthStore.setState({ user: null, isAuthenticated: false, hasCheckedAuth: false });
@@ -42,6 +46,16 @@ describe("session", () => {
     await expect(useAuthStore.getState().login(USER.email, "secret")).resolves.toEqual(USER);
     expect(useAuthStore.getState()).toMatchObject({ user: USER, isAuthenticated: true });
     expect(useAuthStore.getState().generation).toBe(generation + 1);
+  });
+
+  it("signs in as the account first-run setup creates", async () => {
+    serve({
+      "/auth/setup": { status: 201, body: { success: true, data: { token: "t", user: USER } } },
+    });
+    await expect(
+      useAuthStore.getState().setup({ email: USER.email, password: "secret" }),
+    ).resolves.toEqual(USER);
+    expect(useAuthStore.getState()).toMatchObject({ user: USER, isAuthenticated: true });
   });
 
   it("words a rejected password as wrong credentials", async () => {
@@ -64,8 +78,16 @@ describe("session", () => {
       code: "RATE_LIMITED",
       message: "Too many requests",
       url: "/auth/login",
+      fromServer: true,
     });
     expect(loginErrorDescription(limited, "fallback")).toBe("Too many requests");
+    const gateway = new ApiError({
+      status: 502,
+      code: "HTTP_502",
+      message: "Bad Gateway",
+      url: "/auth/login",
+    });
+    expect(loginErrorDescription(gateway, "fallback")).toBe("fallback");
     expect(loginErrorDescription(undefined, "fallback")).toBe("fallback");
   });
 
@@ -74,7 +96,7 @@ describe("session", () => {
     await useAuthStore.getState().checkAuth();
     expect(useAuthStore.getState()).toMatchObject({ user: USER, hasCheckedAuth: true });
 
-    serve({ "/auth/me": unauthorized });
+    serve({ "/auth/me": sessionInvalid });
     await useAuthStore.getState().checkAuth();
     expect(useAuthStore.getState()).toMatchObject({ user: null, hasCheckedAuth: true });
   });
@@ -87,11 +109,21 @@ describe("session", () => {
     expect(useAuthStore.getState()).toMatchObject({ user: null, isAuthenticated: false });
   });
 
-  it("clears the session when a request made in it gets a 401", async () => {
-    serve({ "/auth/login": ok({ token: "t", user: USER }), "/todos": unauthorized });
+  it("clears the session when the session guard rejects a request made in it", async () => {
+    serve({ "/auth/login": ok({ token: "t", user: USER }), "/todos": sessionInvalid });
     await useAuthStore.getState().login(USER.email, "secret");
     await expect(apiClient.get("/todos")).rejects.toMatchObject({ status: 401 });
     expect(useAuthStore.getState()).toMatchObject({ user: null, isAuthenticated: false });
+  });
+
+  it("keeps the session when a step-up refuses the password (#164)", async () => {
+    serve({ "/auth/login": ok({ token: "t", user: USER }), "/vault/step-up": unauthorized });
+    await useAuthStore.getState().login(USER.email, "secret");
+    await expect(apiClient.post("/vault/step-up", { password: "nope" })).rejects.toMatchObject({
+      status: 401,
+      message: "Invalid credentials",
+    });
+    expect(useAuthStore.getState()).toMatchObject({ user: USER, isAuthenticated: true });
   });
 
   it("ignores a 401 for a request sent before the current session began", async () => {
@@ -101,7 +133,7 @@ describe("session", () => {
       "/auth/login": ok({ token: "t", user: USER }),
       "/todos": async () => {
         await held;
-        return unauthorized;
+        return sessionInvalid;
       },
     });
     const stale = apiClient.get("/todos").catch(() => undefined);

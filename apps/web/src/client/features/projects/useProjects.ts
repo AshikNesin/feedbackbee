@@ -3,7 +3,7 @@ import { apiClient } from "@groot/shell/lib/api";
 import { useToastMutation } from "@groot/shell/hooks/useToastMutation";
 import type { LabelsMap, ProjectDTO } from "../../../server/wire-types";
 
-export const projectsKey = ["projects"] as const;
+const projectsKey = ["projects"] as const;
 
 export function useProjects() {
   return useQuery({

@@ -1,9 +1,8 @@
 import { Hono } from "hono";
-import { jwtAuthMiddleware } from "../middlewares/jwt-auth.middleware";
 import { adminAuthMiddleware } from "../middlewares/admin-auth.middleware";
 import { authRateLimiter } from "../middlewares/rate-limit.middleware";
 import { parseBody, requireUser } from "../utils/controller.utils";
-import { clearAuthCookie, setAuthCookie } from "../utils/auth-cookie.utils";
+import { endSession, requireSession, startSession } from "../session";
 import { ok } from "../utils/api-response.utils";
 import * as authService from "./auth.service";
 import { createUserSchema, loginSchema } from "./auth.schema";
@@ -13,17 +12,26 @@ const router = new Hono<AppEnv>();
 
 router.post("/login", authRateLimiter, async (c) => {
   const body = await parseBody(c, loginSchema);
-  const result = await authService.login(body);
-  setAuthCookie(c, result.token);
-  return ok(c, result);
+  return ok(c, await startSession(c, await authService.authenticate(body)));
 });
 
-router.post("/logout", jwtAuthMiddleware, (c) => {
-  clearAuthCookie(c);
+// First-run setup: open only while no account exists, so a fresh deploy can
+// create its first user from the browser instead of via the admin API.
+router.get("/setup", async (c) => {
+  return ok(c, { needsSetup: !(await authService.hasAnyUser()) });
+});
+
+router.post("/setup", authRateLimiter, async (c) => {
+  const body = await parseBody(c, createUserSchema);
+  return ok(c, await startSession(c, await authService.setupFirstUser(body)), 201);
+});
+
+router.post("/logout", requireSession, (c) => {
+  endSession(c);
   return ok(c, { status: "logged out" });
 });
 
-router.get("/me", jwtAuthMiddleware, async (c) => {
+router.get("/me", requireSession, async (c) => {
   const { userId } = requireUser(c);
   return ok(c, await authService.getUserById({ userId }));
 });

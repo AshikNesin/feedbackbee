@@ -49,7 +49,6 @@ if (config.sentry.dsn) {
     dsn: config.sentry.dsn,
     release: config.sentry.release,
     environment: env.NODE_ENV,
-    sendDefaultPii: true,
   });
   captureException = (error, extra) => Sentry.captureException(error, { extra });
 }

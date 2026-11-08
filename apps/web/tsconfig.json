@@ -21,9 +21,9 @@
       "@groot/jobs/client": ["../../packages/jobs/src/client/index.ts"],
       "@groot/jobs/client/*": ["../../packages/jobs/src/client/*"]
     },
-    "types": ["vite/client"]
+    "types": ["vite/client", "@testing-library/jest-dom/vitest"]
   },
-  "include": ["src"],
+  "include": ["src", "../../packages/shell/src", "../../tests/client", "../../tests/test-clock.ts"],
   "exclude": ["src/server"],
   "references": []
 }

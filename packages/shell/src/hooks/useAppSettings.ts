@@ -1,45 +1,27 @@
 import { useState } from "react";
-import { apiClient } from "@groot/shell/lib/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToastMutation } from "./useToastMutation";
-
-// Wire type from the zod-only schema leaf; the service module's graph is
-// server-side (logger, kv) and must not enter the client type graph.
-import type { AppSetting } from "@groot/core/settings/app-settings.schema";
-
-const SETTINGS_KEY = ["app-settings"] as const;
+import { type AppSetting, useAppSettingsData } from "./useAppSettingsData";
+import { useSettingDraft } from "./useSettingDraft";
 
 // The wire type is declared once in @groot/core (type-only import, erased at
 // build); re-exported under the name clients already import.
 export type { AppSetting };
 
-const settingPath = (key: string) => `/settings/${encodeURIComponent(key)}`;
-
-const upsertSetting = (key: string, value: unknown, description?: string) =>
-  apiClient.put<AppSetting>(settingPath(key), { value, metadata: { description } });
-
 /**
- * State + mutations for the AppSettings page. The settings list comes from a
- * React Query cache; the editable JSON/description drafts and selection state
- * stay local. The draft reset (setState-during-render) mirrors the selected
- * setting's server value so the editor re-syncs after a save/refetch.
+ * @deprecated Data and editor state in one hook. Use `useAppSettingsData()`
+ * (`@groot/shell/hooks/useAppSettingsData`) for the settings and the calls
+ * that change them, and `useSettingDraft(setting)` for an editor's draft;
+ * `AppSettings` shows how they compose. Kept with its old shape for existing
+ * callers, on top of those two: creating refuses an existing key, and a
+ * refetch no longer replaces unsaved edits.
  */
 export function useAppSettings() {
-  const queryClient = useQueryClient();
-
-  const { data: settings = [], isLoading } = useQuery({
-    queryKey: SETTINGS_KEY,
-    queryFn: () => apiClient.get<AppSetting[]>("/settings"),
-  });
+  const data = useAppSettingsData();
+  const { settings } = data;
 
   const [userSelectedKey, setUserSelectedKey] = useState<string | null>(null);
-  const [draftKey, setDraftKey] = useState<string | null>(null);
-  const [jsonValue, setJsonValue] = useState("");
-  const [description, setDescription] = useState("");
   const [showNewSettingForm, setShowNewSettingForm] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: SETTINGS_KEY });
 
   const filteredSettings = settings.filter((setting) =>
     setting.key.toLowerCase().includes(searchQuery.toLowerCase()),
@@ -47,52 +29,31 @@ export function useAppSettings() {
 
   // Selection: the user's explicit choice, else the first setting once loaded.
   const selectedKey = userSelectedKey ?? settings[0]?.key ?? null;
-  const selected = selectedKey ? (settings.find((s) => s.key === selectedKey) ?? null) : null;
-
-  // Reset the JSON editor + description drafts when the selection OR the
-  // selected setting's server value changes (covers load, switch, and
-  // re-sync after a save). Replaces the old syncing effect.
-  const resetKey = `${selectedKey ?? ""}|${selected ? JSON.stringify(selected.value) : ""}|${
-    selected?.metadata?.description ?? ""
-  }`;
-  if (resetKey !== draftKey) {
-    setDraftKey(resetKey);
-    setJsonValue(selected ? JSON.stringify(selected.value, null, 2) : "");
-    setDescription(selected?.metadata?.description ?? "");
-  }
+  const selected = selectedKey ? data.get(selectedKey) : null;
+  const draft = useSettingDraft(selected);
 
   const saveMutation = useToastMutation(
-    (vars: { key: string; jsonValue: string; description: string }) => {
-      let parsedValue: unknown;
-      try {
-        parsedValue = JSON.parse(vars.jsonValue);
-      } catch {
-        throw new Error("Invalid JSON format");
-      }
-      return upsertSetting(vars.key, parsedValue, vars.description || undefined);
-    },
+    (vars: { key: string; value: () => unknown; description: string }) =>
+      data.save(vars.key, vars.value(), vars.description || undefined),
     {
-      success: (data) => `"${data.key}" updated successfully`,
+      success: (saved) => `"${saved.key}" updated successfully`,
       error: { title: "Save failed", description: "Unable to update setting" },
-      onSuccess: invalidate,
     },
   );
 
-  const deleteMutation = useToastMutation((key: string) => apiClient.delete(settingPath(key)), {
+  const deleteMutation = useToastMutation((key: string) => data.remove(key), {
     success: "Setting deleted successfully",
     error: { title: "Delete failed", description: "Unable to delete setting" },
-    onSuccess: invalidate,
   });
 
-  const createMutation = useToastMutation((key: string) => upsertSetting(key, {}, "New setting"), {
-    success: (data) => `"${data.key}" created successfully`,
+  const createMutation = useToastMutation((key: string) => data.create(key, {}, "New setting"), {
+    success: (created) => `"${created.key}" created successfully`,
     error: { title: "Create failed", description: "Unable to create setting" },
-    onSuccess: invalidate,
   });
 
   const save = () => {
     if (!selectedKey) return;
-    saveMutation.mutate({ key: selectedKey, jsonValue, description });
+    saveMutation.mutate({ key: selectedKey, value: draft.parse, description: draft.description });
   };
 
   const confirmDelete = () => {
@@ -115,20 +76,20 @@ export function useAppSettings() {
 
   return {
     settings,
-    isLoading,
+    isLoading: data.isLoading,
     filteredSettings,
     selectedKey,
     selected,
     selectKey: setUserSelectedKey,
     searchQuery,
     setSearchQuery,
-    jsonValue,
-    setJsonValue,
-    description,
-    setDescription,
+    jsonValue: draft.jsonValue,
+    setJsonValue: draft.setJsonValue,
+    description: draft.description,
+    setDescription: draft.setDescription,
     showNewSettingForm,
     setShowNewSettingForm,
-    refresh: invalidate,
+    refresh: data.refresh,
     isSaving: saveMutation.isPending,
     isDeleting: deleteMutation.isPending,
     isCreating: createMutation.isPending,

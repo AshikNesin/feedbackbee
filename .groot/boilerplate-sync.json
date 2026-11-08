@@ -4,9 +4,9 @@
     "repo": "https://github.com/AshikNesin/groot"
   },
   "last_sync": {
-    "version": "3.0.0",
-    "commit": "29c96e120320efe5da8d04bfa75caaeb97a9409a",
-    "date": "2026-10-31T15:01:55.371Z"
+    "version": "3.2.1",
+    "commit": "8ef2973318e178ab4662ed11e3a4324d97f74a04",
+    "date": "2026-11-08T20:13:51.788Z"
   },
   "additional_exclusions": [
     "vitest.config.worker.ts",

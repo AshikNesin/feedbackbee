@@ -66,6 +66,9 @@ export const TEST_AREA_OWNERSHIP: Readonly<Record<string, readonly string[]>> = 
   "tests/server/jobs": ["packages/jobs/src/server/**"],
   "tests/server/api": ["packages/core/src/**", "packages/jobs/src/server/**"],
   "tests/server/groot": [".groot/**"],
+  // Repo guards and build scripts: lint rules, gates, doc refs, closure, ...
+  "tests/server/checks": ["scripts/**"],
+  "tests/server/scripts": ["scripts/**"],
 
   // Shared client-side suites exercise @groot/ui + @groot/jobs browser code.
   "tests/client/components/ui": ["packages/ui/src/**"],
@@ -111,6 +114,11 @@ export const SYNC_PATTERNS: readonly string[] = [
   // Tests mirroring synced source (ownership-declared, see TEST_AREA_OWNERSHIP).
   // App-specific and e2e tests stay project-local.
   "tests/server/setup.ts",
+  // The frozen test clock and the shared wait helper both setups import.
+  "tests/test-clock.ts",
+  "tests/server/fixtures/until.ts",
+  "tests/server/test-clock.test.ts",
+  "tests/server/until.test.ts",
 
   // Infrastructure
   "*.config.*",

@@ -1,13 +1,41 @@
 import type { Hono } from "hono";
 import type { AppEnv } from "@groot/core/types";
+import type { CreateAppOptions } from "@groot/core/app";
+import { setConfig, type AppConfig, type DeepPartial } from "@groot/core/config";
 import { env } from "@groot/core/env";
 import * as authService from "@groot/core/auth/auth.service";
 import { createWebApp } from "../../apps/web/src/server/app";
+import { appConfig } from "../../apps/web/src/server/config";
 
 export type TestApp = Hono<AppEnv>;
 
-export function createTestApp(): TestApp {
-  return createWebApp();
+/** The web app, with fresh rate-limit counters. Pass `clientAddress` to say who each request is from. */
+export function createTestApp(options: Omit<CreateAppOptions, "routes"> = {}): TestApp {
+  return createWebApp(options);
+}
+
+function merge(base: unknown, overrides: unknown): unknown {
+  const isObject = (value: unknown): value is Record<string, unknown> =>
+    typeof value === "object" && value !== null && !Array.isArray(value);
+  if (!isObject(base) || !isObject(overrides)) return overrides ?? base;
+  const out: Record<string, unknown> = { ...base };
+  for (const [key, value] of Object.entries(overrides)) out[key] = merge(out[key], value);
+  return out;
+}
+
+/**
+ * Set the config the way `startWebApp()` does, the app's own overrides
+ * included, with `overrides` on top. Call it with none to restore the app's
+ * config: a bare `setConfig()` would drop the app's overrides too.
+ */
+export function setAppConfig(overrides: DeepPartial<AppConfig> = {}): void {
+  setConfig(
+    (e) =>
+      merge(
+        typeof appConfig === "function" ? appConfig(e) : appConfig,
+        overrides,
+      ) as DeepPartial<AppConfig>,
+  );
 }
 
 export interface JsonResponse<T = unknown> {

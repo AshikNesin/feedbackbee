@@ -38,10 +38,13 @@ const optionalText = (max: number) =>
     return text !== undefined && text.length <= max ? text : undefined;
   }, z.string().optional());
 
-const optionalNumber = z.preprocess((value) => {
-  const text = blankToUndefined(value);
-  return text === undefined ? undefined : Number(text);
-}, z.number({ error: "must be a number" }).optional());
+const optionalNumber = z.preprocess(
+  (value) => {
+    const text = blankToUndefined(value);
+    return text === undefined ? undefined : Number(text);
+  },
+  z.number({ error: "must be a number" }).optional(),
+);
 
 /** Repeated file parts, empty ones dropped. A text value where a file belongs is ignored. */
 const files = z.preprocess(
@@ -97,7 +100,7 @@ const metadata = z.preprocess(blankToUndefined, z.string().optional()).transform
 const seconds = (field: "media" | "audio") =>
   `${field}_seconds must be between 0 and ${LIMITS.seconds}`;
 
-export const submissionSchema = z
+const submissionSchema = z
   .object({
     project: requiredText(64),
     kind: z.enum(FEEDBACK_KINDS, { error: `must be one of ${FEEDBACK_KINDS.join(", ")}` }),

@@ -42,19 +42,13 @@ service-account.json
 
 settings.local.json
 .auto/
+.vitest/
 
 # Cloudflare Workers local state (wrangler dev)
 .wrangler/
 
 # wrangler dev secrets (copy from .dev.vars.example)
 .dev.vars
-
-# FeedbackBee
-*.log
-/android/.gradle
-/android/**/build
-/android/local.properties
-.hallmark/
 
 # FeedbackBee
 *.log
@@ -72,3 +66,6 @@ settings.local.json
 /react-native/vendor
 /react-native/pnpm-lock.yaml
 /react-native/*.tgz
+
+# Claude Code fork worktrees
+.claude/worktrees/

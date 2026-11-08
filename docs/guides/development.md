@@ -5,22 +5,22 @@ feature end to end.
 
 ## Commands
 
-| Command                                                                       | What it does                                                                                                                |
-| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`                                                                    | Migrate + seed SQLite, then Hono + Vite (HMR) on one port, under portless                                                   |
-| `pnpm dev:worker`                                                             | Build the client, run the Worker in workerd with a local D1 and R2                                                          |
-| `pnpm check` · `pnpm lint` · `pnpm format`                                    | Vite+ (Oxlint + Oxfmt)                                                                                                      |
-| `pnpm typecheck` · `typecheck:client` · `typecheck:kit`                       | Server + client programs · client only · the kit consumer fixture                                                           |
-| `pnpm test` · `pnpm test:watch`                                               | Server tests (Vitest, in-memory SQLite per file)                                                                            |
-| `pnpm test:client` · `pnpm test:all` · `pnpm test:e2e`                        | Client tests (jsdom) · both suites · Playwright                                                                             |
-| `pnpm build`                                                                  | `dist/client` (Vite) + `dist/server/bundle.js` (esbuild) + `dist/server/drizzle`                                            |
-| `pnpm start`                                                                  | Run the production bundle                                                                                                   |
-| `pnpm check:worker`                                                           | Dry-run the Workers bundle into `tmp/worker-build`                                                                          |
-| `pnpm db:generate [--name x]`                                                 | drizzle-kit: schema diff → `apps/web/drizzle/NNNN_x.sql`, then refreshes `apps/web/drizzle/index.ts` for the Worker         |
-| `pnpm db:migrate` · `pnpm db:migrate:worker`                                  | Apply migrations to the local SQLite file · to remote D1 ahead of a deploy (optional; the Worker migrates on first request) |
-| `pnpm db:seed`                                                                | Demo user + three todos (idempotent; also applies migrations)                                                               |
-| `pnpm db:studio`                                                              | Drizzle Studio on the local database                                                                                        |
-| `pnpm check:tokens` · `check:closure` · `check:coverage` · `check:changesets` | Design tokens · bundle imports are declared deps · test-area ownership coverage · changeset gate                            |
+| Command                                                                                             | What it does                                                                                                                |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                                                                                          | Migrate + seed SQLite, then Hono + Vite (HMR) on one port, under portless                                                   |
+| `pnpm dev:worker`                                                                                   | Build the client, run the Worker in workerd with a local D1 and R2                                                          |
+| `pnpm check` · `pnpm lint` · `pnpm format`                                                          | Vite+ (Oxlint + Oxfmt)                                                                                                      |
+| `pnpm typecheck` · `typecheck:client` · `typecheck:kit`                                             | Server + client programs · client only · the kit consumer fixture                                                           |
+| `pnpm test` · `pnpm test:watch`                                                                     | Server tests (Vitest, in-memory SQLite per file)                                                                            |
+| `pnpm test:client` · `pnpm test:all` · `pnpm test:e2e`                                              | Client tests (jsdom) · both suites · Playwright                                                                             |
+| `pnpm build`                                                                                        | `dist/client` (Vite) + `dist/server/bundle.js` (esbuild) + `dist/server/drizzle`                                            |
+| `pnpm start`                                                                                        | Run the production bundle                                                                                                   |
+| `pnpm check:worker`                                                                                 | Dry-run the Workers bundle into `tmp/worker-build`                                                                          |
+| `pnpm db:generate [--name x]`                                                                       | drizzle-kit: schema diff → `apps/web/drizzle/NNNN_x.sql`, then refreshes `apps/web/drizzle/index.ts` for the Worker         |
+| `pnpm db:migrate` · `pnpm db:migrate:worker`                                                        | Apply migrations to the local SQLite file · to remote D1 ahead of a deploy (optional; the Worker migrates on first request) |
+| `pnpm db:seed`                                                                                      | Demo user + three todos (idempotent; also applies migrations)                                                               |
+| `pnpm db:studio`                                                                                    | Drizzle Studio on the local database                                                                                        |
+| `pnpm check:tokens` · `check:closure` · `check:coverage` · `check:changesets` · `check:pnpm-policy` | Design tokens · bundle imports are declared deps · test-area ownership coverage · changeset gate · install-hardening policy |
 
 ## Conventions
 
@@ -72,7 +72,20 @@ export const createPostSchema = z.object({
 export const updatePostSchema = createPostSchema.partial();
 export type CreatePostDTO = z.infer<typeof createPostSchema>;
 export type UpdatePostDTO = z.infer<typeof updatePostSchema>;
+
+/** A post as `/api/v1/posts` returns it: dates as ISO strings. The client imports this type-only. */
+export interface Post {
+  id: number;
+  title: string;
+  body: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
 ```
+
+The schema module stays zod-only, so the client can import its wire type
+(`import type { Post } from "…/server/api/post/post.schema"`) instead of
+copying it; see the wire-type rule in [`AGENTS.md`](../../AGENTS.md).
 
 ### 3. Service
 
@@ -149,7 +162,7 @@ Need the signed-in user? `const { userId } = requireUser(c);`.
 // apps/web/src/server/app.ts
 import postRoutes from "./api/post/post.routes";
 // inside createWebApp() → routes(app):
-api.route("/posts", postRoutes); // the `api` sub-app already runs jwtAuthMiddleware
+api.route("/posts", postRoutes); // the `api` sub-app already runs requireSession
 ```
 
 ### 6. Test
@@ -211,7 +224,8 @@ model is in [Background jobs](../features/jobs.md).
 | Concern       | Where                                                                                                                                                                         |
 | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Routes        | `apps/web/src/client/App.tsx` (React Router)                                                                                                                                  |
-| Data fetching | React Query hooks next to the page (e.g. `pages/todo/hooks`)                                                                                                                  |
+| Data fetching | React Query hooks next to the page (e.g. `pages/todo/hooks`); the client comes from `createShellQueryClient()`                                                                |
+| Mutations     | `useAction` from `@groot/shell/lib/feedback`: confirm, run once, toast (errors worded by `describeError`), invalidate                                                         |
 | API calls     | `apiClient` from `@groot/shell/lib/api` (unwraps the envelope, sends the cookie)                                                                                              |
 | Auth state    | `useAuthStore` from `@groot/shell/store/auth` (Zustand; the user, sign-in, sign-out)                                                                                          |
 | UI components | `@groot/ui`; rules in [DLS](../features/dls.md), enforced by `pnpm check:tokens`                                                                                              |
@@ -223,5 +237,5 @@ model is in [Background jobs](../features/jobs.md).
 2. Change code
 3. `pnpm test` (or `pnpm test:watch`) and `pnpm check`
 4. Schema changed? `pnpm db:generate` and commit `apps/web/drizzle/`
-5. Touched `packages/*/src`, `packages/*/package.json`, `apps/web/drizzle` or `.groot/`? `pnpm changeset`, or a no-release reason under `.changeset/no-release/` for internal changes
+5. Touched `packages/*/src`, `packages/*/package.json`, `apps/web/drizzle` or `.groot/`? `pnpm changeset`, or a `.no-release/` reason for an internal change; `pnpm check:changesets` names what is missing
 6. Update docs if behaviour changed

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import { createNamespaceKv, kv, purgeExpiredKv } from "@groot/core/kv";
 
 describe("kv", () => {
@@ -15,6 +15,17 @@ describe("kv", () => {
     await kv.set("k2", "a");
     await kv.set("k2", "b");
     expect(await kv.get("k2")).toBe("b");
+  });
+
+  it("adds only when no live entry holds the key", async () => {
+    expect(await kv.add("k3", "first")).toBe(true);
+    expect(await kv.add("k3", "second")).toBe(false);
+    expect(await kv.get("k3")).toBe("first");
+
+    await kv.set("k4", "stale", 1);
+    vi.setSystemTime(Date.now() + 5);
+    expect(await kv.add("k4", "fresh")).toBe(true);
+    expect(await kv.get("k4")).toBe("fresh");
   });
 
   it("matches prefixes case-sensitively and treats LIKE wildcards literally", async () => {
@@ -48,11 +59,56 @@ describe("kv", () => {
   it("expires entries", async () => {
     await kv.set("ttl", "soon", 1);
     await kv.set("keep", "forever");
-    await new Promise((r) => setTimeout(r, 5));
+    vi.setSystemTime(Date.now() + 5);
     expect(await kv.get("ttl")).toBeUndefined();
     await kv.set("ttl2", "soon", 1);
-    await new Promise((r) => setTimeout(r, 5));
+    vi.setSystemTime(Date.now() + 5);
     expect(await purgeExpiredKv()).toBe(1);
     expect(await kv.get("keep")).toBe("forever");
+  });
+
+  it("takes a live entry exactly once, even under concurrent takes", async () => {
+    await kv.set("once", { code: 7 });
+    const results = await Promise.all([kv.take("once"), kv.take("once")]);
+    expect(results.filter((r) => r !== undefined)).toEqual([{ code: 7 }]);
+    expect(await kv.get("once")).toBeUndefined();
+    expect(await kv.take("missing")).toBeUndefined();
+
+    const ns = createNamespaceKv("take-ns");
+    await ns.set("k", "v");
+    expect(await kv.take("k")).toBeUndefined();
+    expect(await ns.take("k")).toBe("v");
+  });
+
+  it("does not take an expired entry", async () => {
+    await kv.set("stale", "old", 1);
+    vi.setSystemTime(Date.now() + 5);
+    expect(await kv.take("stale")).toBeUndefined();
+  });
+
+  it("claims a key at most once per interval", async () => {
+    const MINUTE = 60_000;
+    const start = Date.now();
+    const at = (minutes: number) => vi.setSystemTime(start + minutes * MINUTE);
+
+    at(0);
+    expect(
+      await Promise.all([kv.claim("slot", 10 * MINUTE), kv.claim("slot", 10 * MINUTE)]),
+    ).toEqual(expect.arrayContaining([true, false]));
+    expect(await kv.get("slot")).toBe(start);
+
+    at(9);
+    expect(await kv.claim("slot", 10 * MINUTE)).toBe(false);
+    expect(await kv.get("slot")).toBe(start);
+
+    at(10);
+    expect(await kv.claim("slot", 10 * MINUTE)).toBe(true);
+    expect(await kv.get("slot")).toBe(start + 10 * MINUTE);
+
+    // A shorter interval is measured from the same last claim.
+    at(11);
+    expect(await kv.claim("slot", 2 * MINUTE)).toBe(false);
+    at(12);
+    expect(await kv.claim("slot", 2 * MINUTE)).toBe(true);
   });
 });

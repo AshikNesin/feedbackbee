@@ -2,12 +2,17 @@ import { Hono } from "hono";
 import { parseBody, parseStringParam } from "../utils/controller.utils";
 import { ok, noContent } from "../utils/api-response.utils";
 import * as appSettingsService from "./app-settings.service";
-import { upsertAppSettingSchema } from "./app-settings.schema";
+import { createAppSettingSchema, upsertAppSettingSchema } from "./app-settings.schema";
 import type { AppEnv } from "../types";
 
 const router = new Hono<AppEnv>();
 
 router.get("/", async (c) => ok(c, await appSettingsService.getAll()));
+
+router.post("/", async (c) => {
+  const payload = await parseBody(c, createAppSettingSchema);
+  return ok(c, await appSettingsService.create({ data: payload }), 201);
+});
 
 router.get("/:key", async (c) => {
   const key = parseStringParam(c.req.param("key"), "key");

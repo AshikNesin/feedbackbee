@@ -1,73 +1,71 @@
 import { createMiddleware } from "hono/factory";
 import { Boom, ErrorCode, type ErrorCodeValue } from "../errors";
 import { config, type RateLimitWindow } from "../config";
+import { cloudflareRateLimitStore } from "../rate-limit/cloudflare";
+import { memoryRateLimitStore, type RateLimitStore } from "../rate-limit/store";
+import { rateLimitKey } from "../utils/client-address";
 import { clientIp } from "../utils/controller.utils";
-import type { AppEnv } from "../types";
+import type { AppContext, AppEnv } from "../types";
 
 /**
- * Fixed-window rate limiting keyed by client IP.
+ * Fixed-window rate limiting keyed by client IP (`clientIp(c)`), or its /64
+ * for IPv6. The counters live in the app's `RateLimitStore`, which the
+ * runtime passes to `createApp({ rateLimitStore })`: memory on Node,
+ * Cloudflare's Rate Limiting binding on Workers. An app given no store uses
+ * a binding named by the limiter's `binding` when `c.env` has one, and its
+ * own in-memory counters otherwise.
  *
- * On Node the counters live in memory (one process, so that is exact). On
- * Workers memory is per isolate, so when a Cloudflare Rate Limiting binding
- * named `binding` exists on `c.env` it is used instead; without one the
- * in-memory fallback still applies per isolate.
+ * Every response the store can describe carries `RateLimit-Limit`,
+ * `RateLimit-Remaining` and `RateLimit-Reset` (seconds), and a 429 also
+ * `Retry-After`. The Cloudflare binding answers only allowed or not, so its
+ * responses carry none of them.
  */
 export interface RateLimitOptions {
   /** Read lazily so app config overrides apply. */
   window: () => RateLimitWindow;
   message: string;
   code?: ErrorCodeValue;
-  /** Name of a Workers Rate Limiting binding to prefer when present. */
+  /**
+   * Tells this limiter's counters apart in the app's store. Defaults to
+   * `binding`, else a name unique to this limiter.
+   */
+  name?: string;
+  /** Name of the Workers Rate Limiting binding that counts this limiter. */
   binding?: string;
 }
 
-interface Bucket {
-  count: number;
-  resetAt: number;
-}
+let unnamed = 0;
 
-interface RateLimitBinding {
-  limit(options: { key: string }): Promise<{ success: boolean }>;
+/** The store `createApp()` gave this request, else bindings on `c.env`, else process memory. */
+let processStore: RateLimitStore | undefined;
+function storeFor(c: AppContext): RateLimitStore {
+  const store = c.get("rateLimitStore");
+  if (store) return store;
+  processStore ??= memoryRateLimitStore();
+  return cloudflareRateLimitStore(c.env ?? {}, processStore);
 }
 
 export function rateLimit(options: RateLimitOptions) {
-  const buckets = new Map<string, Bucket>();
-  let lastSweep = Date.now();
-
-  const sweep = (now: number) => {
-    if (now - lastSweep < 60_000) return;
-    lastSweep = now;
-    for (const [key, bucket] of buckets) if (bucket.resetAt <= now) buckets.delete(key);
-  };
+  unnamed += 1;
+  const name = options.name ?? options.binding ?? `rate-limit-${unnamed}`;
 
   return createMiddleware<AppEnv>(async (c, next) => {
     const { windowMs, max } = options.window();
-    const key = clientIp(c);
-    const binding = options.binding
-      ? (c.env?.[options.binding] as RateLimitBinding | undefined)
-      : undefined;
+    const key = rateLimitKey(clientIp(c));
+    const result = await storeFor(c).hit(key, { name, windowMs, max, binding: options.binding });
 
-    if (binding && typeof binding.limit === "function") {
-      const { success } = await binding.limit({ key });
-      if (!success) throw Boom.tooManyRequests(options.message, null, options.code);
-      await next();
-      return;
+    const resetSeconds =
+      result.resetAt === undefined
+        ? undefined
+        : String(Math.max(0, Math.ceil((result.resetAt - Date.now()) / 1000)));
+    if (result.limit !== undefined) c.header("RateLimit-Limit", String(result.limit));
+    if (result.remaining !== undefined) c.header("RateLimit-Remaining", String(result.remaining));
+    if (resetSeconds !== undefined) c.header("RateLimit-Reset", resetSeconds);
+
+    if (!result.allowed) {
+      if (resetSeconds !== undefined) c.header("Retry-After", resetSeconds);
+      throw Boom.tooManyRequests(options.message, null, options.code);
     }
-
-    const now = Date.now();
-    sweep(now);
-    let bucket = buckets.get(key);
-    if (!bucket || bucket.resetAt <= now) {
-      bucket = { count: 0, resetAt: now + windowMs };
-      buckets.set(key, bucket);
-    }
-    bucket.count += 1;
-
-    c.header("RateLimit-Limit", String(max));
-    c.header("RateLimit-Remaining", String(Math.max(0, max - bucket.count)));
-    c.header("RateLimit-Reset", String(Math.ceil((bucket.resetAt - now) / 1000)));
-
-    if (bucket.count > max) throw Boom.tooManyRequests(options.message, null, options.code);
     await next();
   });
 }

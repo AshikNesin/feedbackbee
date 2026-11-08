@@ -12,7 +12,8 @@ export const jobsKeys = {
 };
 
 // Operational view: always refetch on revisit/focus rather than serving the
-// 5-minute-cached data (overrides the global QueryClient staleTime).
+// 5-minute-fresh data (overrides `SHELL_QUERY_DEFAULTS.queries.staleTime`
+// from `@groot/shell/lib/query-client`).
 export const JOBS_STALE_TIME = 0;
 
 export function useJobStats() {

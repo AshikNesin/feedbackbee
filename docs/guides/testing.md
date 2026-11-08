@@ -26,16 +26,17 @@ same `startWebApp()` as the entries, with:
   background; tests call `runTick()` when they want jobs processed
 
 Files are isolated from each other for free. Within a file, clear what you
-need in `beforeEach` (e.g. `await db.delete(todos)`, `clearJobHandlers()`).
+need in `beforeEach` (e.g. `await db.delete(todos)`, `jobRunner.reset()`).
 
 ## Helpers (`tests/server/helpers.ts`)
 
-| Helper                                             | Does                                                                                                             |
-| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `createTestApp()`                                  | `createWebApp()` — the real app with every router                                                                |
-| `api(app, path, { method, json, token, headers })` | Sends the request, returns `{ status, headers, body }`; `body` is the envelope, a 204 yields `{ success: true }` |
-| `signIn(app)`                                      | Creates a unique user and logs in; returns `{ token, user, email, password, cookie }`                            |
-| `adminHeaders()`                                   | `{ "x-admin-auth-key": env.ADMIN_AUTH_KEY }`                                                                     |
+| Helper                                             | Does                                                                                                                                                                                                                            |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createTestApp(options?)`                          | `createWebApp()` — the real app with every router and rate-limit counters of its own. Pass `clientAddress` (a resolver such as `(c) => c.req.header("x-test-peer")`) to say who each request is from instead of faking a socket |
+| `setAppConfig(overrides?)`                         | The app's config with `overrides` on top; call it bare to restore. A bare `setConfig()` would drop the app's own overrides                                                                                                      |
+| `api(app, path, { method, json, token, headers })` | Sends the request, returns `{ status, headers, body }`; `body` is the envelope, a 204 yields `{ success: true }`                                                                                                                |
+| `signIn(app)`                                      | Creates a unique user and logs in; returns `{ token, user, email, password, cookie }`                                                                                                                                           |
+| `adminHeaders()`                                   | `{ "x-admin-auth-key": env.ADMIN_AUTH_KEY }`                                                                                                                                                                                    |
 
 ## Layout
 
@@ -47,7 +48,7 @@ tests/
 │   ├── jobs/      # @groot/jobs/server: queue + tick, schedules, housekeeping, routes, job logger
 │   ├── api/       # HTTP tests through the routers: auth, passkey, settings, storage, todos
 │   ├── app/       # app-owned: createApp, todo jobs (project-local, not synced)
-│   ├── checks/    # repo guards: changesets gate, kit exports, typecheck coverage
+│   ├── checks/    # repo guards: changesets, kit exports, typecheck coverage, lint rules, doc refs, migrations, rule table
 │   ├── groot/     # sync tooling
 │   ├── ai/        # @groot/ai
 │   └── scripts/   # build scripts (runtime closure)
@@ -59,6 +60,11 @@ tests/
 `tests/server/setup.ts`, `tests/server/{core,jobs,api,groot,ai}` and `tests/client`
 sync with the source they exercise (`TEST_AREA_OWNERSHIP` in
 `.groot/lib/patterns.ts`); `tests/server/app` and `tests/e2e` stay project-local.
+
+`pnpm typecheck` compiles every test with the code it tests: `tsconfig.json`
+includes `tests/server`, `apps/web/tsconfig.json` includes `tests/client`, and
+`tests/e2e/tsconfig.json` covers the Playwright specs. A wrong import or a
+missing argument in a test fails there, before the suite runs.
 
 ## Patterns
 
@@ -99,9 +105,9 @@ describe("todos API", () => {
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 import { eq } from "drizzle-orm";
 import { db } from "@groot/core/database";
-import { addJob, clearJobHandlers, jobs, registerJobHandler, runTick } from "@groot/jobs/server";
+import { addJob, jobRunner, jobs, registerJobHandler, runTick } from "@groot/jobs/server";
 
-beforeEach(() => clearJobHandlers());
+beforeEach(() => jobRunner.reset());
 
 it("runs a job and stores its output", async () => {
   registerJobHandler<{ n: number }>("double", (job) => ({ doubled: job.data.n * 2 }));
@@ -128,6 +134,56 @@ expect(res.status).toBe(201);
 Call them directly; the database is real, so there is nothing to mock
 (`tests/server/core/kv.test.ts`, `tests/server/jobs/queue.test.ts`). Reach for
 `vi.mock` only for external services.
+
+### A client component
+
+Render it the way `main.tsx` mounts the app: a client from
+`createShellQueryClient({ queries: { retry: false } })` in a
+`ShellQueryProvider`, and `GrootUIProvider` for confirmations and toasts. Stub
+`fetch` with `vi.stubGlobal` rather than mocking `apiClient`, so the envelope,
+`ApiError` and the error wording are the real ones, and assert on the toast
+text a person reads (`tests/client/components/shell/AppSettings.test.tsx`,
+`tests/client/lib/query-client.test.tsx`).
+
+### Dates and time
+
+Both setup files call `pinClockWhileLoadingAndBeforeEachTest()` from
+`tests/test-clock.ts`. It runs `vi.setSystemTime(FIXED_NOW)` when the setup
+loads and again before every test, so `Date` reports `FIXED_NOW` on any real
+day and does not tick. That covers a test file's module scope too,
+such as a token minted at the top of the file. Only `Date` is faked:
+`setTimeout`, `setInterval` and `performance.now()` stay real.
+
+- A fixture that must lie in the future uses `futureIso(days)`, never a date
+  literal. A literal passes on the day it is written and fails once the real
+  clock passes it. Against the frozen clock it gives the same result on any
+  day.
+- A test that needs another instant calls `vi.setSystemTime(...)` in its body.
+  The next test starts at `FIXED_NOW` again.
+- A test that needs time to pass (a TTL that lapses, a measured wait, two calls
+  that need distinct milliseconds) moves the frozen clock forward with
+  `vi.setSystemTime(Date.now() + ms)` instead of sleeping, as in
+  `tests/server/core/kv.test.ts`.
+- Code that reads `Date.now()` between timers, such as a deadline loop, runs
+  under `vi.useFakeTimers()` with `await vi.advanceTimersByTimeAsync(ms)`. The
+  default fakes `Date` too, starting at `FIXED_NOW`, so both move together.
+  Reset with
+  `vi.useRealTimers()` in `afterEach`.
+- `vi.useFakeTimers({ toFake: [...] })` without `"Date"` in the list puts the
+  real `Date` back until `vi.useRealTimers()`, and `vi.setSystemTime(...)`
+  then moves only the fake timers' clock, not `Date`. List
+  `"Date"` when the test writes or compares dates. The setup's `beforeEach`
+  calls `vi.useRealTimers()` before it pins `FIXED_NOW`, so the next test
+  starts frozen even if this one never restored its timers.
+- Wait for asynchronous work with `until(check, what, ms)` or
+  `eventually(check, ms)` from `tests/server/fixtures/until.ts`, never a
+  `Date.now()` deadline loop, which never ends on the frozen clock. Their
+  deadlines read real time and stop just before the test's own timeout, so a
+  stuck wait fails with `Timed out waiting for <what>` rather than vitest's
+  generic timeout.
+- Do not call `vi.useRealTimers()` to opt a test out of the frozen clock. A row
+  written at the real time is later read against `FIXED_NOW`, and the result
+  depends on the day the suite runs. Call it only to undo `vi.useFakeTimers()`.
 
 ## Coverage checklist per route
 
@@ -168,12 +224,14 @@ CI does not run Playwright.
 
 ## Continuous integration
 
-`.github/workflows/test.yml` runs, in order: typechecks (server, client,
-typecheck coverage, kit fixture), the kit export guard, the changeset gate, the
-checks-coverage guard, lint + format (`pnpm check`), the design-token check
-(`pnpm check:tokens`), a migration freshness check (`pnpm db:generate` must
-leave `apps/web/drizzle` unchanged), server and client tests, `pnpm build`,
-the runtime dependency closure check, a wrangler dry run, and a pruned
+`.github/workflows/test.yml` runs, in order: a gitleaks scan of the commits
+the PR or push adds (`scripts/secret-scan.sh`), the static gates through
+`pnpm verify:static` (typechecks for the server, the client, the e2e specs,
+typecheck coverage and the kit fixture, the kit export guard, the changeset gate, the
+checks-coverage guard, lint + format, the doc reference check, the
+design-token check, and a migration freshness check that `pnpm db:generate`
+adds no migration; the list lives in `scripts/gates.mjs`), server and client
+tests, `pnpm build`, the runtime dependency closure check, a wrangler dry run, and a pruned
 production boot (tracked files plus `dist` copied to a fresh directory,
 `pnpm install --prod`, `node dist/server/bundle.js`, `/health` answers,
 `SIGTERM` exits within 15 s).

@@ -61,8 +61,12 @@ with any of the required variables missing, and lists what is wrong.
 
 ## First user
 
-`pnpm db:seed` is for local development. In production create the first user
-through the admin API:
+`pnpm db:seed` is for local development. In production, open the app: while
+the database has no users, `/login` sends you to `/setup`, where you create the
+first account and are signed in as it. Once any user exists `/setup` redirects
+to `/login` and `POST /api/v1/auth/setup` answers 403.
+
+Further users (or a scripted first one) go through the admin API:
 
 ```bash
 curl -X POST https://app.example.com/api/v1/auth/users \

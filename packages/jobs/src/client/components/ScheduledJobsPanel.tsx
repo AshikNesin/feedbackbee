@@ -3,13 +3,11 @@ import { listRowGridClass } from "@groot/ui/list-row";
 import { Card } from "@groot/ui/card";
 import { cn } from "@groot/ui/lib/utils";
 import { tableColumnHeaderClass } from "@groot/ui/table";
-import { useConfirm } from "@groot/ui/primitives";
 import { Section } from "@groot/shell/components/layout/Section";
 import { jobsApi } from "@groot/jobs/client/api";
 import { jobsKeys, useScheduledJobs } from "@groot/jobs/client/queries";
 import type { JobSchedule } from "@groot/jobs/client/types";
-import { withJobToast } from "@groot/jobs/client/utils";
-import { useQueryClient } from "@tanstack/react-query";
+import { useAction } from "@groot/shell/lib/feedback";
 import { Pencil, Trash2 } from "lucide-react";
 import { ScheduleJobDialog } from "./ScheduleJobDialog";
 import { ScheduledJobsSkeleton } from "./skeletons";
@@ -42,24 +40,18 @@ function EditScheduleButton({
 /** Scheduled (cron) jobs: desktop grid + mobile cards, with edit/cancel actions. */
 export function ScheduledJobsPanel() {
   const { data: scheduledJobs = [], isLoading } = useScheduledJobs();
-  const queryClient = useQueryClient();
-  const confirm = useConfirm();
-
-  const cancelSchedule = async (jobName: string) => {
-    const confirmed = await confirm({
+  const cancel = useAction((jobName: string) => jobsApi.cancelScheduledJob(jobName), {
+    confirm: (jobName) => ({
       title: `Cancel scheduled job "${jobName}"?`,
       description: "The schedule will stop running; already-queued jobs are unaffected.",
       confirmLabel: "Cancel schedule",
       destructive: true,
-    });
-    if (!confirmed) return;
-    return withJobToast(
-      () => jobsApi.cancelScheduledJob(jobName),
-      () => "Scheduled job has been cancelled",
-      "Failed to cancel scheduled job",
-      () => void queryClient.invalidateQueries({ queryKey: jobsKeys.scheduled }),
-    );
-  };
+    }),
+    success: { title: "Success", description: "Scheduled job has been cancelled" },
+    errorTitle: "Error",
+    fallback: "Failed to cancel scheduled job",
+    invalidate: [jobsKeys.scheduled],
+  });
 
   if (isLoading) {
     return <ScheduledJobsSkeleton />;
@@ -99,7 +91,8 @@ export function ScheduledJobsPanel() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => void cancelSchedule(job.name)}
+                    onClick={() => void cancel.run(job.name)}
+                    disabled={cancel.isPending}
                     className="text-destructive hover:text-destructive opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity"
                     title="Cancel schedule"
                     aria-label={`Cancel schedule ${job.name}`}
@@ -122,7 +115,8 @@ export function ScheduledJobsPanel() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={() => void cancelSchedule(job.name)}
+                    onClick={() => void cancel.run(job.name)}
+                    disabled={cancel.isPending}
                     className="text-destructive hover:text-destructive"
                     title="Cancel schedule"
                     aria-label={`Cancel schedule ${job.name}`}

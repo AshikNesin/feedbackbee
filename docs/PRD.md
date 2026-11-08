@@ -59,7 +59,7 @@ The embed snippet is generated per project.
 <script src="https://your-barn.workers.dev/embed.js" data-project="myapp" async></script>
 ```
 
-### 2. Web widget (`embed.js`)
+### 2. Web widget (`/embed.js`)
 
 Vanilla JS, one IIFE, served by the Worker (the screenshot library is a separate lazy-loaded script). No framework assumptions on the host page. Minimal single-screen flow, optimized for time-to-send:
 
@@ -200,7 +200,7 @@ Authenticated (groot's JWT cookie; passkeys optional):
 - One App is supported per deployment; multiple installations are usable when GitHub's private App ownership rules permit them. Disconnect removes the local connection only: it does not uninstall or delete the GitHub App and does not remove existing feedback. Reconnect by connecting again and selecting the same repositories. Losing `FEEDBACKBEE_ENCRYPTION_KEY` requires disconnecting and re-registering; key rotation is not supported, so the existing key must not be casually changed.
 - The registration callback must use the deployment's canonical public HTTPS `ORIGIN`. The Worker can infer `ORIGIN` from the first request, but production should configure it explicitly before registering. Local registration requires a public HTTPS tunnel and an explicit tunnel `ORIGIN`.
 - Media uploads are capped (screenshot 10 MB, recording 200 MB, 5 min). Type sniffed at the boundary by magic bytes, not extension.
-- `embed.js` sets `rendered` state only after the project slug resolves. Unknown slugs render a friendly "project not found" note, never an error.
+- `/embed.js` sets `rendered` state only after the project slug resolves. Unknown slugs render a friendly "project not found" note, never an error.
 - Rate limit: 20 submissions per IP per hour per project, tracked in D1. Excess returns 429 with a plain message.
 - Allowed origins (per project, optional): browsers on other sites get 403; native apps, which send no `Origin`, are not affected. See CONTRACT.md.
 - The feedback endpoint never reflects user text back unescaped into HTML. All dashboard rendering escapes by default (React).
@@ -222,7 +222,7 @@ Sequenced as verifiable units. Each milestone ends in a state you can run and ch
 
 1. **M1 API core.** Worker boots, D1 migrated, project CRUD, feedback submit with media to R2, media serve. Verified with vitest in workerd against `SELF.fetch()`.
 2. **M2 GitHub bridge.** Issue creation on submit, states, label mapping, token renewal and retained delivery errors. Verified with a stubbed GitHub REST endpoint in tests.
-3. **M3 Widget.** `embed.js` with panel, screenshot + annotate, recording with cap, upload. Verified by driving it in a real browser against the local Worker.
+3. **M3 Widget.** `/embed.js` with panel, screenshot + annotate, recording with cap, upload. Verified by driving it in a real browser against the local Worker.
 4. **M4 Dashboard.** Login, projects, feedback list, snippet copy. Verified in the browser.
 5. **M5 Android SDK.** Init, shake detect, screenshot + annotate, upload. Verified by compiling the AAR and driving the demo app in an emulator.
 6. **M6 Deploy + docs.** `wrangler deploy` green, README complete, GitHub App registration documented.

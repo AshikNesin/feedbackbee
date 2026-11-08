@@ -10,11 +10,17 @@
 // Rules:
 //   1. A branch that changes files under packages/[pkg]/src, apps/web/drizzle,
 //      or .groot needs a changeset naming each affected package, or a
-//      reviewed no-release reason file under .changeset/no-release/.
-//   2. apps/web/drizzle and .groot belong to the root "groot" package, so a
-//      changeset naming "groot" covers them.
-//   3. The release bot's own commits are exempt, because versioning PRs are
+//      reviewed no-release reason file under .no-release/. Only changesets
+//      and reasons the branch itself adds count; an edit or rename does not.
+//   2. apps/web/drizzle and .groot belong to the root package, named by the
+//      root package.json, so a changeset naming it covers them.
+//   3. Every package a changeset the branch adds or edits names must exist in the
+//      workspace, because one unknown name fails changeset status and the
+//      Release workflow.
+//   4. The release bot's own commits are exempt, because versioning PRs are
 //      the output of this gate, not its input.
+//   5. In a child project, packages/** and .groot/** are synced from groot
+//      and versioned there; only the child's own managed paths need coverage.
 //
 // A no-release reason file records why a change ships without a version bump
 // (docs-only, internal refactor, test-only). It covers the whole branch, not
@@ -28,8 +34,9 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import process from "node:process";
+import { load as loadYaml } from "js-yaml";
+import { mergeBase } from "./lib/merge-base.mjs";
 
-const ROOT_PACKAGE = "groot";
 const RELEASE_BOTS = ["github-actions[bot]", "renovate[bot]"];
 const BOT_EMAIL_SUFFIX = "@users.noreply.github.com";
 
@@ -39,6 +46,7 @@ const BOT_EMAIL_SUFFIX = "@users.noreply.github.com";
 // manifest edit needs coverage even when no source file changed.
 const MANAGED_PREFIXES = [
   "packages/*/src",
+  "packages/*/vendor",
   "packages/*/package.json",
   "apps/web/drizzle",
   ".groot",
@@ -50,6 +58,19 @@ export function matchesManagedPrefix(file) {
     return new RegExp(pattern).test(file);
   });
 }
+
+// In a child project, packages/** and .groot/** arrive by `pnpm groot:sync`
+// and are versioned by groot's own changesets, so the child's gate covers only
+// what it owns (apps/web/drizzle). A child is a repo whose
+// .groot/boilerplate-sync.json names a boilerplate other than itself.
+export function isChildProject(rootDir) {
+  const config = path.join(rootDir, ".groot", "boilerplate-sync.json");
+  if (!existsSync(config)) return false;
+  const boilerplate = JSON.parse(readFileSync(config, "utf8")).boilerplate?.name;
+  return Boolean(boilerplate) && boilerplate !== readPackageName(rootDir);
+}
+
+const syncedFromBoilerplate = (file) => file.startsWith("packages/") || file.startsWith(".groot/");
 
 // True when the package.json changed between two blobs in a way a consumer
 // can observe: a different value under any top-level key except name,
@@ -89,40 +110,69 @@ function readPkgJsonAt(rootDir, file) {
   return existsSync(absolute) ? readFileSync(absolute, "utf8") : "";
 }
 
-// Map a packages/[pkg]/src path to its npm package name from package.json.
+// Map a packages/[pkg]/src (or vendor) path to its npm package name from package.json.
 // Files under apps/web/drizzle or .groot map to the root package.
 function packageNameFor(file, rootDir) {
   if (file.startsWith("apps/web/drizzle") || file.startsWith(".groot/")) {
-    return ROOT_PACKAGE;
+    return readPackageName(rootDir);
   }
   const scopeDir = file.split("/")[1];
   if (!scopeDir) return null;
-  const pkgJson = path.join(rootDir, "packages", scopeDir, "package.json");
+  return readPackageName(path.join(rootDir, "packages", scopeDir));
+}
+
+function readPackageName(dir) {
+  const pkgJson = path.join(dir, "package.json");
   if (!existsSync(pkgJson)) return null;
   return JSON.parse(readFileSync(pkgJson, "utf8")).name ?? null;
 }
 
-// Package names released by one changeset file's frontmatter. Quotes are the
-// changesets CLI's own output format; unquoted names are accepted too. A
-// release line must name a bump kind, so prose that merely looks like YAML
-// (the changesets README) does not register as coverage.
-export function parseChangesetReleases(body) {
-  const match = /^---\n([\s\S]*?)\n---/.exec(body);
-  if (!match) return [];
-  const names = [];
-  for (const line of match[1].split("\n")) {
-    const trimmed = line.trim();
-    const quoted =
-      /^'([^']+)':\s*(?:major|minor|patch)\s*$/.exec(trimmed) ??
-      /^"([^"]+)":\s*(?:major|minor|patch)\s*$/.exec(trimmed);
-    if (quoted) {
-      names.push(quoted[1]);
-      continue;
+// Every workspace package name, the root first: the root package.json plus
+// each package.json that a pnpm-workspace.yaml `packages:` entry covers.
+export function readWorkspacePackages(rootDir) {
+  const workspaceFile = path.join(rootDir, "pnpm-workspace.yaml");
+  const globs = existsSync(workspaceFile)
+    ? (loadYaml(readFileSync(workspaceFile, "utf8"))?.packages ?? [])
+    : [];
+  const dirs = globs.flatMap((glob) => {
+    const literal = glob.endsWith("/*") ? glob.slice(0, -2) : glob;
+    if (literal.includes("*") || glob.startsWith("!")) {
+      throw new Error(`changesets: unsupported pnpm-workspace.yaml glob "${glob}"`);
     }
-    const bare = /^([@A-Za-z][^:\s]*):\s*(?:major|minor|patch)\s*$/.exec(trimmed);
-    if (bare) names.push(bare[1]);
+    if (literal === glob) return [path.join(rootDir, glob)];
+    const parent = path.join(rootDir, literal);
+    if (!existsSync(parent)) return [];
+    return readdirSync(parent, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => path.join(parent, d.name));
+  });
+  const rootName = readPackageName(rootDir);
+  const others = dirs.map(readPackageName).filter((name) => name && name !== rootName);
+  return [...(rootName ? [rootName] : []), ...new Set(others.sort())];
+}
+
+// Every [name, type] pair in a changeset's frontmatter. The delimiter regex is
+// @changesets/parse's own, and the frontmatter is read as YAML, so CRLF, blank
+// lines, comments and spacing parse the way the Release workflow parses them.
+export function parseChangesetFrontmatter(body) {
+  const match = /\s*---([^]*?)\r?\n\s*---(\s*(?:\n|$)[^]*)/.exec(body);
+  if (!match) return [];
+  let data;
+  try {
+    data = loadYaml(match[1]);
+  } catch {
+    return [];
   }
-  return names;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return [];
+  return Object.entries(data);
+}
+
+// Package names a changeset releases with a version bump, so `none` and prose
+// that merely looks like YAML (the changesets README) do not count as coverage.
+export function parseChangesetReleases(body) {
+  return parseChangesetFrontmatter(body)
+    .filter(([, type]) => ["major", "minor", "patch"].includes(type))
+    .map(([name]) => name);
 }
 
 // True when a commit author is the release bot.
@@ -146,8 +196,10 @@ export function collect(state) {
   const entries = state.changedEntries ?? state.changedFiles.map((f) => ({ file: f }));
   const changedManagedFiles = [];
   const managedPackages = new Set();
+  const child = isChildProject(rootDir);
   for (const entry of entries) {
     if (!matchesManagedPrefix(entry.file)) continue;
+    if (child && syncedFromBoilerplate(entry.file)) continue;
     if (
       isKitPackageJson(entry.file) &&
       !pkgJsonChangeIsReleaseRelevant(
@@ -162,9 +214,15 @@ export function collect(state) {
     if (name) managedPackages.add(name);
   }
   const coveredPackages = new Set();
+  const unknownReleases = [];
   for (const entry of state.changesetFiles) {
-    for (const name of parseChangesetReleases(entry.body)) {
-      coveredPackages.add(name);
+    if (entry.added) {
+      for (const name of parseChangesetReleases(entry.body)) coveredPackages.add(name);
+    }
+    for (const [name] of parseChangesetFrontmatter(entry.body)) {
+      if (!state.workspacePackages.includes(name)) {
+        unknownReleases.push(`.changeset/${entry.name} names unknown package "${name}"`);
+      }
     }
   }
   return {
@@ -172,6 +230,8 @@ export function collect(state) {
     coveredPackages: [...coveredPackages].sort(),
     reason: state.noReleaseReason ?? null,
     changedManagedFiles: changedManagedFiles.sort(),
+    unknownReleases,
+    workspacePackages: state.workspacePackages,
   };
 }
 
@@ -183,26 +243,31 @@ function git(args, root) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
 }
 
-function listChangesetFiles(root) {
-  const dir = path.join(root, ".changeset");
-  if (!existsSync(dir)) return [];
-  return readdirSync(dir)
-    .filter((f) => f.endsWith(".md") && f !== "README.md")
-    .map((name) => ({ name, body: readFileSync(path.join(dir, name), "utf8") }));
+function markdownIn(root, files, dir) {
+  return files
+    .filter(
+      (f) => path.posix.dirname(f) === dir && f.endsWith(".md") && existsSync(path.join(root, f)),
+    )
+    .sort()
+    .map((f) => ({ name: path.basename(f), body: readFileSync(path.join(root, f), "utf8") }));
 }
 
-// The earliest no-release reason file, or null. Any recorded, non-empty
-// reason satisfies the gate for the branch that carries it.
-function findNoReleaseReason(root) {
-  const dir = path.join(root, ".changeset", "no-release");
-  if (!existsSync(dir)) return null;
-  const files = readdirSync(dir)
-    .filter((f) => f.endsWith(".md"))
-    .sort();
-  if (files.length === 0) return null;
-  const body = readFileSync(path.join(dir, files[0]), "utf8").trim();
-  if (!body) return null;
-  return `${files[0]}: ${body.split("\n")[0]}`;
+// Changesets the branch adds or edits. Only an added one counts as coverage,
+// but an edit that names an unknown package still breaks the Release workflow.
+function listChangesetFiles(root, changedFiles, addedFiles) {
+  const added = new Set(addedFiles);
+  return markdownIn(root, changedFiles, ".changeset")
+    .filter((f) => f.name !== "README.md")
+    .map((f) => ({ ...f, added: added.has(`.changeset/${f.name}`) }));
+}
+
+function findNoReleaseReason(root, addedFiles) {
+  // Lives outside .changeset/: @changesets/read's legacy v1 reader treats any
+  // directory there as an old-format changeset (needs changes.md + changes.json)
+  // and fails the Release workflow with ENOENT.
+  const reason = markdownIn(root, addedFiles, ".no-release").find((f) => f.body.trim());
+  if (!reason) return null;
+  return `${reason.name}: ${reason.body.trim().split("\n")[0]}`;
 }
 
 // True when every commit in base..HEAD that touches a managed file is the
@@ -225,10 +290,24 @@ function botOnlySurfaces(root, base, managedFiles) {
 // The verdict for one branch state, pure over collect()'s output. The
 // release-bot exemption is layered on by run(), because it needs git.
 export function evaluate(state) {
+  if (state.unknownReleases.length > 0) {
+    const packages = state.workspacePackages.join(", ");
+    return {
+      status: 1,
+      unknown: state.unknownReleases,
+      err:
+        state.unknownReleases
+          .map((line) => `changesets: ${line}; packages are: ${packages}\n`)
+          .join("") +
+        `  use "${state.workspacePackages[0]}" for apps/web/drizzle and .groot changes\n`,
+    };
+  }
   if (state.managedPackages.length === 0) {
     return {
       status: 0,
-      out: "changesets: no managed package surface changed; nothing to cover\n",
+      out:
+        "changesets: no managed package surface changed; nothing to cover\n" +
+        `  managed: packages/*/src and packages/*/package.json (that package), apps/web/drizzle and .groot ("${state.workspacePackages[0] ?? "the root package"}")\n`,
     };
   }
   if (state.reason) {
@@ -253,7 +332,7 @@ export function evaluate(state) {
       `changesets: missing changeset for ${missing.join(", ")}\n` +
       `  changed managed files:\n` +
       state.changedManagedFiles.map((f) => `    ${f}\n`).join("") +
-      `  run pnpm changeset, or record the reviewed reason under .changeset/no-release/ for a docs-only or internal change\n`,
+      `  run pnpm changeset, or record the reviewed reason under .no-release/ for a docs-only or internal change\n`,
   };
 }
 
@@ -271,11 +350,15 @@ function showBlob(root, revision, file) {
 
 export function run({ base, root }) {
   const repoRoot = root ?? process.cwd();
-  const diffBase = base ?? git(["merge-base", "origin/main", "HEAD"], repoRoot);
-  const changedFiles = git(["diff", "--name-only", `${diffBase}...HEAD`], repoRoot)
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const diffBase = mergeBase(base ?? "origin/main", repoRoot);
+  const diffNames = (...args) =>
+    git(["diff", "--name-only", ...args, `${diffBase}...HEAD`], repoRoot)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+  const changedFiles = diffNames();
+  // Rename detection keeps a renamed reason or changeset out of the added set.
+  const addedFiles = diffNames("--diff-filter=A", "--find-renames");
   const changedEntries = changedFiles.map((file) => {
     if (!isKitPackageJson(file)) return { file };
     return {
@@ -288,11 +371,12 @@ export function run({ base, root }) {
     rootDir: repoRoot,
     changedFiles,
     changedEntries,
-    changesetFiles: listChangesetFiles(repoRoot),
-    noReleaseReason: findNoReleaseReason(repoRoot),
+    changesetFiles: listChangesetFiles(repoRoot, changedFiles, addedFiles),
+    noReleaseReason: findNoReleaseReason(repoRoot, addedFiles),
+    workspacePackages: readWorkspacePackages(repoRoot),
   });
   const verdict = evaluate(state);
-  if (verdict.status === 1 && botOnlySurfaces(repoRoot, diffBase, state.changedManagedFiles)) {
+  if (verdict.missing && botOnlySurfaces(repoRoot, diffBase, state.changedManagedFiles)) {
     return {
       status: 0,
       out:

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "rules": {
+    "dependencies": "off",
+    "devDependencies": "off",
+    "optionalPeerDependencies": "off",
+    "unlisted": "off",
+    "binaries": "off"
+  },
+  "workspaces": {
+    ".": {
+      "entry": [
+        "scripts/**/*.{ts,mjs,cjs}",
+        ".groot/*.ts",
+        "tests/**/*.{test,spec}.{ts,tsx}",
+        "tests/{server,client}/setup.ts",
+        "tests/e2e/**/*.ts",
+        "tests/kit-consumers/consumer.tsx",
+        "playwright.headless.config.ts",
+        "vitest.config.server.ts"
+      ],
+      "project": ["scripts/**/*.{ts,tsx,mjs,cjs}", "tests/**/*.{ts,tsx}", "*.{ts,mjs}"]
+    },
+    "apps/web": {
+      "entry": ["src/server/entry.worker.ts", "src/server/db/schema.ts"],
+      "project": ["src/**/*.{ts,tsx}"]
+    },
+    "packages/*": {
+      "project": ["src/**/*.{ts,tsx}"]
+    }
+  }
+}

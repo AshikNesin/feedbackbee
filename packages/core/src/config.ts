@@ -14,6 +14,8 @@ export interface RateLimitWindow {
 export interface AppConfig {
   app: { name: string; port: number };
   cors: { origins: string[] };
+  /** Proxies whose `X-Forwarded-For` names the client (see `clientIp`). Default: `TRUSTED_PROXIES`. */
+  trustedProxies: string[];
   auth: { jwtExpiresIn: string };
   jobs: {
     enabled: boolean;
@@ -58,6 +60,7 @@ export function defaultConfig(e: Env): AppConfig {
         .map((origin) => origin.trim())
         .filter(Boolean),
     },
+    trustedProxies: e.TRUSTED_PROXIES,
     auth: { jwtExpiresIn: "30d" },
     jobs: {
       enabled: !isTest,

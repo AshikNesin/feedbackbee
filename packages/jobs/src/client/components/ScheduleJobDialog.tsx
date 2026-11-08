@@ -13,12 +13,11 @@ import { Field } from "@groot/ui/form";
 import { jobsApi } from "@groot/jobs/client/api";
 import { jobsKeys } from "@groot/jobs/client/queries";
 import type { JobSchedule } from "@groot/jobs/client/types";
-import { withJobToast } from "@groot/jobs/client/utils";
+import { parseJobData } from "@groot/jobs/client/utils";
+import { useAction } from "@groot/shell/lib/feedback";
 import { JobDataEditor } from "./JobDataEditor";
 import { JobTypeSelect } from "./JobTypeSelect";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { toast } from "sonner";
 import { Calendar as CalendarIcon } from "lucide-react";
 
 type Props = {
@@ -61,34 +60,33 @@ export function ScheduleJobDialog({ schedule, trigger }: Props) {
 
 /** Mounted only while the dialog is open, so every opening starts from the saved values. */
 function ScheduleJobForm({ schedule, onDone }: { schedule?: JobSchedule; onDone: () => void }) {
-  const queryClient = useQueryClient();
   const [name, setName] = useState(schedule?.name ?? "");
   const [cron, setCron] = useState(schedule?.cron ?? "");
   const [data, setData] = useState(() => JSON.stringify(schedule?.data ?? {}, null, 2));
 
-  const submit = () => {
-    if (!name || !cron) {
-      toast.error("Error", {
-        description: "Please select a job name and provide a cron expression",
-      });
-      return;
-    }
-    return withJobToast(
-      () =>
-        jobsApi.scheduleJob(
-          name,
-          cron,
-          JSON.parse(data),
-          schedule?.timezone ? { timezone: schedule.timezone } : undefined,
-        ),
-      () => (schedule ? "Scheduled job has been updated" : "Job has been scheduled"),
-      schedule ? "Failed to update scheduled job" : "Failed to schedule job",
-      () => {
-        onDone();
-        void queryClient.invalidateQueries({ queryKey: jobsKeys.scheduled });
+  const save = useAction(
+    () => {
+      if (!name || !cron) {
+        throw new Error("Please select a job name and provide a cron expression");
+      }
+      return jobsApi.scheduleJob(
+        name,
+        cron,
+        parseJobData(data),
+        schedule?.timezone ? { timezone: schedule.timezone } : undefined,
+      );
+    },
+    {
+      success: {
+        title: "Success",
+        description: schedule ? "Scheduled job has been updated" : "Job has been scheduled",
       },
-    );
-  };
+      errorTitle: "Error",
+      fallback: schedule ? "Failed to update scheduled job" : "Failed to schedule job",
+      invalidate: [jobsKeys.scheduled],
+      onSuccess: onDone,
+    },
+  );
 
   return (
     <DialogBody className="space-y-5">
@@ -119,7 +117,9 @@ function ScheduleJobForm({ schedule, onDone }: { schedule?: JobSchedule; onDone:
         <Button variant="outline" onClick={onDone}>
           Cancel
         </Button>
-        <Button onClick={() => void submit()}>{schedule ? "Save Changes" : "Schedule Job"}</Button>
+        <Button onClick={() => void save.run()} disabled={save.isPending}>
+          {schedule ? "Save Changes" : "Schedule Job"}
+        </Button>
       </div>
     </DialogBody>
   );

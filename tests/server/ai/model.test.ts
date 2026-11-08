@@ -46,4 +46,12 @@ describe("resolveModel", () => {
     const config = { provider: "gw", model: "a", baseUrl: "https://example.com/v1" };
     expect(resolveModel(config, "b").id).toBe("b");
   });
+
+  it("returns an already-resolved model as-is, and a copy with a new id", () => {
+    const base = resolveModel({ provider: "gw", model: "a", baseUrl: "https://example.com/v1" });
+    const config = { provider: "gw", model: base };
+    expect(resolveModel(config)).toBe(base);
+    expect(resolveModel(config, "a")).toBe(base);
+    expect(resolveModel(config, "b")).toEqual({ ...base, id: "b", name: "b" });
+  });
 });

@@ -17,11 +17,12 @@ packages/core/src/                 # Boilerplate (synced)
 ├── auth/ passkey/ settings/       # Reusable feature modules (routes + service + schema); import the module, there is no barrel
 ├── storage/                       # StorageAdapter contract, local/R2/memory adapters, routes
 ├── kv/ logger/ errors/            # kv table store · structured logger + breadcrumbs · HttpError, Boom, toHttpError, reporting seam
+├── session/                       # startSession() / endSession() / requireSession guard; JWT (token.ts), cookie (cookie.ts)
 ├── notification/                  # startup notification the Node entry sends in production
-├── middlewares/                   # request logger, JWT, admin key, rate limit, error handler
-└── utils/                         # ok()/noContent(), parseBody()/parseQuery()/parseId(), jwt, password
+├── middlewares/                   # request logger, admin key, rate limit, error handler
+└── utils/                         # ok()/noContent(), parseBody()/parseQuery()/parseId(), password
 
-packages/jobs/src/server/          # queue, tick, worker, dashboard API — see features/jobs.md
+packages/jobs/src/server/          # queue, transitions, tick (runner), worker, dashboard API — see features/jobs.md
 
 apps/web/src/server/               # App-owned (not synced)
 ├── app.ts                         # startWebApp(): bootstrap + register job handlers + createWebApp()
@@ -38,7 +39,7 @@ apps/web/src/server/               # App-owned (not synced)
 HTTP request
   → requestLoggerMiddleware   request id (x-request-id), child logger, AsyncLocalStorage context, one log line
   → cors                      config.cors.origins (empty = reflect the requesting origin)
-  → bodyLimit                 1 MB on /api/* except /api/v1/storage/* (storage sets its own 100 MB limit)
+  → bodyLimit                 1 MB on /api/*, unless the matched route declares its own (routeBodyLimit)
   → router                    new Hono<AppEnv>() mounted by createWebApp() in apps/web/src/server/app.ts
   → handler                   await parseBody(c, schema) → service → ok(c, data, status?)
   → service                   Drizzle query builder → SQLite
@@ -47,7 +48,7 @@ HTTP request
 
 `/api/v1/auth` and `/api/v1/passkey` are mounted directly (their login routes
 are public and rate-limited); every other router is mounted on a sub-app that
-runs `jwtAuthMiddleware` first. An unknown route gets the same envelope with a
+runs `requireSession` first. An unknown route gets the same envelope with a
 404 `NOT_FOUND`.
 
 ## Writing a feature module
@@ -66,7 +67,7 @@ Handlers use these helpers:
 | `await parseForm(c, schema)`                      | Multipart / urlencoded body through Zod (repeated fields are arrays)   |
 | `parseId(value)`, `parseStringParam(value)`       | Positive integer id / required string param, else 400                  |
 | `requireUser(c)`                                  | The JWT user (`{ userId, email }`), else 401                           |
-| `clientIp(c)`                                     | `cf-connecting-ip`, `x-forwarded-for`, `x-real-ip`, or `unknown`       |
+| `clientIp(c)`                                     | The client's address from the runtime's resolver, or `unknown`         |
 | `ok(c, data, status = 200)`                       | `{ success: true, data }`                                              |
 | `noContent(c)`                                    | 204                                                                    |
 | `fail(c, error, status)`                          | `{ success: false, error }` (used by the error handler)                |
@@ -103,15 +104,17 @@ both entries, `scripts/seed.ts` and the test setup go through
 config, registers the job handlers and builds the app. A runtime supplies only
 its env source and adapters:
 
-|          | `entry.node.ts`                                                                                                                                       | `entry.worker.ts`                                                        |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| env      | `process.env` (+ `.env` via `process.loadEnvFile` when present)                                                                                       | Worker vars + secrets bindings                                           |
-| db       | `openDatabase(DATABASE_URL)` (`db/node.ts`), migrates on boot                                                                                         | `drizzle(env.DB)` (D1); `migrateD1()` on the first request of an isolate |
-| storage  | `localStorage(uploadsRoot(env))`: `UPLOADS_DIR`, else `uploads/` next to the SQLite file in production (`/data/uploads`), `./local/uploads` otherwise | `r2Storage(env.STORAGE)` when the bucket is bound                        |
-| errors   | `@sentry/node` when `config.sentry.dsn` is set                                                                                                        | `@sentry/cloudflare` `withSentry`, same config                           |
-| client   | Vite middleware (dev) / `dist/client` + SPA fallback (prod)                                                                                           | Static Assets; `run_worker_first` for `/api/*`, `/health`, `/ready`      |
-| jobs     | `startWorkers()` poller when `config.jobs.enabled`                                                                                                    | `scheduled` handler → `runTick()`                                        |
-| shutdown | `SIGTERM` / `SIGINT` → `/health` 503 → stop workers → close                                                                                           | n/a                                                                      |
+|                | `entry.node.ts`                                                                                                                                       | `entry.worker.ts`                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| env            | `process.env` (+ `.env` via `process.loadEnvFile` when present)                                                                                       | Worker vars + secrets bindings                                                          |
+| db             | `openDatabase(DATABASE_URL)` (`db/node.ts`), migrates on boot                                                                                         | `drizzle(env.DB)` (D1); `migrateD1()` on the first request of an isolate                |
+| storage        | `localStorage(uploadsRoot(env))`: `UPLOADS_DIR`, else `uploads/` next to the SQLite file in production (`/data/uploads`), `./local/uploads` otherwise | `r2Storage(env.STORAGE)` when the bucket is bound                                       |
+| client address | `peerClientAddress(getConnInfo)`: the socket peer, or the hop a `TRUSTED_PROXIES` proxy vouches for                                                   | `cloudflareClientAddress`: `cf-connecting-ip`                                           |
+| rate limits    | `memoryRateLimitStore()`                                                                                                                              | `cloudflareRateLimitStore(env)`: the `*_RATE_LIMITER` bindings, else per-isolate memory |
+| errors         | `@sentry/node` when `config.sentry.dsn` is set                                                                                                        | `@sentry/cloudflare` `withSentry`, same config                                          |
+| client         | Vite middleware (dev) / `dist/client` + SPA fallback (prod)                                                                                           | Static Assets; `run_worker_first` for `/api/*`, `/health`, `/ready`                     |
+| jobs           | `startWorkers()` poller when `config.jobs.enabled`                                                                                                    | `scheduled` handler → `runTick()`                                                       |
+| shutdown       | `SIGTERM` / `SIGINT` → `/health` 503 → stop workers → close                                                                                           | n/a                                                                                     |
 
 Core stays runtime-neutral: Web APIs only (`crypto.subtle`, `fetch`,
 `TextEncoder`), with `node:` imports confined to `database/node.ts`,
@@ -125,6 +128,48 @@ injected: `put / get / head / delete / list / copy` over `/`-separated keys,
 folders as common prefixes. Three adapters ship (local filesystem, R2 bucket
 binding, memory for tests); another backend is one file implementing the
 interface in `packages/core/src/storage/adapter.ts`. See [File storage](../features/storage.md).
+
+## Rate limits and client addresses
+
+`rateLimit({ window, message, binding })` in
+`packages/core/src/middlewares/rate-limit.middleware.ts` counts requests per
+client in the app's `RateLimitStore` (`packages/core/src/rate-limit/store.ts`):
+`hit(key, rule)` answers `{ allowed, limit?, remaining?, resetAt? }`. Two
+adapters ship, and `tests/server/core/rate-limit-stores.test.ts` runs one
+contract suite against both:
+
+- `memoryRateLimitStore()`: fixed-window counters, exact in one Node process.
+  Responses carry `RateLimit-Limit`, `RateLimit-Remaining` and
+  `RateLimit-Reset`, and a 429 also `Retry-After`.
+- `cloudflareRateLimitStore(bindings)` (`packages/core/src/rate-limit/cloudflare.ts`): each
+  limiter's Workers Rate Limiting binding (`AUTH_RATE_LIMITER`, ...), shared
+  by every isolate, with per-isolate memory for one that is not bound. A
+  binding enforces its own limit and period from `wrangler.jsonc` and answers
+  only yes or no, so its responses carry none of those headers.
+
+The client is whatever the runtime's `ClientAddressResolver`
+(`packages/core/src/utils/client-ip.ts`) says, read through `clientIp(c)`. The
+entries pass the resolver and the store through `startWebApp()` to
+`createApp({ clientAddress, rateLimitStore })` (see the table above). Each
+`createApp()` call gets counters of its own, so test apps never share them.
+An app given neither keeps working: it reads @hono/node-server's socket or
+else `cf-connecting-ip`, and counts in a binding on `c.env` when the limiter
+names one, else in memory. Tests pass a resolver
+(`createTestApp({ clientAddress })`) instead of faking a socket.
+
+## Body limits
+
+`createApp()` caps every `/api/*` body at `bodyLimitBytes` (1 MB). A route
+that takes bigger bodies declares its own limit with `routeBodyLimit(bytes)`
+from `packages/core/src/middlewares/body-limit.middleware.ts`, as the storage
+upload does with 100 MB; the app's limit skips every request such a route
+matches, so the route's limit holds wherever its router is mounted. Both are
+Hono's `bodyLimit`: a declared `Content-Length` over the limit is refused
+before the body is read, and a streamed body is refused once it passes the
+limit. The refusal is a bare 413 unless the route passes
+`routeBodyLimit(bytes, { onError })`, whose handler can throw a worded
+`Boom.entityTooLarge(...)`. The older `uploadPaths` option, which skips the limit by path, still
+works but is deprecated.
 
 ## Background jobs
 
@@ -159,15 +204,29 @@ optional TTL; app settings and passkey challenges use it. See [KV](../features/k
 
 ## Authentication
 
-| Layer     | Routes                                                                         | Requirement                                                                           |
-| --------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
-| Public    | `POST /api/v1/auth/login`, `POST /api/v1/passkey/login/*`, `/health`, `/ready` | none (login routes: 20 requests / 15 min per IP)                                      |
-| Protected | everything else under `/api/v1`                                                | JWT in the `token` httpOnly cookie or `Authorization: Bearer …` (`jwtAuthMiddleware`) |
-| Admin     | `POST` / `GET /api/v1/auth/users`                                              | `X-Admin-Auth-Key` equal to `ADMIN_AUTH_KEY` (`adminAuthMiddleware`)                  |
+| Layer     | Routes                                                                         | Requirement                                                                            |
+| --------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- |
+| Public    | `POST /api/v1/auth/login`, `POST /api/v1/passkey/login/*`, `/health`, `/ready` | none (login routes: 20 requests / 15 min per IP)                                       |
+| Setup     | `GET` / `POST /api/v1/auth/setup`                                              | none, but `POST` only succeeds while no user exists (403 after; rate-limited as login) |
+| Protected | everything else under `/api/v1`                                                | JWT in the `token` httpOnly cookie or `Authorization: Bearer …` (`requireSession`)     |
+| Admin     | `POST` / `GET /api/v1/auth/users`                                              | `X-Admin-Auth-Key` equal to `ADMIN_AUTH_KEY` (`adminAuthMiddleware`)                   |
 
 Passwords are PBKDF2-SHA256 (100,000 iterations through WebCrypto); tokens are
-HS256 via jose, valid for `config.auth.jwtExpiresIn` (30 days). Login sets the
-cookie and also returns the token for non-browser clients.
+HS256 via jose, valid for `config.auth.jwtExpiresIn` (30 days).
+
+The session is one module, `@groot/core/session`
+(`packages/core/src/session/index.ts`). A sign-in path (password login,
+first-run setup, passkey login) has its service prove who the user is and
+return the account; the route then calls `startSession(c, account)` once,
+which mints the token, sets the cookie and returns the body every sign-in
+route sends, `{ token, user }` (`SignInResponse`, with `user` exactly the
+`SessionUser` fields; the token is for non-browser clients). `endSession(c)`
+clears the cookie. `requireSession` is the guard: it reads the cookie, else the
+bearer token, verifies it, checks the account still exists and sets
+`c.get("user")`. It alone answers 401 `SESSION_INVALID`, the code the client
+signs out on (R9); a wrong password or passkey is a plain 401 `UNAUTHORIZED`.
+`jwtAuthMiddleware`, `utils/jwt.utils` and `utils/auth-cookie.utils` remain as
+deprecated aliases.
 
 ## Client
 

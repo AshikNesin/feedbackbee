@@ -36,37 +36,21 @@ export function Jobs() {
 
   return (
     <PageLayout title="Jobs" description={description} actions={actions} maxWidth="7xl">
-      <JobsStats
-        activeState={j.queryParams.state}
-        onSelectState={(state) => j.setQueryParams({ state, page: 0 })}
-      />
+      <JobsStats filter={j.filter} />
 
-      <JobsFilters
-        queryParams={j.queryParams}
-        setQueryParams={j.setQueryParams}
-        activeSecondaryTab={j.activeSecondaryTab}
-        hasActiveFilters={j.hasActiveFilters}
-        handlePresetChange={j.handlePresetChange}
-        handleClearFilters={j.handleClearFilters}
-      />
+      <JobsFilters filter={j.filter} />
 
       <JobsTable
-        // Remounting per filter set clears the row selection.
-        key={JSON.stringify([
-          j.queryParams.state,
-          j.queryParams.queue,
-          j.queryParams.page,
-          j.queryParams.startDate,
-          j.queryParams.endDate,
-          j.queryParams.search,
-        ])}
+        // Remounting per filter and page clears the row selection.
+        key={j.filter.filterKey}
         jobs={j.jobs}
         loading={j.loading}
         total={j.total}
         error={j.error}
         onErrorRetry={refresh}
-        queryParams={j.queryParams}
-        setQueryParams={j.setQueryParams}
+        state={j.filter.state}
+        page={j.filter.page}
+        onPage={j.filter.goToPage}
       />
 
       <ScheduledJobsPanel />

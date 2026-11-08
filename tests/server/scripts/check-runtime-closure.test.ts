@@ -8,7 +8,7 @@ import { checkRuntimeClosure } from "../../../scripts/check-runtime-closure.mjs"
  * is not a root production dependency is an ownership error.
  */
 describe("checkRuntimeClosure", () => {
-  const metafile = (imports: Array<{ path: string; kind: string }>) => ({
+  const metafile = (imports: Array<{ path: string; kind: string; external?: boolean }>) => ({
     outputs: { "dist/bundle.js": { imports } },
   });
 

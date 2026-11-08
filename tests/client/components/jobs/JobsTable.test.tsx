@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { createShellQueryClient, ShellQueryProvider } from "@groot/shell/lib/query-client";
 import { MemoryRouter } from "react-router-dom";
 import { ConfirmProvider } from "@groot/ui/primitives";
 import { jobsApi } from "@groot/jobs/client/api";
 import { JobsTable } from "@groot/jobs/client/components/JobsTable";
+import { JOBS_PAGE_SIZE } from "@groot/jobs/client/constants";
 import type { Job, JobState } from "@groot/jobs/client/types";
 
 vi.mock("@groot/jobs/client/api", () => ({
@@ -35,21 +36,29 @@ function job(id: string, state: JobState = "completed"): Job {
 
 const JOBS = [job("aaaaaaaa-1"), job("bbbbbbbb-2", "failed"), job("cccccccc-3", "active")];
 
-function renderTable(jobs: Job[] = JOBS) {
+function renderTable(
+  jobs: Job[] = JOBS,
+  {
+    total = jobs.length,
+    page = 0,
+    onPage = () => {},
+  }: Partial<{ total: number; page: number; onPage: (page: number) => void }> = {},
+) {
   return render(
-    <QueryClientProvider client={new QueryClient()}>
+    <ShellQueryProvider client={createShellQueryClient()}>
       <ConfirmProvider>
         <MemoryRouter>
           <JobsTable
             jobs={jobs}
-            total={jobs.length}
+            total={total}
             loading={false}
-            queryParams={{ state: "all", page: 0 }}
-            setQueryParams={() => {}}
+            state="all"
+            page={page}
+            onPage={onPage}
           />
         </MemoryRouter>
       </ConfirmProvider>
-    </QueryClientProvider>,
+    </ShellQueryProvider>,
   );
 }
 
@@ -109,5 +118,17 @@ describe("JobsTable", () => {
     const dialog = await screen.findByRole("alertdialog");
     await user.click(within(dialog).getByRole("button", { name: "Delete" }));
     expect(jobsApi.deleteJob).toHaveBeenCalledWith("bbbbbbbb-2");
+  });
+
+  it("pages through the server's total", async () => {
+    const onPage = vi.fn();
+    const user = userEvent.setup();
+    renderTable(JOBS, { total: 2 * JOBS_PAGE_SIZE + 1, page: 1, onPage });
+
+    expect(screen.getByText("Page 2 of 3")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(onPage).toHaveBeenLastCalledWith(2);
+    await user.click(screen.getByRole("button", { name: "Previous" }));
+    expect(onPage).toHaveBeenLastCalledWith(0);
   });
 });

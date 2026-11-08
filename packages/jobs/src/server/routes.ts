@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import type { AppEnv } from "@groot/core/types";
-import { Boom } from "@groot/core/errors";
 import { ok } from "@groot/core/utils/api-response.utils";
 import { parseBody, parseQuery, parseStringParam } from "@groot/core/utils/controller.utils";
 import * as queue from "./queue";
 import * as queries from "./queries";
+import { jobNotFound } from "./transitions";
 import {
   bulkRerunSchema,
   createJobSchema,
@@ -58,8 +58,9 @@ const jobIdParam = (c: { req: { param(name: string): string | undefined } }) =>
   parseStringParam(c.req.param("jobId"), "jobId");
 
 jobRoutes.get("/:jobId", async (c) => {
-  const job = await queries.getJobById(jobIdParam(c));
-  if (!job) throw Boom.notFound("Job not found", null, "JOB_NOT_FOUND");
+  const jobId = jobIdParam(c);
+  const job = await queries.getJobById(jobId);
+  if (!job) throw jobNotFound(jobId);
   return ok(c, job);
 });
 

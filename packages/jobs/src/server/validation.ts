@@ -37,6 +37,8 @@ export const paginationQuerySchema = z.object({
 export const getJobsSchema = paginationQuerySchema.extend({
   state: z.string().optional(),
   name: z.string().optional(),
+  /** Substring of the job's name or id, case-insensitive. */
+  search: z.string().optional(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });

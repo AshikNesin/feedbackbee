@@ -125,6 +125,12 @@ function statusCodeToCode(statusCode: number): string {
  */
 export const ErrorCode = {
   VALIDATION_ERROR: { code: "VALIDATION_ERROR", status: 400 },
+  /**
+   * The session guard's 401 (`sessionInvalid`). The client signs out on this
+   * code, never on a bare 401. `as const` keeps the literal type that
+   * `@groot/shell/lib/api` checks its copy against.
+   */
+  SESSION_INVALID: { code: "SESSION_INVALID" as const, status: 401 },
   NOT_FOUND: { code: "NOT_FOUND", status: 404 },
   RATE_LIMIT_EXCEEDED: { code: "RATE_LIMIT_EXCEEDED", status: 429 },
   UPLOAD_RATE_LIMIT_EXCEEDED: { code: "UPLOAD_RATE_LIMIT_EXCEEDED", status: 429 },

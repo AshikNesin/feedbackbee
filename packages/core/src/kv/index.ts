@@ -1,4 +1,4 @@
-import { eq, lt, and, isNotNull, sql } from "drizzle-orm";
+import { eq, lt, lte, gt, and, or, isNull, isNotNull, sql } from "drizzle-orm";
 import { db, kv as kvTable } from "../database";
 
 /**
@@ -8,8 +8,27 @@ import { db, kv as kvTable } from "../database";
 export interface KvStore {
   get<T = unknown>(key: string): Promise<T | undefined>;
   set<T = unknown>(key: string, value: T, ttlMs?: number): Promise<void>;
+  /**
+   * Insert only: write the entry when no live one holds `key` (an expired one
+   * is replaced). Resolves false, writing nothing, when the key is taken. One
+   * statement, so two concurrent adds cannot both win.
+   */
+  add<T = unknown>(key: string, value: T, ttlMs?: number): Promise<boolean>;
   has(key: string): Promise<boolean>;
   delete(key: string): Promise<boolean>;
+  /**
+   * Remove a live entry and return its value, in one statement: of any number
+   * of concurrent `take`s of one key, exactly one gets the value. `undefined`
+   * when the key is missing or expired. For single-use tokens and challenges.
+   */
+  take<T = unknown>(key: string): Promise<T | undefined>;
+  /**
+   * Claim `key` for `intervalMs`, in one compare-and-set upsert: true for at
+   * most one caller per interval across every process and isolate, false
+   * while an earlier claim is younger than `intervalMs`. The value is the
+   * claim time (epoch ms), so `get(key)` reads the last claim.
+   */
+  claim(key: string, intervalMs: number): Promise<boolean>;
   /** Every live entry whose key starts with `prefix` (keys returned without the namespace). */
   list<T = unknown>(prefix?: string): Promise<Array<{ key: string; value: T }>>;
   /** Delete every entry whose key starts with `prefix`. Returns the count. */
@@ -51,6 +70,21 @@ export function createKvStore(namespace = ""): KvStore {
         .onConflictDoUpdate({ target: kvTable.key, set: { value: encoded, expiresAt } });
     },
 
+    async add<T>(key: string, value: T, ttlMs?: number): Promise<boolean> {
+      const expiresAt = ttlMs ? new Date(Date.now() + ttlMs) : null;
+      const encoded = JSON.stringify(value);
+      const written = await db
+        .insert(kvTable)
+        .values({ key: full(key), value: encoded, expiresAt })
+        .onConflictDoUpdate({
+          target: kvTable.key,
+          set: { value: encoded, expiresAt },
+          setWhere: and(isNotNull(kvTable.expiresAt), lte(kvTable.expiresAt, new Date())),
+        })
+        .returning({ key: kvTable.key });
+      return written.length > 0;
+    },
+
     async has(key: string): Promise<boolean> {
       return (await this.get(key)) !== undefined;
     },
@@ -61,6 +95,36 @@ export function createKvStore(namespace = ""): KvStore {
         .where(eq(kvTable.key, full(key)))
         .returning();
       return deleted.length > 0;
+    },
+
+    async take<T>(key: string): Promise<T | undefined> {
+      const [row] = await db
+        .delete(kvTable)
+        .where(
+          and(
+            eq(kvTable.key, full(key)),
+            or(isNull(kvTable.expiresAt), gt(kvTable.expiresAt, new Date())),
+          ),
+        )
+        .returning({ value: kvTable.value });
+      return row ? (JSON.parse(row.value) as T) : undefined;
+    },
+
+    async claim(key: string, intervalMs: number): Promise<boolean> {
+      const nowMs = Date.now();
+      const value = JSON.stringify(nowMs);
+      // The row expires when the claim does, so the sweep removes stale keys.
+      const expiresAt = new Date(nowMs + intervalMs);
+      const claimed = await db
+        .insert(kvTable)
+        .values({ key: full(key), value, expiresAt })
+        .onConflictDoUpdate({
+          target: kvTable.key,
+          set: { value, expiresAt },
+          setWhere: sql`CAST(${kvTable.value} AS INTEGER) <= ${nowMs - intervalMs}`,
+        })
+        .returning({ key: kvTable.key });
+      return claimed.length > 0;
     },
 
     async list<T>(prefix = ""): Promise<Array<{ key: string; value: T }>> {

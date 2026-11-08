@@ -11,13 +11,12 @@ import {
 import { Field } from "@groot/ui/form";
 import { jobsApi } from "@groot/jobs/client/api";
 import { jobsKeys } from "@groot/jobs/client/queries";
-import { formatJobId, withJobToast } from "@groot/jobs/client/utils";
+import { formatJobId, parseJobData } from "@groot/jobs/client/utils";
+import { useAction } from "@groot/shell/lib/feedback";
 import { JobDataEditor } from "./JobDataEditor";
 import { JobTypeSelect } from "./JobTypeSelect";
-import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { toast } from "sonner";
 import { Plus } from "lucide-react";
 
 /** Manually trigger a one-off job. Renders its own trigger. */
@@ -44,37 +43,32 @@ export function AddJobDialog() {
 
 /** Mounted only while the dialog is open, so every opening starts from a blank draft. */
 function AddJobForm({ onDone }: { onDone: () => void }) {
-  const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [data, setData] = useState("{}");
-  const [pending, setPending] = useState(false);
 
-  const submit = async () => {
-    if (!name) {
-      toast.error("Error", { description: "Please select a job name" });
-      return;
-    }
-    if (pending) return; // a double click must not enqueue the job twice
-    setPending(true);
-    await withJobToast(
-      () => jobsApi.addJob(name, JSON.parse(data)),
-      (jobId) => (
-        <span>
-          Job has been added to the queue.{" "}
-          <Link to={`/jobs/${jobId}`} className="underline font-medium hover:text-foreground">
-            View job ({formatJobId(jobId)})
-          </Link>
-        </span>
-      ),
-      "Failed to add job",
-      () => {
-        onDone();
-        void queryClient.invalidateQueries({ queryKey: jobsKeys.list });
-        void queryClient.invalidateQueries({ queryKey: jobsKeys.stats });
-      },
-    );
-    setPending(false);
-  };
+  const add = useAction(
+    () => {
+      if (!name) throw new Error("Please select a job name");
+      return jobsApi.addJob(name, parseJobData(data));
+    },
+    {
+      success: (jobId) => ({
+        title: "Success",
+        description: (
+          <span>
+            Job has been added to the queue.{" "}
+            <Link to={`/jobs/${jobId}`} className="underline font-medium hover:text-foreground">
+              View job ({formatJobId(jobId)})
+            </Link>
+          </span>
+        ),
+      }),
+      errorTitle: "Error",
+      fallback: "Failed to add job",
+      invalidate: [jobsKeys.list, jobsKeys.stats],
+      onSuccess: onDone,
+    },
+  );
 
   return (
     <DialogBody className="space-y-5">
@@ -92,7 +86,7 @@ function AddJobForm({ onDone }: { onDone: () => void }) {
         <Button variant="outline" onClick={onDone}>
           Cancel
         </Button>
-        <Button onClick={() => void submit()} disabled={pending}>
+        <Button onClick={() => void add.run()} disabled={add.isPending}>
           Add Job
         </Button>
       </div>

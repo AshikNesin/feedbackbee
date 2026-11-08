@@ -10,9 +10,19 @@ import type { AIConfig, AnyModel } from "./types";
  *   `undefined` for unknown ids, so we throw a helpful error instead of
  *   failing obscurely at request time.
  *
+ * - With an already-resolved `model`: returns it as-is.
+ *
  * Pass `modelId` to reuse the same provider/endpoint with a different model.
+ * For a resolved model that is a copy with the new id (same API, provider and
+ * endpoint).
  */
-export function resolveModel(config: AIConfig, modelId: string = config.model): AnyModel {
+export function resolveModel(config: AIConfig, modelId?: string): AnyModel {
+  if (typeof config.model !== "string") {
+    if (modelId === undefined || modelId === config.model.id) return config.model;
+    return { ...config.model, id: modelId, name: modelId };
+  }
+  modelId ??= config.model;
+
   if (config.baseUrl) {
     return {
       id: modelId,

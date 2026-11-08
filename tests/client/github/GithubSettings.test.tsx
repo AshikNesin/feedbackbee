@@ -102,7 +102,7 @@ describe("GitHub settings", () => {
   it("shows a ready app and its installed repositories", () => {
     setSettings({
       encryptionConfigured: true,
-      app: { slug: "feedbackbee", name: "FeedbackBee" },
+      app: { slug: "feedbackbee", name: "FeedbackBee", webhooks: true },
       repositories: [repository],
       connectionError: null,
     });

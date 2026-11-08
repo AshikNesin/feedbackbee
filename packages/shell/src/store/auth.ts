@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { startAuthentication } from "@simplewebauthn/browser";
 import type { PublicKeyCredentialRequestOptionsJSON } from "@simplewebauthn/browser";
 import { ApiError, apiClient } from "@groot/shell/lib/api";
+import { describeError } from "@groot/shell/lib/feedback";
 import type { SessionUser } from "@groot/core/auth/auth.schema";
 
 /** The signed-in user, as `/auth/me` and both sign-in routes return it.
@@ -13,14 +14,16 @@ interface AuthState {
   isAuthenticated: boolean;
   /** False until the first `checkAuth()` settles. */
   hasCheckedAuth: boolean;
-  /**
-   * Bumped on every sign-in and sign-out. A request that records it when sent
-   * can tell whether its 401 belongs to the current session.
-   */
+  /** Bumped on every sign-in and sign-out. */
   generation: number;
 
   /** Sign in with email and password. Word a rejection with `loginErrorDescription`. */
   login: (email: string, password: string) => Promise<SessionUser>;
+  /**
+   * First-run setup: create the first account and sign in as it. The server
+   * refuses (403) once any account exists.
+   */
+  setup: (values: { email: string; password: string; name?: string }) => Promise<SessionUser>;
   /** Sign in with a passkey (WebAuthn). Word a rejection with `loginErrorDescription`. */
   loginWithPasskey: () => Promise<SessionUser>;
   /** Clear the server cookie and the local session. Never rejects. */
@@ -32,25 +35,13 @@ interface AuthState {
 }
 
 /**
- * The wording a person sees when sign-in fails. A 401 is always "wrong
- * credentials" for the person typing; a `TypeError` from `fetch` means the
- * request never reached the server.
+ * The wording a person sees when sign-in fails: `describeError`
+ * (`@groot/shell/lib/feedback`), except that a 401 always means "wrong
+ * credentials" for the person typing.
  */
 export function loginErrorDescription(error: unknown, fallback: string): string {
-  if (error instanceof ApiError) {
-    return error.status === 401 ? "Invalid email or password." : error.message || fallback;
-  }
-  if (error instanceof TypeError) {
-    return "Could not reach the server. Check your connection and try again.";
-  }
-  if (error instanceof Error && error.name === "NotAllowedError") {
-    return "Passkey sign-in was cancelled or not allowed. Please try again.";
-  }
-  if (error instanceof Error && error.name === "NotSupportedError") {
-    return "Passkeys are not supported in this browser.";
-  }
-  if (error instanceof Error && error.message) return error.message;
-  return fallback;
+  if (error instanceof ApiError && error.status === 401) return "Invalid email or password.";
+  return describeError(error, fallback);
 }
 
 async function passkeySignIn(): Promise<SessionUser> {
@@ -78,9 +69,9 @@ async function passkeySignIn(): Promise<SessionUser> {
 let generationChangedAt = 0;
 
 /**
- * The client session: who is signed in, how they sign in and out, and what a
- * 401 means. The server keeps the session in an HttpOnly cookie, so this
- * holds only the user.
+ * The client session: who is signed in, how they sign in and out, and what
+ * the session guard's 401 means. The server keeps the session in an HttpOnly
+ * cookie, so this holds only the user.
  */
 export const useAuthStore = create<AuthState>((set) => {
   const change = (user: SessionUser | null) => {
@@ -114,6 +105,12 @@ export const useAuthStore = create<AuthState>((set) => {
         return user;
       }),
 
+    setup: (values) =>
+      signIn(async () => {
+        const { user } = await apiClient.post<{ user: SessionUser }>("/auth/setup", values);
+        return user;
+      }),
+
     loginWithPasskey: () => signIn(passkeySignIn),
 
     logout: async () => {
@@ -140,9 +137,6 @@ export const useAuthStore = create<AuthState>((set) => {
   };
 });
 
-// A 401 mid-session means the cookie expired: drop the user so
-// <ProtectedRoute> sends them to /login. A 401 for a request sent before the
-// last sign-in or sign-out belongs to an earlier session and is ignored.
 apiClient.onUnauthorized(({ sentAt }) => {
   if (useAuthStore.getState().isAuthenticated && sentAt >= generationChangedAt) {
     useAuthStore.getState().clearAuth();

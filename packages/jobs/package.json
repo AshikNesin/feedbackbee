@@ -1,6 +1,6 @@
 {
   "name": "@groot/jobs",
-  "version": "1.0.1",
+  "version": "3.0.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -14,6 +14,7 @@
     "./server/queries": "./src/server/queries.ts",
     "./server/worker": "./src/server/worker.ts",
     "./server/tick": "./src/server/tick.ts",
+    "./server/transitions": "./src/server/transitions.ts",
     "./server/logger": "./src/server/logger.ts",
     "./server/routes": "./src/server/routes.ts",
     "./server/validation": "./src/server/validation.ts",
@@ -40,23 +41,24 @@
     "./client/useJobActions": "./src/client/useJobActions.tsx",
     "./client/useJobDetail": "./src/client/useJobDetail.ts",
     "./client/useJobs": "./src/client/useJobs.ts",
+    "./client/useJobsFilter": "./src/client/useJobsFilter.ts",
     "./client/utils": "./src/client/utils.ts"
   },
   "dependencies": {
     "@groot/core": "workspace:*",
     "@groot/shell": "workspace:*",
     "@groot/ui": "workspace:*",
-    "@tanstack/react-query": "^5.101.2",
+    "@tanstack/react-query": "^5.104.5",
     "console-feed": "^3.8.0",
-    "croner": "^10.0.0",
+    "croner": "^11.0.0",
     "drizzle-orm": "^0.45.4",
-    "hono": "^4.10.0",
-    "lucide-react": "^1.23.0",
-    "nuqs": "^2.9.0",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.1",
-    "sonner": "^2.0.7",
-    "zod": "^4.4.3"
+    "hono": "^4.13.17",
+    "lucide-react": "^1.61.0",
+    "nuqs": "^2.10.2",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4",
+    "sonner": "^2.0.8",
+    "zod": "^4.6.7"
   }
 }

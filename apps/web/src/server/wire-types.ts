@@ -5,7 +5,7 @@
  */
 import type { Feedback, Project } from "./db/schema";
 
-export type { FeedbackKind, FeedbackState, FeedbackStatus, LabelsMap } from "./db/schema";
+export type { FeedbackKind, FeedbackStatus, LabelsMap } from "./db/schema";
 
 type Wire<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] };
 

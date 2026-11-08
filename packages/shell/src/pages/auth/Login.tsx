@@ -1,10 +1,11 @@
-import { useNavigate } from "react-router-dom";
+import { Navigate, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@groot/ui/button";
 import { displayClass, h1Class } from "@groot/ui/typography";
 import { Input } from "@groot/ui/input";
 import { Form, FormField } from "@groot/ui/form";
 import { loginErrorDescription, useAuthStore } from "@groot/shell/store/auth";
 import { type LoginFeature, useShellConfig } from "@groot/shell/lib/shell-config";
+import { useSetupStatus } from "@groot/shell/hooks/useSetupStatus";
 import { z } from "zod";
 import { toast } from "sonner";
 import { LayoutDashboard, ShieldCheck, Zap, ArrowRight, KeyRound } from "lucide-react";
@@ -37,10 +38,26 @@ const FEATURES = [
   { icon: LayoutDashboard, title: "Production UI", desc: "A polished sidebar shell you can ship." },
 ] satisfies LoginFeature[];
 
+/**
+ * Where to go after signing in: the protected page that sent the visitor here
+ * (ProtectedRoute puts it in router state), else home. Router state only ever
+ * holds an in-app location, never an outside URL.
+ */
+export function returnPath(state: unknown): string {
+  const from = (state as { from?: { pathname?: unknown; search?: unknown; hash?: unknown } })?.from;
+  if (!from || typeof from.pathname !== "string" || !from.pathname.startsWith("/")) return "/";
+  if (from.pathname.startsWith("//") || from.pathname === "/login") return "/";
+  const search = typeof from.search === "string" ? from.search : "";
+  const hash = typeof from.hash === "string" ? from.hash : "";
+  return `${from.pathname}${search}${hash}`;
+}
+
 export function Login() {
   const login = useAuthStore((state) => state.login);
   const loginWithPasskey = useAuthStore((state) => state.loginWithPasskey);
   const navigate = useNavigate();
+  const location = useLocation();
+  const destination = returnPath(location.state);
   const config = useShellConfig();
   const { icon: BrandMark, label: brandLabel } = config.brand;
   const tagline = config.login?.tagline ?? "The boilerplate that ships like a product.";
@@ -48,11 +65,13 @@ export function Login() {
     config.login?.description ??
     "Everything you need to launch a full-stack SaaS (auth, storage, background jobs, and a polished UI) without the busywork.";
   const features = config.login?.features ?? FEATURES;
+  // A fresh install has nobody to sign in as: send them to first-run setup.
+  const needsSetup = useSetupStatus();
 
   const onSubmit = async (values: LoginValues) => {
     try {
       await login(values.email, values.password);
-      navigate("/");
+      navigate(destination, { replace: true });
     } catch (error) {
       toast.error("Login Failed", {
         description: loginErrorDescription(error, "Invalid credentials"),
@@ -63,7 +82,7 @@ export function Login() {
   const handlePasskeyLogin = async () => {
     try {
       await loginWithPasskey();
-      navigate("/");
+      navigate(destination, { replace: true });
     } catch (error) {
       toast.error("Passkey Sign-In Failed", {
         description: loginErrorDescription(error, "Passkey authentication failed"),
@@ -71,8 +90,10 @@ export function Login() {
     }
   };
 
+  if (needsSetup) return <Navigate to="/setup" replace />;
+
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-dvh bg-background">
       {/* Left: form. */}
       <div className="flex w-full flex-col justify-center px-6 py-12 sm:px-12 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-sm">
@@ -88,7 +109,7 @@ export function Login() {
 
           {isDev && (
             <div className="mt-6 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Demo credentials:</span>
+              <span className="font-medium text-foreground">Demo credentials:</span>{" "}
               demo@example.com / demo@example.com
             </div>
           )}

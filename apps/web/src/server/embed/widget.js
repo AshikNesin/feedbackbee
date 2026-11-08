@@ -341,13 +341,13 @@
     (listeners[name] || []).slice().forEach(function (fn) {
       try {
         fn(detail);
-      } catch (e) {
+      } catch {
         /* a host listener must not break the widget */
       }
     });
     try {
       window.dispatchEvent(new CustomEvent("feedbackbee:" + name, { detail: detail }));
-    } catch (e) {
+    } catch {
       /* older browsers */
     }
   }
@@ -439,7 +439,7 @@
   function metadataSize(obj) {
     try {
       return new Blob([JSON.stringify(obj)]).size;
-    } catch (e) {
+    } catch {
       return JSON.stringify(obj).length;
     }
   }
@@ -1026,7 +1026,7 @@
     drawShot(c.getContext("2d"), shot, w / shot.base.width);
     try {
       return c.toDataURL("image/png");
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -1178,7 +1178,7 @@
     var hasText = false;
     try {
       hasText = Array.prototype.indexOf.call(e.clipboardData.types || [], "text/plain") !== -1;
-    } catch (err) {
+    } catch {
       /* keep false */
     }
     // Image-only clipboard: swallow the default (nothing to insert anyway).
@@ -1193,7 +1193,7 @@
     try {
       hasFiles =
         e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types || [], "Files") !== -1;
-    } catch (err) {
+    } catch {
       hasFiles = !!e.dataTransfer;
     }
     if (!hasFiles) return;
@@ -1327,7 +1327,7 @@
     state.timer = null;
     try {
       rec.stop();
-    } catch (e) {
+    } catch {
       /* already stopped */
     }
     closeLayer();
@@ -1475,7 +1475,7 @@
     if (state.rec) {
       try {
         state.rec.stop();
-      } catch (e) {
+      } catch {
         /* already stopped */
       }
       state.rec = null;
@@ -1782,7 +1782,7 @@
   function addShot(shot) {
     var gen = generation;
     addImage(shot).then(
-      function (img) {
+      function (_img) {
         if (gen !== generation) return;
         releaseShot(shot);
         closeLayer();
@@ -2354,7 +2354,7 @@
       var box = el("div", "fbx-text-in");
       try {
         box.contentEditable = "plaintext-only";
-      } catch (err) {
+      } catch {
         /* older browsers */
       }
       if (box.contentEditable !== "plaintext-only") box.contentEditable = "true";
@@ -2485,13 +2485,6 @@
     p.resolve(result);
     if (result && result.status === "submitted")
       emit("submit", { id: result.id, state: result.state, kind: result.kind });
-  }
-
-  function failOpen(err) {
-    if (!openPromise) return;
-    var p = openPromise;
-    openPromise = null;
-    p.reject(err);
   }
 
   function applyOptions(options) {
@@ -2768,7 +2761,7 @@
     title.id = "fbx-title";
     closeBtn = el("button", "fbx-close", ICONS.close);
     closeBtn.setAttribute("aria-label", "Close");
-    closeBtn.addEventListener("click", function (event) {
+    closeBtn.addEventListener("click", function (_event) {
       apiClose();
     });
     head.appendChild(title);
@@ -2813,7 +2806,7 @@
 
   // The launcher toggle uses the same promise path as apiOpen so hosts can
   // await launcher-opened sessions too.
-  function openFromLauncher(keyboard) {
+  function openFromLauncher(_keyboard) {
     if (isOpen()) {
       apiClose();
       return;
