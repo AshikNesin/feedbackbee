@@ -61,7 +61,8 @@ own corner radius.
    loaded items, like the web). Search over loaded items. Rows: kind dot, two
    lines of text, relative time, status dot + word, `#issue`, small icons for
    images, replay/recording and voice note. Pull to refresh, infinite scroll.
-   Swipe: Done (leading), Delete (trailing, confirmed). Menu: Sync from GitHub,
+   Long-press: status menu and Delete; iOS also swipes (leading Done,
+   trailing Delete). Deletes are confirmed. Menu: Sync from GitHub,
    Open in dashboard, Delete project. A honey **New issue** button opens the
    quick-file sheet.
 4. **Report.** Text, kind, status picker, images (tap for full screen), links
