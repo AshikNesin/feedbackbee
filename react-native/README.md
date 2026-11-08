@@ -59,6 +59,49 @@ FeedbackBee.reset(); // on logout
 `kind` is `"issue"`, `"feature_request"` or `"other"`. Reports carry `os_name` `ios` or `android` with the native
 device fields; `identify` / `setContext` data reaches your dashboard only, never the GitHub issue.
 
+The package ships TypeScript types: `InitOptions`, `OpenOptions`, `Reporter`, `ContextValue` and `FeedbackKind`.
+
+## What the user sees
+
+The native sheet on each platform: the same three screens (pick a type, write the note with optional screenshot
+markup and voice note, sent). The screens are described in the [Apple](../apple/README.md#what-the-user-sees) and
+[Android](../android/README.md#what-the-user-sees) READMEs.
+
+## Light and dark mode
+
+The sheet follows your app's color scheme on both platforms, with nothing to configure:
+
+- **System setting**: followed by default.
+- **`Appearance.setColorScheme("light" | "dark")`**: followed. On iOS the sheet's window copies the style React Native
+  sets on your app's window. On Android it is a night-mode change that the sheet picks up from the activity theme.
+- **Forced in native config**: `UIUserInterfaceStyle` in `Info.plist` on iOS, or a non-DayNight theme in
+  `styles.xml` on Android. The sheet matches it.
+- **Switching while the sheet is open**: handled on both. React Native's `MainActivity` handles `uiMode` itself, so
+  Android doesn't recreate it; the SDK rebuilds the sheet for the new scheme and keeps the draft.
+
+The light and dark palettes, shared with the web widget, are listed in the
+[Apple README](../apple/README.md#light-and-dark-mode) and the [Android README](../android/README.md#light-and-dark-mode).
+
+## Permissions and privacy
+
+- **Network**: Android merges `INTERNET` automatically; iOS needs nothing.
+- **Microphone, for voice notes**: on iOS, add `NSMicrophoneUsageDescription` to `Info.plist`; without it the mic button
+  is hidden. On Android, `RECORD_AUDIO` is merged automatically and requested only when the user taps the mic.
+- **Screenshots**: read only your app's own window, only after the user taps the camera. No photo-library, camera or
+  screen-recording permission is involved.
+- Nothing leaves the device until the user presses **Send**.
+
+## Troubleshooting
+
+| Symptom                                                          | Fix                                                                                                                              |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| "the native module is not linked" warning, calls do nothing      | Rebuild the native app after installing (`pod install`, then build). Expo Go can't load native modules: use a development build. |
+| `init` throws `endpoint must be a valid http:// or https:// URL` | Pass the base URL of your FeedbackBee deployment, like `https://bee.example.dev`, not `/api/v1/feedback`.                        |
+| Shake opens the React Native dev menu too                        | Expected in development; pass `shake: !__DEV__`.                                                                                 |
+| Android build fails on `minSdkVersion`                           | Set `minSdkVersion = 26` in `android/build.gradle`.                                                                              |
+| `vendor/ios is missing` / `vendor/android is missing`            | Install the tarball from `pnpm pack`, not the raw folder, or run `pnpm vendor` in `react-native/`.                               |
+| Nothing opens on Android                                         | The foreground activity must be a `FragmentActivity`; `ReactActivity` is one. Check Logcat for the `FeedbackBee` tag.            |
+
 ## Develop
 
 ```bash

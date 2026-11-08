@@ -122,6 +122,37 @@ The sheet renders from one sealed state, not scattered flags:
 `Choosing → Draft → Annotating | RecordingAudio → WithScreenshot → Uploading → Sent | Failed`. It lives in an
 activity-scoped `ViewModel`, so rotation and fold/unfold keep the draft, attachments and an in-flight upload.
 
+## Light and dark mode
+
+The sheet matches the host app, not just the system:
+
+- If the activity's theme says whether it is light (`android:isLightTheme`, set by every Material, AppCompat and
+  DayNight theme), the sheet follows it. An app that forces a light theme gets a light sheet even when the phone is in
+  dark mode, and the reverse.
+- Otherwise it follows the system night mode.
+- `AppCompatDelegate.setDefaultNightMode(...)` (and React Native's `Appearance.setColorScheme`) work, because they
+  change the activity's theme.
+- Switching while the sheet is open works too. A normal activity is recreated with the sheet and its draft. An activity
+  that handles `uiMode` itself (React Native's `MainActivity` declares it) is not recreated, so the SDK rebuilds the
+  sheet for the new appearance and keeps the draft.
+- The screenshot annotator is always dark, so the red markup reads on any screenshot.
+
+The palette is shared with the web widget and the iOS and macOS sheets:
+
+| Token      | Light     | Dark      | Used for                                |
+| ---------- | --------- | --------- | --------------------------------------- |
+| Panel      | `#FFFFFF` | `#18181B` | Sheet background, field background      |
+| Ink        | `#18181B` | `#F4F4F5` | Titles, text, primary button fill       |
+| Muted      | `#71717A` | `#A1A1AA` | Subtitles, hints, placeholder           |
+| Tile       | `#F4F4F5` | `#27272A` | Icon tiles, voice-note rows             |
+| Border     | `#E4E4E7` | `#3F3F46` | Field and tile borders                  |
+| Focus      | `#2563EB` | `#60A5FA` | Focused field border                    |
+| Error      | `#DC2626` | `#F87171` | Error line, Stop button                 |
+| Annotation | `#FF3B30` | `#FF3B30` | Pen, box and arrow strokes (both modes) |
+
+`FeedbackSheetTest` checks the colors for each combination of light or dark system and light or dark app theme, plus
+a live switch that keeps the draft.
+
 ## Manifest permissions for the host app
 
 The SDK's manifest already merges these into your app:

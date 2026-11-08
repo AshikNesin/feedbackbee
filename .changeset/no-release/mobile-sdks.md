@@ -4,4 +4,6 @@ Add the app-owned Apple SDK for iOS and macOS (`apple/`), the React Native modul
 optional `currentActivity` argument on the Android SDK's `init`, and a
 `mobile-sdks.yml` workflow listed in `.groot/boilerplate-sync.json`
 `additional_exclusions`. groot's published packages are unchanged; the upload
-contract only gains `ios` and `macos` as documented `os_name` values.
+contract only gains `ios` and `macos` as documented `os_name` values. The web
+widget gains an opt-in `data-theme` (default `light`, unchanged), documented in
+the new app-owned `docs/WIDGET.md` (also excluded from groot sync).

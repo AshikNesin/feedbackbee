@@ -16,6 +16,7 @@
     "docs/CONTRACT.md",
     "docs/DEPLOY.md",
     "docs/PRD.md",
+    "docs/WIDGET.md",
     "docs/screenshots/**",
     "tests/server/jobs/**",
     "tests/server/api/storage.test.ts",

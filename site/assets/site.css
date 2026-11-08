@@ -1091,8 +1091,11 @@ html:not(.js) .needs-js {
   border-radius: var(--radius-control);
   background: var(--color-paper-2);
   width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
 }
 .tabs [role="tab"] {
+  flex: none;
   min-height: 36px;
   padding: 0 var(--space-md);
   border: 0;

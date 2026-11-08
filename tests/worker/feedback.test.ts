@@ -381,6 +381,11 @@ test("the demo page provisions the demo project on a fresh install", async () =>
   expect(demo.status).toBe(200);
   expect(await demo.text()).toContain('<script src="/embed.js" data-project="demo"');
 
+  const dark = await SELF.fetch(`${ORIGIN}/demo?theme=dark`);
+  expect(await dark.text()).toContain('data-project="demo" data-theme="dark"');
+  const bogus = await SELF.fetch(`${ORIGIN}/demo?theme="><b>`);
+  expect(await bogus.text()).not.toContain("data-theme");
+
   const res = await submit({
     project: "demo",
     kind: "other",
