@@ -24,10 +24,10 @@ jobs:
     defaults:
       run:
         working-directory: apple
-    env:
-      FEEDBACKBEE_SNAPSHOT_DIR: ${{ runner.temp }}/snapshots
     steps:
       - uses: actions/checkout@v5
+      - name: Snapshot folder
+        run: echo "FEEDBACKBEE_SNAPSHOT_DIR=$RUNNER_TEMP/snapshots" >> "$GITHUB_ENV"
       - name: iOS Simulator tests (UIKit layer, light/dark snapshots)
         run: |
           udid=$(xcrun simctl list devices available -j \
