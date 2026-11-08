@@ -113,25 +113,7 @@ export function FeedbackRow({
             <audio src={`/f/${item.audioKey}`} controls preload="none" className="w-full" />
           )}
 
-          <div className="flex flex-wrap gap-2">
-            <Select
-              value={status}
-              disabled={setStatus.isPending}
-              onValueChange={(value) =>
-                setStatus.mutate({ id: item.id, status: value as FeedbackStatus })
-              }
-            >
-              <SelectTrigger size="sm" className="w-36" aria-label="Status">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUSES.map((value) => (
-                  <SelectItem key={value} value={value}>
-                    {STATUS_LABELS[value]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="flex flex-wrap gap-2 empty:hidden">
             {item.issueUrl && (
               <Button variant="outline" size="sm" asChild>
                 <a href={item.issueUrl} target="_blank" rel="noreferrer">
@@ -173,6 +155,26 @@ export function FeedbackRow({
           )}
 
           <DataFields columns={2}>
+            <DataField label="Status">
+              <Select
+                value={status}
+                disabled={setStatus.isPending}
+                onValueChange={(value) =>
+                  setStatus.mutate({ id: item.id, status: value as FeedbackStatus })
+                }
+              >
+                <SelectTrigger size="sm" className="w-40" aria-label="Status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {STATUSES.map((value) => (
+                    <SelectItem key={value} value={value}>
+                      {STATUS_LABELS[value]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </DataField>
             {item.url && (
               <DataField label="Page">
                 <a
