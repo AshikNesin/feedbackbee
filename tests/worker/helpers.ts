@@ -4,8 +4,8 @@ import { stubGithubApp, githubPrivateKey } from "./gh-server";
 export const ORIGIN = "https://example.com";
 export const OWNER = { email: "owner@test.dev", password: "hunter2boogaloo" }; // gitleaks:allow (test-only account)
 
-export const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-export const WEBM = [0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0];
+const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+const WEBM = [0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0];
 
 export const png = (fill = 0) =>
   new File([new Uint8Array([...PNG, fill, fill, fill, fill])], `shot-${fill}.png`, {

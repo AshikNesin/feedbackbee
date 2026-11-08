@@ -231,7 +231,7 @@ const DOCS = "https://github.com/AshikNesin/feedbackbee";
  * the user's app on its own: what FeedbackBee is, the exact snippet with this
  * project's values, where it goes, and how to check it worked.
  */
-export function agentPrompt(project: ProjectDTO, origin: string): string {
+function agentPrompt(project: ProjectDTO, origin: string): string {
   const lines = [
     `Add the FeedbackBee feedback widget to this project. FeedbackBee lets users report a bug or idea with a note, screenshots, a screen recording or a voice note, and files each report as a GitHub issue in ${project.githubRepo}.`,
     "",

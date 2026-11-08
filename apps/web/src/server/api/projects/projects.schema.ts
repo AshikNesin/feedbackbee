@@ -20,7 +20,7 @@ const githubRepo = z
 const label = z.string().trim().min(1).max(50).optional();
 
 /** Browser origins allowed to submit, normalized; duplicates dropped. Empty: any site. */
-export const allowedOriginsSchema = z
+const allowedOriginsSchema = z
   .array(z.string())
   .max(20, "At most 20 allowed origins")
   .transform((entries, ctx) => {
@@ -40,7 +40,7 @@ export const allowedOriginsSchema = z
   });
 
 /** GitHub label per feedback kind. */
-export const labelsSchema = z.object({ issue: label, feature_request: label, other: label });
+const labelsSchema = z.object({ issue: label, feature_request: label, other: label });
 
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(100),

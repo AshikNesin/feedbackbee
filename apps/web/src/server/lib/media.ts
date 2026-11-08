@@ -11,7 +11,7 @@ export interface MediaStore {
   get(key: string): Promise<StoredMedia | null>;
 }
 
-export interface StoredMedia {
+interface StoredMedia {
   body: ReadableStream | Uint8Array<ArrayBuffer>;
   contentType: string;
   etag?: string;
@@ -73,7 +73,7 @@ export function adapterMedia(adapter: StorageAdapter): MediaStore {
 // What an upload is, decided from its bytes rather than the client's claim.
 
 /** Web recordings are rrweb DOM replays (gzipped JSON), watched at /replay/<key>. */
-export const REPLAY_MIME = "application/gzip";
+const REPLAY_MIME = "application/gzip";
 const REPLAY_EXT = "rrweb.gz";
 
 export type MediaRole = "image" | "recording" | "audio";

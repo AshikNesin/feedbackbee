@@ -100,7 +100,7 @@ const metadata = z.preprocess(blankToUndefined, z.string().optional()).transform
 const seconds = (field: "media" | "audio") =>
   `${field}_seconds must be between 0 and ${LIMITS.seconds}`;
 
-export const submissionSchema = z
+const submissionSchema = z
   .object({
     project: requiredText(64),
     kind: z.enum(FEEDBACK_KINDS, { error: `must be one of ${FEEDBACK_KINDS.join(", ")}` }),

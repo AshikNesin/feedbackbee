@@ -6,6 +6,7 @@ const base: Feedback = {
   id: "f1",
   projectId: "p1",
   kind: "issue",
+  status: "open",
   text: "Checkout button does nothing",
   reporterEmail: "a@b.co",
   reporterName: null,

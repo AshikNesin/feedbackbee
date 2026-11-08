@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "types": ["node", "@cloudflare/vitest-plugin/types"]
+  },
+  "include": [
+    "./**/*",
+    "../../vitest.config.worker.ts",
+    "../../apps/web/src/server/sql-modules.d.ts"
+  ]
+}

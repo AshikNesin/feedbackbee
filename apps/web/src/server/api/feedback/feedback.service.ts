@@ -21,7 +21,7 @@ import { safeGithubError } from "../github/github.service";
 import { findProjectBySlug } from "../projects/projects.service";
 import { LIMITS, type Submission } from "./feedback.schema";
 
-export type FeedbackItem = Feedback & { images: string[] };
+type FeedbackItem = Feedback & { images: string[] };
 export type FeedbackPage = { items: FeedbackItem[]; hasMore: boolean };
 
 export interface SubmitResult {

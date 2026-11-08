@@ -14,7 +14,6 @@ export default defineConfig({
   plugins: [
     cloudflareTest({
       main: "./apps/web/src/server/entry.worker.ts",
-      singleWorker: true,
       wrangler: { configPath: "./wrangler.jsonc" },
       miniflare: {
         bindings: {

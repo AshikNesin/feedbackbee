@@ -26,7 +26,7 @@ export const appCredentialsSchema = z.object({
   webhook_secret: z.string().min(1).nullable().optional(),
 });
 
-export async function githubFetch(
+async function githubFetch(
   path: string,
   token?: string,
   init: RequestInit = {},
@@ -68,7 +68,7 @@ export async function getApp() {
   return app ?? null;
 }
 
-export async function appAuthentication() {
+async function appAuthentication() {
   const app = await getApp();
   if (!app) throw Boom.unavailable("Connect a GitHub App in Settings → GitHub first");
   const key = await importAppKey(await decryptPrivateKey(app.privateKey));

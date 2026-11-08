@@ -27,7 +27,7 @@ export type WebRuntime = Omit<BootstrapOptions, "config"> & {
 };
 
 /** The public submit endpoint: any website may post to it, without credentials. */
-export const SUBMIT_PATH = "/api/v1/feedback";
+const SUBMIT_PATH = "/api/v1/feedback";
 
 /**
  * Paths the server answers; everything else is the dashboard SPA. Mirrors
