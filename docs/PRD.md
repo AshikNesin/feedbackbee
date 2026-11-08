@@ -4,7 +4,7 @@ Status: v1.0 (build target). Owner: Ashik Nesin.
 
 ## Problem
 
-Shipping a feedback button into a web or Android app today means either a heavy SaaS widget, a form that emails a mailbox nobody reads, or nothing at all. The feedback that matters most arrives with context: the screen the user was on, what they circled, what they saw happen. That context is exactly what a GitHub issue needs to be actionable, and exactly what existing lightweight tools drop.
+Shipping a feedback button into a web, Android, iOS, macOS or React Native app today means either a heavy SaaS widget, a form that emails a mailbox nobody reads, or nothing at all. The feedback that matters most arrives with context: the screen the user was on, what they circled, what they saw happen. That context is exactly what a GitHub issue needs to be actionable, and exactly what existing lightweight tools drop.
 
 FeedbackBee gives any project a five-minute feedback loop. Embed one script tag (or one Gradle dependency), let users annotate and record, and every submission becomes a labeled GitHub issue with the media attached.
 
@@ -13,7 +13,7 @@ FeedbackBee gives any project a five-minute feedback loop. Embed one script tag 
 1. One `feedbackbee()` call renders a working feedback widget in any web app.
 2. Feedback becomes a GitHub issue within seconds, tagged by kind, with screenshot or recording attached.
 3. A dashboard to create projects, define target repos and labels, and read everything that arrived.
-4. An Android SDK with shake-to-feedback that captures a screenshot and uploads to the same endpoint.
+4. Native SDKs (Android, iOS, macOS and a React Native module) with shake-to-feedback on phones and a Help menu item on the Mac, that capture a screenshot and upload to the same endpoint.
 5. Runs entirely on the Cloudflare free tier. Self-hostable by anyone with one `wrangler deploy`.
 
 ## Non-goals for v1
@@ -91,6 +91,33 @@ Features:
 - Uploads multipart to the same `/api/feedback` endpoint as the web widget. Auto-collects app version, Android version, device model, and screen size.
 - The confidential-content rule applies: the SDK never reads notification, SMS, or system logs. Only the app's own window is captured.
 
+### 3b. Apple SDK (iOS + macOS)
+
+One Swift package (`apple/`, library `FeedbackBee`, iOS 15+ and macOS 12+, no third-party dependencies) that follows the Android SDK: same screens, same upload contract, same privacy rules. See `apple/README.md`.
+
+```swift
+try FeedbackBee.configure(projectId: "myapp", endpoint: "https://your-barn.workers.dev")
+```
+
+- The upload contract, state machine, metadata rules, screenshot encoding and annotation geometry are shared code; only the UI differs (UIKit on iOS, AppKit on macOS).
+- iOS: shake to report is on by default (`shake: false` turns it off); the sheet opens in its own window over UIKit or SwiftUI screens. `FeedbackBee.open()` opens it from a button.
+- macOS: Macs don't shake, so apps add **Help → Send Feedback…** with `FeedbackBee.menuItem()` or `FeedbackBee.open()`. A sandboxed app needs the `com.apple.security.network.client` entitlement.
+- Screenshot, annotation (pen, box, arrow, undo) and optional voice notes (`NSMicrophoneUsageDescription`; the mic button is hidden without it).
+- Not published yet: added from a checkout as a local Swift package. CI compiles and unit-tests it; it has not been driven on devices.
+
+### 3c. React Native module
+
+`react-native/` (`react-native-feedbackbee`) is a TurboModule over the native iOS and Android SDKs, for React Native 0.76+ with the New Architecture. See `react-native/README.md`.
+
+```ts
+FeedbackBee.init({ projectId: "myapp", endpoint: "https://your-barn.workers.dev" });
+FeedbackBee.open(); // or shake
+```
+
+- The sheet, screenshot, annotation, recording and upload are native; nothing renders in React while the sheet is open and large attachments never cross into JS.
+- Five calls: `init`, `open`, `identify`, `setContext`, `reset`.
+- Not on npm yet: installed from a tarball built from a checkout, then `pod install`. It vendors the `apple/` and `android/` sources. CI typechecks and runs codegen; it has not been driven on devices.
+
 ### 4. Dashboard (SPA)
 
 Email and password login for the owner. Single owner in v1 (no team seats).
@@ -100,7 +127,7 @@ Pages:
 - **Projects.** A sidebar list (a picker on phones) plus a "New project" dialog; the project id is derived from the name and stays stable. No per-project tokens. The last opened project is remembered.
 - **Project inbox.** One list filtered by type (All, Issues, Ideas, Other). Each row shows the message, time, page and reporter, with chips for screenshot, replay, voice note and issue state. A row expands to the screenshot, voice player, links to the GitHub issue and replay, a mailto reply, and the device context. Paged with "Load more".
 - **Status.** Each report has a status (Open, In progress, Done, Won't fix), filterable in the inbox and kept in sync with its GitHub issue both ways: open, open + `in progress` label, closed as completed, closed as not planned. Changing it in the dashboard updates the issue; GitHub changes arrive by webhook, and **Sync from GitHub** catches up on missed ones. Reports whose issue was never filed keep a local status.
-- **Setup.** Hidden behind a button (open by default while a project has no feedback): web and Android snippets with copy buttons, the target repo, and delete project.
+- **Setup.** Hidden behind a button (open by default while a project has no feedback): web, Android, iOS & macOS and React Native snippets plus an AI prompt, with copy buttons, the target repo, and delete project.
 - **Settings.** Change password. That is all.
 
 ### 5. GitHub integration
@@ -199,6 +226,9 @@ Sequenced as verifiable units. Each milestone ends in a state you can run and ch
 4. **M4 Dashboard.** Login, projects, feedback list, snippet copy. Verified in the browser.
 5. **M5 Android SDK.** Init, shake detect, screenshot + annotate, upload. Verified by compiling the AAR and driving the demo app in an emulator.
 6. **M6 Deploy + docs.** `wrangler deploy` green, README complete, GitHub App registration documented.
+
+7. **M7 Apple SDK.** Swift package for iOS and macOS: configure, shake (iOS), Help menu item (macOS), screenshot + annotate, voice note, upload. Verified by compiling and running its unit tests in CI; not yet driven on a device.
+8. **M8 React Native module.** TurboModule bridging the native SDKs: `init`, `open`, `identify`, `setContext`, `reset`. Verified by typecheck and codegen in CI; not yet driven in an app.
 
 ## Open decisions
 

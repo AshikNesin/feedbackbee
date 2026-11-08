@@ -27,6 +27,7 @@ final class AnnotationWindowController: NSWindowController, NSWindowDelegate {
         window.title = "Mark Up Screenshot"
         window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 480, height: 320)
+        window.adoptAppearance(of: parent)
         super.init(window: window)
         window.delegate = self
         build(in: window)
@@ -124,7 +125,6 @@ final class MacAnnotationCanvas: NSView {
         strokeWidth = CGFloat(annotationStrokeWidth(width: Double(image.width), height: Double(image.height)))
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
 
         imageView.image = NSImage(cgImage: image, size: .zero)
         imageView.imageScaling = .scaleAxesIndependently

@@ -38,12 +38,12 @@ const SHELL_CONFIG: ShellConfig = {
   login: {
     tagline: "Feedback that lands in GitHub.",
     description:
-      "A feedback widget for your site and Android app. Every report, with screenshots, replays and voice notes, becomes a GitHub issue.",
+      "A feedback widget for your site and your Android, iOS, macOS and React Native apps. Every report, with screenshots, replays and voice notes, becomes a GitHub issue.",
     features: [
       {
         icon: MessageSquareText,
         title: "One widget",
-        desc: "A script tag on the web, an SDK on Android.",
+        desc: "A script tag on the web, a native SDK on every other platform.",
       },
       {
         icon: CircleDot,
