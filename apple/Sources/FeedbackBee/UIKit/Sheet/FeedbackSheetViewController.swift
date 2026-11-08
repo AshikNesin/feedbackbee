@@ -668,7 +668,9 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
         let row = UIStackView(arrangedSubviews: views)
         row.alignment = .center
         row.spacing = 8
-        views.dropFirst().forEach { $0.setContentHuggingPriority(.required, for: .horizontal) }
+        // Only the controls hug; the label stretches. A row where nothing can stretch caps the width of the
+        // whole panel, even while hidden (a stack view still aligns hidden subviews on its cross axis).
+        views.filter { $0 is UIButton }.forEach { $0.setContentHuggingPriority(.required, for: .horizontal) }
         pin(row, in: container, insets: UIEdgeInsets(top: 4, left: 12, bottom: 4, right: 4))
         container.heightAnchor.constraint(greaterThanOrEqualToConstant: 48).isActive = true
     }
