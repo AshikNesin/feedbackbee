@@ -5,7 +5,7 @@
  */
 import type { Feedback, Project } from "./db/schema";
 
-export type { FeedbackKind, FeedbackState, LabelsMap } from "./db/schema";
+export type { FeedbackKind, FeedbackState, FeedbackStatus, LabelsMap } from "./db/schema";
 
 type Wire<T> = { [K in keyof T]: T[K] extends Date ? string : T[K] };
 
@@ -16,7 +16,8 @@ export type FeedbackPageDTO = { items: FeedbackItemDTO[]; hasMore: boolean };
 export type GithubRepositoryDTO = { id: number; fullName: string; installationId: number };
 export type GithubSettingsDTO = {
   encryptionConfigured: boolean;
-  app: { slug: string; name: string } | null;
+  /** `webhooks`: false for apps registered before webhook sync; reconnect to enable. */
+  app: { slug: string; name: string; webhooks: boolean } | null;
   repositories: GithubRepositoryDTO[];
   connectionError: string | null;
 };

@@ -226,6 +226,15 @@ export function GithubSettings() {
                   {errorMessage(manifest.error ?? install.error ?? disconnect.error!)}
                 </Text>
               )}
+              {settings.data.app && !settings.data.app.webhooks && (
+                <div role="status" className="rounded-xl border border-warning/40 bg-warning/5 p-4">
+                  <Text tone="warning">
+                    Status sync from GitHub is off: this app was registered before webhooks were
+                    supported. Disconnect and create the app again to turn it on. Until then, use
+                    Sync from GitHub on a project.
+                  </Text>
+                </div>
+              )}
               {settings.data.connectionError && (
                 <div role="alert" className="rounded-xl border border-warning/40 bg-warning/5 p-4">
                   <Text tone="warning">

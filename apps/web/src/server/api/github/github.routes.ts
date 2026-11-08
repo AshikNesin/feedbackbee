@@ -6,6 +6,8 @@ import type { AppEnv } from "@groot/core/types";
 import { ok } from "@groot/core/utils/api-response.utils";
 import { parseBody } from "@groot/core/utils/controller.utils";
 import { getApp, listRepositories } from "./github.client";
+import { decryptPrivateKey, verifyWebhookSignature } from "./github.crypto";
+import { syncIssueStatus } from "../feedback/feedback.service";
 import { runtime } from "../../runtime";
 import * as service from "./github.service";
 
@@ -86,4 +88,25 @@ for (const kind of ["callback", "installed"] as const) {
     }
   });
 }
+
+const issueEventSchema = z.object({
+  issue: z.object({ number: z.number().int().positive() }),
+  repository: z.object({ full_name: z.string().min(3).max(200) }),
+});
+
+/** GitHub → FeedbackBee status sync. Public, authenticated by the webhook signature. */
+githubCallbacks.post("/webhook", async (c) => {
+  const body = await c.req.text();
+  const app = await getApp();
+  if (!app?.webhookSecret) throw Boom.notFound("Webhooks are not enabled");
+  const secret = await decryptPrivateKey(app.webhookSecret);
+  if (!(await verifyWebhookSignature(secret, body, c.req.header("x-hub-signature-256"))))
+    throw Boom.unauthorized("Invalid webhook signature");
+  // `ping` and any other event the app was subscribed to by hand: acknowledged, ignored.
+  if (c.req.header("x-github-event") !== "issues") return c.body(null, 204);
+  const event = issueEventSchema.safeParse(JSON.parse(body));
+  if (!event.success) throw Boom.badRequest("Unexpected issues payload");
+  await syncIssueStatus(event.data.repository.full_name, event.data.issue.number);
+  return c.body(null, 204);
+});
 export default router;

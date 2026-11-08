@@ -75,7 +75,8 @@ test("manifest registration binds callback to the flow cookie and consumes state
     redirect_url: `${ORIGIN}/api/v1/github/callback`,
     public: false,
     default_permissions: { issues: "write" },
-    hook_attributes: { active: false },
+    default_events: ["issues"],
+    hook_attributes: { url: `${ORIGIN}/api/v1/github/webhook`, active: true },
   });
 
   const state = stateFrom(started.body.data.url);
@@ -119,11 +120,15 @@ test("manifest registration binds callback to the flow cookie and consumes state
   expect(replay.headers.get("location")).toBe("/app/settings?github=error");
 
   const saved = await env.DB.prepare(
-    "SELECT app_id, slug, name, private_key FROM github_apps WHERE id=1",
+    "SELECT app_id, slug, name, private_key, webhook_secret FROM github_apps WHERE id=1",
   ).first<any>();
   expect(saved).toMatchObject({ app_id: 321, slug: "feedbackbee-test", name: "FeedbackBee test" });
   expect(saved.private_key).toMatch(/^v1\.[^.]+\.[^.]+$/);
   expect(saved.private_key).not.toContain("BEGIN PRIVATE KEY");
+  expect(saved.webhook_secret, "the webhook secret is stored encrypted").toMatch(
+    /^v1\.[^.]+\.[^.]+$/,
+  );
+  expect((await api(session, "/github")).body.data.app).toMatchObject({ webhooks: true });
 });
 
 test("manifest setup rejects cross-origin mutations and expired flow state", async () => {

@@ -84,8 +84,12 @@ Settings, then Builds, then API token.
    or an organization. FeedbackBee uses the GitHub manifest flow; do not paste
    GitHub credentials or an App private key into settings.
 2. The App needs **Issues: write** and GitHub's mandatory repository metadata
-   permission only. Leave webhook delivery inactive: FeedbackBee makes
-   outbound GitHub API calls and does not need webhooks.
+   permission only. The manifest turns on webhook delivery for the **Issues**
+   event to `/api/v1/github/webhook`; GitHub generates the signing secret, which
+   FeedbackBee stores encrypted. This keeps feedback statuses in sync when an
+   issue is closed, reopened or labelled `in progress` on GitHub. Apps
+   registered before status sync have no webhook: disconnect and register again
+   to enable it, or use **Sync from GitHub** on a project.
 3. Complete registration and installation on GitHub. Select the repositories
    the App may access during installation. Refresh the installation list in
    Settings to discover available installations, then choose a repository in

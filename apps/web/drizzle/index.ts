@@ -3,9 +3,11 @@
 import m0 from "./0000_init.sql";
 import m1 from "./0001_project_allowed_origins.sql";
 import m2 from "./0002_shiny_ogun.sql";
+import m3 from "./0003_cynical_gateway.sql";
 
 export const migrations = [
   { name: "0000_init.sql", sql: m0 },
   { name: "0001_project_allowed_origins.sql", sql: m1 },
   { name: "0002_shiny_ogun.sql", sql: m2 },
+  { name: "0003_cynical_gateway.sql", sql: m3 },
 ];

@@ -97,3 +97,22 @@ export function randomSecret(): string {
     .replaceAll("/", "_")
     .replaceAll("=", "");
 }
+
+/** Check GitHub's `X-Hub-Signature-256` (HMAC-SHA256 of the raw body) in constant time. */
+export async function verifyWebhookSignature(
+  secret: string,
+  body: string,
+  header: string | undefined,
+): Promise<boolean> {
+  const hex = header?.match(/^sha256=([0-9a-f]{64})$/i)?.[1];
+  if (!hex) return false;
+  const signature = Uint8Array.from(hex.match(/../g)!, (byte) => parseInt(byte, 16));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["verify"],
+  );
+  return crypto.subtle.verify("HMAC", key, signature, new TextEncoder().encode(body));
+}

@@ -88,7 +88,12 @@ export function stubGithubApp() {
         slug: "feedbackbee-test",
         name: "FeedbackBee test",
         pem: await githubPrivateKey(),
+        webhook_secret: "test-webhook-secret", // gitleaks:allow (fake secret for mocked GitHub)
       });
+    }),
+    http.patch("https://api.github.com/app/hook/config", async ({ request }) => {
+      record(request, await request.json().catch(() => ({})));
+      return HttpResponse.json({ content_type: "json" });
     }),
   );
 }

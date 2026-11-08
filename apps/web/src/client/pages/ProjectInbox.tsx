@@ -1,21 +1,25 @@
 import { useEffect } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
-import { Inbox } from "lucide-react";
+import { Inbox, RefreshCw } from "lucide-react";
 import { Button } from "@groot/ui/button";
 import { Card } from "@groot/ui/card";
 import { EmptyState, ErrorState } from "@groot/ui/empty-state";
 import { SkeletonList } from "@groot/ui/loading-skeleton";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@groot/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@groot/ui/tabs";
-import { monoClass } from "@groot/ui/typography";
+import { Text, monoClass } from "@groot/ui/typography";
 import { PageLayout } from "@groot/shell/components/layout/PageLayout";
 import type { FeedbackKind, ProjectDTO } from "../../server/wire-types";
 import { FeedbackRow } from "../features/feedback/FeedbackRow";
-import { KIND_LABELS } from "../features/feedback/format";
-import { useFeedback } from "../features/feedback/useFeedback";
+import { KIND_LABELS, STATUSES, STATUS_LABELS } from "../features/feedback/format";
+import { useFeedback, useSyncStatuses } from "../features/feedback/useFeedback";
 import { ProjectSettingsDialog } from "../features/projects/ProjectSettingsDialog";
 import { SetupDialog } from "../features/projects/SetupDialog";
 import { useProject } from "../features/projects/useProjects";
+import { errorMessage } from "../lib/errors";
+
+const STATUS_FILTERS = ["all", ...STATUSES] as const;
 
 const FILTERS = ["all", ...(Object.keys(KIND_LABELS) as FeedbackKind[])] as const;
 const FILTER_LABELS: Record<(typeof FILTERS)[number], string> = {
@@ -42,7 +46,12 @@ export function ProjectInbox() {
 
 function ProjectFeedback({ project }: { project: ProjectDTO }) {
   const navigate = useNavigate();
-  const feedback = useFeedback(project.id);
+  const [status, setStatus] = useQueryState(
+    "status",
+    parseAsStringLiteral(STATUS_FILTERS).withDefault("all"),
+  );
+  const feedback = useFeedback(project.id, status === "all" ? undefined : status);
+  const sync = useSyncStatuses(project.id);
   const [filter, setFilter] = useQueryState(
     "kind",
     parseAsStringLiteral(FILTERS).withDefault("all"),
@@ -83,6 +92,15 @@ function ProjectFeedback({ project }: { project: ProjectDTO }) {
       }
       actions={
         <>
+          <Button
+            variant="outline"
+            disabled={sync.isPending}
+            title="Refresh statuses from the GitHub issues"
+            onClick={() => sync.mutate()}
+          >
+            <RefreshCw className="size-4" />
+            {sync.isPending ? "Syncing…" : "Sync from GitHub"}
+          </Button>
           <SetupDialog project={project} />
           <ProjectSettingsDialog
             project={project}
@@ -91,6 +109,15 @@ function ProjectFeedback({ project }: { project: ProjectDTO }) {
         </>
       }
     >
+      {(sync.isError || sync.isSuccess) && (
+        <p role={sync.isError ? "alert" : "status"}>
+          <Text tone={sync.isError ? "destructive" : "muted"}>
+            {sync.isError
+              ? `Couldn't sync from GitHub: ${errorMessage(sync.error)}`
+              : `Checked ${sync.data.checked} issues, ${sync.data.updated} updated.`}
+          </Text>
+        </p>
+      )}
       {feedback.isPending ? (
         <SkeletonList />
       ) : feedback.isError ? (
@@ -99,7 +126,7 @@ function ProjectFeedback({ project }: { project: ProjectDTO }) {
           description={feedback.error.message}
           action={<Button onClick={() => feedback.refetch()}>Retry</Button>}
         />
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && status === "all" ? (
         <EmptyState
           icon={Inbox}
           title="No feedback yet"
@@ -108,28 +135,46 @@ function ProjectFeedback({ project }: { project: ProjectDTO }) {
         />
       ) : (
         <div className="space-y-4">
-          <Tabs
-            value={filter}
-            onValueChange={(value) => void setFilter(value as (typeof FILTERS)[number])}
-          >
-            <TabsList>
-              {FILTERS.map((kind) => (
-                <TabsTrigger key={kind} value={kind}>
-                  {FILTER_LABELS[kind]}
-                  {!hasMore && (
-                    <span className="text-muted-foreground tabular-nums">{count(kind)}</span>
-                  )}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Tabs
+              value={filter}
+              onValueChange={(value) => void setFilter(value as (typeof FILTERS)[number])}
+            >
+              <TabsList>
+                {FILTERS.map((kind) => (
+                  <TabsTrigger key={kind} value={kind}>
+                    {FILTER_LABELS[kind]}
+                    {!hasMore && (
+                      <span className="text-muted-foreground tabular-nums">{count(kind)}</span>
+                    )}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+            <Select
+              value={status}
+              onValueChange={(value) => void setStatus(value as (typeof STATUS_FILTERS)[number])}
+            >
+              <SelectTrigger className="w-40" aria-label="Filter by status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="end">
+                <SelectItem value="all">All statuses</SelectItem>
+                {STATUSES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {STATUS_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {shown.length === 0 ? (
             <EmptyState
               icon={Inbox}
               title="Nothing here"
               description={
-                hasMore ? "Load more to look further back." : "No feedback of this kind yet."
+                hasMore ? "Load more to look further back." : "No feedback matches these filters."
               }
             />
           ) : (
@@ -138,6 +183,7 @@ function ProjectFeedback({ project }: { project: ProjectDTO }) {
                 {shown.map((item) => (
                   <FeedbackRow
                     key={item.id}
+                    projectId={project.id}
                     item={item}
                     open={openId === item.id}
                     onToggle={() => void setOpenId(openId === item.id ? null : item.id)}

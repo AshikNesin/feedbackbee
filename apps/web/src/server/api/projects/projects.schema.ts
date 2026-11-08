@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { FEEDBACK_STATUSES } from "../../db/schema";
 import { normalizeOrigin } from "../../lib/origins";
 
 /** Project id used in embed snippets: 3-40 chars, a-z 0-9 and inner hyphens. */
@@ -59,7 +60,10 @@ export const updateProjectSchema = z.object({
 export const feedbackPageQuerySchema = z.object({
   /** Cursor: `createdAt` (epoch ms) of the last item of the previous page. */
   before: z.coerce.number().int().positive().optional(),
+  status: z.enum(FEEDBACK_STATUSES).optional(),
 });
+
+export const updateFeedbackSchema = z.object({ status: z.enum(FEEDBACK_STATUSES) });
 
 export type CreateProjectInput = z.output<typeof createProjectSchema>;
 export type UpdateProjectInput = z.output<typeof updateProjectSchema>;
