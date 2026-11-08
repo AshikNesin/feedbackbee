@@ -33,6 +33,9 @@ final class SheetPresenter {
         let window = UIWindow(windowScene: scene)
         window.windowLevel = .alert - 1
         window.backgroundColor = .clear
+        // A separate window doesn't inherit a style the app forced on its own window (React Native's
+        // Appearance.setColorScheme does this), so adopt it; otherwise it follows the system.
+        window.overrideUserInterfaceStyle = host?.overrideUserInterfaceStyle ?? .unspecified
         window.rootViewController = sheet
         sheet.onClosed = { [weak self] in
             self?.tearDown()

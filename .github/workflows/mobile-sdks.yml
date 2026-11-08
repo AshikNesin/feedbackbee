@@ -24,13 +24,28 @@ jobs:
     defaults:
       run:
         working-directory: apple
+    env:
+      FEEDBACKBEE_SNAPSHOT_DIR: ${{ runner.temp }}/snapshots
     steps:
       - uses: actions/checkout@v5
-      - name: Build for iOS (UIKit layer)
-        run: xcodebuild build -scheme FeedbackBee -destination "generic/platform=iOS Simulator" -quiet
-      - name: Core tests + macOS build (AppKit layer)
+      - name: iOS Simulator tests (UIKit layer, light/dark snapshots)
+        run: |
+          udid=$(xcrun simctl list devices available -j \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | test("^iPhone"))][0].udid')
+          echo "Simulator: $udid"
+          # xcodebuild forwards TEST_RUNNER_-prefixed variables into the test process.
+          TEST_RUNNER_FEEDBACKBEE_SNAPSHOT_DIR="$FEEDBACKBEE_SNAPSHOT_DIR" \
+            xcodebuild test -scheme FeedbackBee -destination "id=$udid" -quiet
+      - name: macOS tests (core, AppKit layer, light/dark snapshots)
         if: ${{ !cancelled() }}
         run: swift test
+      - name: Upload light/dark snapshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: appearance-snapshots
+          path: ${{ runner.temp }}/snapshots
+          if-no-files-found: warn
 
   react-native:
     name: React Native module

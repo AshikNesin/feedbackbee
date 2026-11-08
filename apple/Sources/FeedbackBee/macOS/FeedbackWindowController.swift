@@ -79,6 +79,7 @@ final class FeedbackWindowController: NSWindowController, NSWindowDelegate, NSTe
         window.title = "Share Feedback"
         window.isReleasedWhenClosed = false
         window.tabbingMode = .disallowed
+        window.adoptAppearance(of: host)
         super.init(window: window)
         window.delegate = self
         build(in: window)
@@ -471,6 +472,7 @@ final class FeedbackWindowController: NSWindowController, NSWindowDelegate, NSTe
         noteView.importsGraphics = false
         noteView.allowsUndo = true
         noteView.font = .systemFont(ofSize: 13)
+        noteView.textColor = .labelColor
         noteView.textContainerInset = NSSize(width: 4, height: 7)
         noteView.drawsBackground = false
         noteView.setAccessibilityLabel("Your feedback")
@@ -505,12 +507,10 @@ final class FeedbackWindowController: NSWindowController, NSWindowDelegate, NSTe
             removeScreenshotButton.trailingAnchor.constraint(equalTo: screenshotBlock.trailingAnchor, constant: -6),
         ])
 
-        let dot = NSView()
-        dot.wantsLayer = true
-        dot.layer?.backgroundColor = NSColor.systemRed.cgColor
-        dot.layer?.cornerRadius = 4
-        dot.widthAnchor.constraint(equalToConstant: 8).isActive = true
-        dot.heightAnchor.constraint(equalToConstant: 8).isActive = true
+        // A symbol tinted with a system color follows the appearance on its own (a layer color would not).
+        let dot = NSImageView(image: NSImage(systemSymbolName: "circle.fill", accessibilityDescription: nil) ?? NSImage())
+        dot.symbolConfiguration = .init(pointSize: 8, weight: .regular)
+        dot.contentTintColor = .systemRed
         recordingLabel.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
         stopButton.contentTintColor = .systemRed
         configureRow(recordingRow, [dot, recordingLabel, NSView(), stopButton])
@@ -601,35 +601,29 @@ final class FilledStack: NSStackView {
 
     override func updateLayer() {
         layer?.cornerRadius = 8
-        layer?.backgroundColor = NSColor.quaternaryLabelColor.cgColor
+        layer?.backgroundColor = resolvedCGColor(.quaternaryLabelColor)
+    }
+
+    override func viewDidChangeEffectiveAppearance() {
+        super.viewDidChangeEffectiveAppearance()
+        needsDisplay = true
     }
 }
 
 /// A rounded box with a separator-colored border, accent-colored while focused.
-final class BorderedBox: NSView {
+final class BorderedBox: AppearanceAwareView {
     var focused = false { didSet { needsDisplay = true } }
 
-    override init(frame: NSRect) {
-        super.init(frame: frame)
-        wantsLayer = true
+    override func applyColors() {
         layer?.cornerRadius = 8
-    }
-
-    @available(*, unavailable)
-    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
-
-    override var wantsUpdateLayer: Bool { true }
-
-    // Runs again on appearance changes, so the colors follow light and dark mode.
-    override func updateLayer() {
-        layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
+        layer?.backgroundColor = resolvedCGColor(.textBackgroundColor)
         layer?.borderWidth = focused ? 2 : 1
-        layer?.borderColor = (focused ? NSColor.keyboardFocusIndicatorColor : NSColor.separatorColor).cgColor
+        layer?.borderColor = resolvedCGColor(focused ? .keyboardFocusIndicatorColor : .separatorColor)
     }
 }
 
 /// One row of the kind picker: icon, heading, detail. Clickable, hoverable, keyboard-focusable.
-final class KindTile: NSView {
+final class KindTile: AppearanceAwareView {
     var onClick: (() -> Void)?
 
     private var hovering = false { didSet { needsDisplay = true } }
@@ -637,7 +631,6 @@ final class KindTile: NSView {
 
     init(kind: FeedbackKind, symbol: String) {
         super.init(frame: .zero)
-        wantsLayer = true
         layer?.cornerRadius = 10
         let icon = NSImageView(image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil) ?? NSImage())
         icon.symbolConfiguration = .init(pointSize: 15, weight: .medium)
@@ -674,7 +667,6 @@ final class KindTile: NSView {
     @available(*, unavailable)
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
-    override var wantsUpdateLayer: Bool { true }
     override var acceptsFirstResponder: Bool { true }
     override var canBecomeKeyView: Bool { true }
     override var focusRingMaskBounds: NSRect { bounds }
@@ -685,11 +677,11 @@ final class KindTile: NSView {
         frame.contains(point) ? self : nil
     }
 
-    override func updateLayer() {
+    override func applyColors() {
         let fill: NSColor = pressed ? .tertiaryLabelColor : hovering ? .quaternaryLabelColor : .clear
-        layer?.backgroundColor = fill.cgColor
+        layer?.backgroundColor = resolvedCGColor(fill)
         layer?.borderWidth = 1
-        layer?.borderColor = NSColor.separatorColor.cgColor
+        layer?.borderColor = resolvedCGColor(.separatorColor)
     }
 
     override func updateTrackingAreas() {

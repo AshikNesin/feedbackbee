@@ -4,9 +4,12 @@ import android.app.Dialog
 import android.animation.ValueAnimator
 import android.Manifest
 import android.content.DialogInterface
+import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -43,6 +46,9 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     private var sheet: FeedbackSheetView? = null
     private var voiceRecorder: VoiceRecorder? = null
     private var voicePermissionDenied = false
+    /** The appearance the dialog was built for; see [onConfigurationChanged]. */
+    private var builtDark = false
+    private var reopening = false
     private val recordAudioPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             startVoiceRecording()
@@ -57,7 +63,7 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog =
         Dialog(
             requireContext(),
-            if (SheetTheme(requireActivity()).isDark) android.R.style.Theme_DeviceDefault_Dialog_NoActionBar
+            if (SheetTheme(requireActivity()).isDark.also { builtDark = it }) android.R.style.Theme_DeviceDefault_Dialog_NoActionBar
             else android.R.style.Theme_DeviceDefault_Light_Dialog_NoActionBar,
         ).apply {
             window?.apply {
@@ -74,7 +80,7 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
         view.setVoicePermissionDenied(voicePermissionDenied)
         if (savedInstanceState == null) {
             viewModel.applyOptions(options)
-            slideIn(view)
+            if (arguments?.getBoolean(ARG_REOPENED) != true) slideIn(view)
         }
         return view
     }
@@ -104,7 +110,30 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
 
     override fun onDismiss(dialog: DialogInterface) {
         super.onDismiss(dialog)
-        if (activity?.isChangingConfigurations == false) viewModel.reset()
+        if (activity?.isChangingConfigurations == false && !reopening) viewModel.reset()
+    }
+
+    /**
+     * Activities that handle `uiMode` themselves (React Native's MainActivity does) are not recreated on a
+     * light/dark switch, so the sheet would keep the old colors. Rebuild it for the new appearance instead;
+     * the draft lives in the activity-scoped ViewModel, so nothing typed is lost.
+     */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        val host = activity ?: return
+        if (reopening || host.isChangingConfigurations || SheetTheme(host).isDark == builtDark) return
+        reopening = true
+        // Not from inside the FragmentManager's own dispatch: swap the dialog on the next main-loop turn.
+        Handler(Looper.getMainLooper()).post {
+            val fragments = host.supportFragmentManager
+            if (!isAdded || fragments.isStateSaved || fragments.isDestroyed) {
+                reopening = false
+                return@post
+            }
+            val reopened = (arguments ?: Bundle()).apply { putBoolean(ARG_REOPENED, true) }
+            dismissNow()
+            FeedbackSheetFragment().apply { arguments = Bundle(reopened) }.show(fragments, TAG)
+        }
     }
 
     private fun render(state: FeedbackState) {
@@ -210,6 +239,7 @@ internal class FeedbackSheetFragment : DialogFragment(), SheetActions {
         private const val MAX_SHEET_WIDTH_DP = 360
         private const val SLIDE_MS = 240L
         private const val DIM = 0.4f
+        private const val ARG_REOPENED = "reopenedForAppearance"
 
         /** Does nothing while a sheet is already open, so a shake can never stack a second one. */
         fun open(activity: FragmentActivity, options: OpenOptions = OpenOptions()) {
