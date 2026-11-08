@@ -32,6 +32,13 @@ final class IOSAppearanceTests: XCTestCase {
                 let cgImage = try XCTUnwrap(image.cgImage)
                 Snapshot.save(cgImage, "ios-\(screen)-\(mode)")
 
+                // The panel spans the screen (below the 480pt cap); name the limiting constraints if not.
+                let panel = try XCTUnwrap(sheet.view.subviews.first { $0.layer.cornerRadius == 20 })
+                if abs(panel.frame.width - window.bounds.width) > 1 {
+                    let limits = panel.constraintsAffectingLayout(for: .horizontal).map(\.description).joined(separator: "\n")
+                    XCTFail("\(screen)/\(mode) panel is \(panel.frame.width)pt wide, expected \(window.bounds.width):\n\(limits)")
+                }
+
                 // Bottom-left corner of the panel, which runs to the bottom edge.
                 let panel = Snapshot.pixel(cgImage, x: 12 * 2, y: cgImage.height - 6 * 2)
                 if mode == "light" {

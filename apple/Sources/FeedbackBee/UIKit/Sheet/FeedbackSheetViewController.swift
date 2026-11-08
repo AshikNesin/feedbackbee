@@ -448,7 +448,9 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
         scrollView.addSubview(content)
 
         let fullWidth = panel.widthAnchor.constraint(equalTo: view.widthAnchor)
-        fullWidth.priority = .defaultHigh
+        // Just under required: content hugging and compression (≤ 750) must never narrow the panel; only
+        // the 480pt cap and the screen width (both required) may.
+        fullWidth.priority = UILayoutPriority(999)
         let hugContent = scrollView.heightAnchor.constraint(equalTo: content.heightAnchor)
         hugContent.priority = .defaultLow
         NSLayoutConstraint.activate([

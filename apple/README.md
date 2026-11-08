@@ -91,7 +91,7 @@ values outside the contract's limits are dropped with a log rather than failing 
 
 ## What the user sees
 
-The same three screens as Android and the web widget, in light and dark mode:
+The same three screens as Android and the web widget, in light and dark mode (see [Light and dark mode](#light-and-dark-mode)):
 
 1. **Share feedback.** Report an issue, Share an idea, Something else.
 2. **The form.** Note, optional email (locked to the `identify` email when there is one), a camera button, a microphone
@@ -110,6 +110,46 @@ Errors (rate limit, bad input, no network) show above the Send button and keep t
   accent color. It is keyboard-driven: Tab moves between fields, Return sends from the email field, and Escape closes.
   The annotator is a resizable window where Return saves, Escape cancels and ⌘Z undoes. VoiceOver announces errors and
   the sent state.
+
+## Light and dark mode
+
+Both platforms follow the host app's appearance, including while the feedback UI is open.
+
+**iOS.** The sheet uses dynamic colors from the palette it shares with Android and the web widget, and follows:
+
+- the system setting,
+- `UIUserInterfaceStyle` in your Info.plist, which forces one style app-wide,
+- a style your app forces on its window with `window.overrideUserInterfaceStyle`. The sheet lives in its own window and
+  copies it, so React Native's `Appearance.setColorScheme` works too.
+
+Switching while the sheet is open recolors it in place. The screenshot annotator is always dark, as on Android, so the
+red markup reads on any screenshot.
+
+| Token      | Light     | Dark      | Used for                                 |
+| ---------- | --------- | --------- | ---------------------------------------- |
+| Panel      | `#FFFFFF` | `#18181B` | Sheet background, fields                 |
+| Ink        | `#18181B` | `#F4F4F5` | Titles, text, primary button fill        |
+| Muted      | `#71717A` | `#A1A1AA` | Subtitles, placeholders, icon buttons    |
+| Tile       | `#F4F4F5` | `#27272A` | Icon tiles, attachment rows, pressed row |
+| Border     | `#E4E4E7` | `#3F3F46` | Field and tile borders                   |
+| Focus      | `#2563EB` | `#60A5FA` | Focused field border                     |
+| Error      | `#DC2626` | `#F87171` | Error line, Stop button                  |
+| Annotation | `#FF3B30` | `#FF3B30` | Pen, box and arrow strokes               |
+
+**macOS.** The window uses system colors (`windowBackgroundColor`, `labelColor`, `separatorColor`,
+`textBackgroundColor`, the keyboard focus color), so it matches standard Mac apps and the user's accent color. It
+follows:
+
+- the system setting,
+- `NSApp.appearance`,
+- an appearance forced on the window the user was looking at (the feedback and annotation windows copy it).
+
+Layer-drawn colors (field boxes, picker rows, attachment rows) are resolved in the window's own appearance and again
+whenever it changes. Annotation strokes are `#FF3B30` in both modes.
+
+**Tested.** `IOSAppearanceTests` renders the sheet in the simulator in both styles and checks the panel color.
+`MacAppearanceTests` renders the window in both appearances, checks the background, and checks that layer colors
+change when the appearance does. CI uploads the rendered PNGs as the `appearance-snapshots` artifact.
 
 ## Shake (iOS)
 
@@ -150,6 +190,20 @@ pixels), plus `reporter_name`, `reporter_id` and `metadata` when set, a screensh
 The SDK reads only its host app's own window, and only after the user taps the camera button. Audio is recorded only
 after the user taps the microphone. Nothing leaves the device until the user presses **Send**. On iOS, the host's audio
 session category is restored after a recording.
+
+## Troubleshooting
+
+| Symptom                                            | Fix                                                                                                              |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `open()` does nothing                              | Call `configure` first; the log says `open() ignored: call FeedbackBee.configure() first.`                       |
+| No microphone button                               | Add `NSMicrophoneUsageDescription`; a sandboxed Mac app also needs the Audio Input entitlement.                  |
+| macOS: "Couldn't reach the server"                 | A sandboxed app needs **Outgoing Connections (Client)**; `configure` logs a warning when it is missing.          |
+| iOS: shake does nothing on one screen              | That view controller overrides `motionEnded` without calling `super`; call `super`, or use `open()`.             |
+| macOS: part of the screenshot is blank             | Metal and video content is drawn outside AppKit's view hierarchy and can't be captured without Screen Recording. |
+| `endpoint must be a valid http:// or https:// URL` | Pass the base URL, like `https://bee.example.dev`, not `/api/v1/feedback`.                                       |
+| Plain `http://` endpoint fails (local development) | App Transport Security blocks it; add an ATS exception for your dev host, and use HTTPS in production.           |
+
+Warnings are logged under the `io.nesin.feedbackbee` subsystem (Console.app, or Xcode's console).
 
 ## Build and test
 
