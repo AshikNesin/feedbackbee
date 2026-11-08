@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { Boom } from "@groot/core/errors";
 import { batch, db, feedback, projects, type LabelsMap, type Project } from "../../db";
-import { runtime } from "../../runtime";
+import { repositoryAccess } from "../github/github.client";
 import type { CreateProjectInput, UpdateProjectInput } from "./projects.schema";
 
 export const DEFAULT_LABELS: LabelsMap = {
@@ -26,9 +26,7 @@ export async function findProjectBySlug(slug: string): Promise<Project | null> {
 }
 
 export async function createProject(input: CreateProjectInput): Promise<Project> {
-  if (!runtime().githubToken) {
-    throw Boom.unavailable("GITHUB_TOKEN secret is not set on the worker");
-  }
+  await repositoryAccess(input.githubRepo);
   if (await findProjectBySlug(input.slug)) {
     throw Boom.conflict(`Project id "${input.slug}" is already used by another project`);
   }
@@ -50,6 +48,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
 
 export async function updateProject(id: string, input: UpdateProjectInput): Promise<Project> {
   const existing = await getProject(id);
+  if (input.githubRepo !== undefined) await repositoryAccess(input.githubRepo);
   const labels = input.labels && Object.keys(input.labels).length > 0 ? input.labels : undefined;
   const [project] = await db
     .update(projects)

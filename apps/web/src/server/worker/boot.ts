@@ -37,8 +37,8 @@ export function bootWorker(bindings: WorkerBindings, origin: string): Promise<We
 /**
  * The env groot validates. With `NODE_ENV=production`, core refuses to boot
  * without JWT_SECRET_KEY, ADMIN_AUTH_KEY, ORIGIN and RP_ID. FeedbackBee deploys
- * with one secret (GITHUB_TOKEN), so when those are unset they are filled in
- * here: the two secrets generated once and kept in core's `kv` table (stable
+ * with a separate GitHub encryption secret (FEEDBACKBEE_ENCRYPTION_KEY). Unset core
+ * secrets are generated once and kept in core's `kv` table (stable
  * across isolates and deploys), ORIGIN/RP_ID from the request that woke the
  * isolate. Explicit vars and secrets always win.
  */

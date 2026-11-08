@@ -416,10 +416,12 @@
         </button>
       </div>
       <div class="panel" role="tabpanel" id="panel-deploy" aria-labelledby="tab-deploy">
-        <p class="panel-label">Deploy</p>
+        <p class="panel-label">
+          Deploy, set a random 32-byte base64 encryption key, then connect GitHub in Settings
+        </p>
         <div class="code">
           <pre><span class="tok-fn">pnpm</span> deploy:worker
-<span class="tok-fn">pnpm</span> exec wrangler secret put <span class="tok-str">GITHUB_TOKEN</span></pre>
+<span class="tok-fn">pnpm</span> exec wrangler secret put <span class="tok-str">FEEDBACKBEE_ENCRYPTION_KEY</span></pre>
           <button class="icon-btn copy needs-js" type="button" aria-label="Copy">
             <svg
               class="cp"
