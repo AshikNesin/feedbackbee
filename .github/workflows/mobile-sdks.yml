@@ -26,10 +26,11 @@ jobs:
         working-directory: ios
     steps:
       - uses: actions/checkout@v5
-      - name: Core tests
-        run: swift test
       - name: Build for iOS (UIKit layer)
         run: xcodebuild build -scheme FeedbackBee -destination "generic/platform=iOS Simulator" -quiet
+      - name: Core tests
+        if: ${{ !cancelled() }}
+        run: swift test
 
   react-native:
     name: React Native module

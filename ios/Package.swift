@@ -3,7 +3,8 @@ import PackageDescription
 
 let package = Package(
     name: "FeedbackBee",
-    platforms: [.iOS(.v15)],
+    // macOS only so `swift test` can run the platform-independent core on a Mac; the SDK is for iOS.
+    platforms: [.iOS(.v15), .macOS(.v12)],
     products: [
         .library(name: "FeedbackBee", targets: ["FeedbackBee"]),
     ],
