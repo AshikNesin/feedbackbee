@@ -5,6 +5,7 @@ struct ProjectsView: View {
     @Environment(AppModel.self) private var model
     @Binding var path: [Route]
     @State private var creating = false
+    @State private var loadFailed = false
 
     init(path: Binding<[Route]>) { _path = path }
 
@@ -61,10 +62,8 @@ struct ProjectsView: View {
             #endif
             await store.start()
         }
-        .alert(
-            "Couldn't load projects",
-            isPresented: Binding(get: { store.error != nil && store.projects.isEmpty }, set: { if !$0 { store.error = nil } })
-        ) {
+        .onChange(of: store.error) { _, error in loadFailed = error != nil && store.projects.isEmpty }
+        .alert("Couldn't load projects", isPresented: $loadFailed) {
             Button("Retry") { Task { await store.refresh() } }
             Button("OK", role: .cancel) {}
         } message: { Text(store.error ?? "") }

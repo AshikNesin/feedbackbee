@@ -9,6 +9,12 @@ public struct APIError: LocalizedError, Equatable, Sendable {
     public let code: String?
     public let message: String
 
+    public init(status: Int, code: String?, message: String) {
+        self.status = status
+        self.code = code
+        self.message = message
+    }
+
     public var errorDescription: String? { message }
     /// The session guard's 401: the token expired or the account is gone.
     public var sessionInvalid: Bool { status == 401 && (code == "SESSION_INVALID" || code == nil) }
