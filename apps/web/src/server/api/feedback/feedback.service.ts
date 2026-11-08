@@ -16,9 +16,15 @@ import { statusFromIssue } from "../../lib/issue-status";
 import { isReplayKey, mediaKey, sniff, type MediaRole } from "../../lib/media";
 import { originAllowed } from "../../lib/origins";
 import { runtime } from "../../runtime";
-import { fetchGithubIssues, ISSUE_BATCH, updateGithubIssue } from "../github/github.client";
+import {
+  editGithubIssue,
+  fetchGithubIssues,
+  ISSUE_BATCH,
+  updateGithubIssue,
+} from "../github/github.client";
 import { safeGithubError } from "../github/github.service";
 import { findProjectBySlug } from "../projects/projects.service";
+import type { UpdateFeedbackInput } from "../projects/projects.schema";
 import { LIMITS, type Submission } from "./feedback.schema";
 
 type FeedbackItem = Feedback & { images: string[] };
@@ -52,6 +58,19 @@ async function attachment(
   const contentType = await sniff(file, role);
   if (!contentType) throw Boom.unsupportedMediaType(`${name} content is not a supported format`);
   return { file, contentType, key: mediaKey(projectId, contentType) };
+}
+
+/** The media and dashboard links an issue body points at. */
+function issueLinks(project: Project, row: Feedback, imageKeys: string[], origin: string) {
+  const { mediaBase = origin, dashboardBase = origin } = runtime();
+  return {
+    images: imageKeys.map((key) => `${mediaBase}/f/${key}`),
+    recording: row.recordingKey
+      ? `${mediaBase}/${isReplayKey(row.recordingKey) ? "replay" : "f"}/${row.recordingKey}`
+      : null,
+    audio: row.audioKey ? `${mediaBase}/f/${row.audioKey}` : null,
+    dashboard: `${dashboardBase}/app/projects/${project.slug}?feedback=${row.id}`,
+  };
 }
 
 /**
@@ -140,18 +159,18 @@ export async function submitFeedback(
     ),
   ]);
 
-  const { mediaBase = request.origin, dashboardBase = request.origin } = runtime();
   const issue = await createIssue(project.githubRepo, {
     title: issueTitle(row),
     labels: issueLabels(row.kind, project.labels),
-    body: issueBody(row, {
-      images: images.map((image) => `${mediaBase}/f/${image.key}`),
-      recording: row.recordingKey
-        ? `${mediaBase}/${isReplayKey(row.recordingKey) ? "replay" : "f"}/${row.recordingKey}`
-        : null,
-      audio: row.audioKey ? `${mediaBase}/f/${row.audioKey}` : null,
-      dashboard: `${dashboardBase}/app/projects/${project.slug}?feedback=${row.id}`,
-    }),
+    body: issueBody(
+      row,
+      issueLinks(
+        project,
+        row,
+        images.map((image) => image.key),
+        request.origin,
+      ),
+    ),
   });
 
   if (!issue.ok) {
@@ -211,33 +230,83 @@ export async function listFeedback(
   };
 }
 
-/**
- * Set a report's status from the dashboard. GitHub is updated first, so a
- * failure leaves both sides unchanged; the webhook that follows is a no-op.
- * Reports without an issue keep a local-only status.
- */
-export async function setFeedbackStatus(
-  project: Project,
-  feedbackId: string,
-  status: FeedbackStatus,
-): Promise<{ id: string; status: FeedbackStatus }> {
+/** One report of a project, with its image keys in order. */
+export async function getFeedback(projectId: string, feedbackId: string): Promise<FeedbackItem> {
   const [row] = await db
-    .select({ id: feedback.id, status: feedback.status, issueNumber: feedback.issueNumber })
+    .select()
     .from(feedback)
-    .where(and(eq(feedback.id, feedbackId), eq(feedback.projectId, project.id)))
+    .where(and(eq(feedback.id, feedbackId), eq(feedback.projectId, projectId)))
     .limit(1);
   if (!row) throw Boom.notFound("Feedback not found");
-  if (row.status !== status) {
-    if (row.issueNumber) {
-      try {
-        await updateGithubIssue(project.githubRepo, row.issueNumber, status);
-      } catch (error) {
-        throw Boom.unavailable(`Couldn't update the GitHub issue: ${safeGithubError(error)}`);
+  const images = await db
+    .select({ key: feedbackImages.key })
+    .from(feedbackImages)
+    .where(eq(feedbackImages.feedbackId, row.id))
+    .orderBy(asc(feedbackImages.position));
+  return { ...row, images: images.map((image) => image.key) };
+}
+
+/**
+ * Edit a report from the dashboard or the mobile apps: status, kind, text.
+ * GitHub is updated first, so a failure leaves both sides unchanged; the
+ * webhook that follows is a no-op. A text or kind edit rewrites the issue's
+ * title and body (re-rendered like at submit, so nothing private is added) and
+ * swaps the kind label. Reports without an issue change locally only.
+ */
+export async function updateFeedback(
+  project: Project,
+  feedbackId: string,
+  input: UpdateFeedbackInput,
+  origin: string,
+): Promise<FeedbackItem> {
+  const current = await getFeedback(project.id, feedbackId);
+  const next: Feedback = {
+    ...current,
+    status: input.status ?? current.status,
+    kind: input.kind ?? current.kind,
+    text: input.text ?? current.text,
+  };
+  const contentChanged = next.text !== current.text || next.kind !== current.kind;
+  const statusChanged = next.status !== current.status;
+  if (!contentChanged && !statusChanged) return current;
+
+  if (current.issueNumber) {
+    try {
+      if (contentChanged) {
+        const before = issueLabels(current.kind, project.labels)[0];
+        const after = issueLabels(next.kind, project.labels)[0];
+        await editGithubIssue(project.githubRepo, current.issueNumber, {
+          title: issueTitle(next),
+          body: issueBody(next, issueLinks(project, next, current.images, origin)),
+          addLabel: after !== before ? after : undefined,
+          removeLabel: after !== before ? before : undefined,
+        });
       }
+      if (statusChanged) {
+        await updateGithubIssue(project.githubRepo, current.issueNumber, next.status);
+      }
+    } catch (error) {
+      throw Boom.unavailable(`Couldn't update the GitHub issue: ${safeGithubError(error)}`);
     }
-    await db.update(feedback).set({ status }).where(eq(feedback.id, row.id));
   }
-  return { id: row.id, status };
+  await db
+    .update(feedback)
+    .set({ status: next.status, kind: next.kind, text: next.text })
+    .where(eq(feedback.id, current.id));
+  return { ...next, images: current.images };
+}
+
+/**
+ * Delete a report from FeedbackBee. Like deleting a project, its GitHub issue
+ * and media stay: the issue links to the media, so removing it would break the
+ * issue. Close the issue first (Won't fix) if it should go too.
+ */
+export async function deleteFeedback(projectId: string, feedbackId: string): Promise<void> {
+  const { id } = await getFeedback(projectId, feedbackId);
+  await batchAll([
+    db.delete(feedbackImages).where(eq(feedbackImages.feedbackId, id)),
+    db.delete(feedback).where(eq(feedback.id, id)),
+  ]);
 }
 
 type TrackedRow = { id: string; status: FeedbackStatus; issueNumber: number | null };

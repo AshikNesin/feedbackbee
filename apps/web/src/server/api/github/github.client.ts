@@ -310,6 +310,39 @@ export async function updateGithubIssue(repo: string, number: number, status: Fe
     throw Boom.unavailable(`GitHub ${label.status}: label update failed`);
 }
 
+/**
+ * Rewrite an issue after its report was edited: title and body, and swap the
+ * kind label when the kind changed. Other labels (e.g. `in progress`) stay.
+ */
+export async function editGithubIssue(
+  repo: string,
+  number: number,
+  edit: { title: string; body: string; addLabel?: string; removeLabel?: string },
+) {
+  const github = await repositoryCaller(repo);
+  const issue = `/repos/${github.path}/issues/${number}`;
+  const patched = await github.call(issue, {
+    method: "PATCH",
+    body: JSON.stringify({ title: edit.title, body: edit.body }),
+  });
+  if (!patched.ok) throw Boom.unavailable(`GitHub ${patched.status}: issue update failed`);
+  if (edit.addLabel) {
+    const added = await github.call(`${issue}/labels`, {
+      method: "POST",
+      body: JSON.stringify({ labels: [edit.addLabel] }),
+    });
+    if (!added.ok) throw Boom.unavailable(`GitHub ${added.status}: label update failed`);
+  }
+  if (edit.removeLabel) {
+    const removed = await github.call(`${issue}/labels/${encodeURIComponent(edit.removeLabel)}`, {
+      method: "DELETE",
+    });
+    // 404: the label was not on the issue.
+    if (!removed.ok && removed.status !== 404)
+      throw Boom.unavailable(`GitHub ${removed.status}: label update failed`);
+  }
+}
+
 /** Set the App's webhook secret, for manifests where GitHub did not return one. */
 export async function setWebhookSecret(jwt: string, secret: string) {
   const response = await githubFetch("/app/hook/config", jwt, {

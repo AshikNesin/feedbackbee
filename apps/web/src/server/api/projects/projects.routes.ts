@@ -2,7 +2,13 @@ import { Hono } from "hono";
 import { ok } from "@groot/core/utils/api-response.utils";
 import { parseBody, parseQuery, parseStringParam } from "@groot/core/utils/controller.utils";
 import type { AppEnv } from "@groot/core/types";
-import { listFeedback, setFeedbackStatus, syncProjectStatuses } from "../feedback/feedback.service";
+import {
+  deleteFeedback,
+  getFeedback,
+  listFeedback,
+  syncProjectStatuses,
+  updateFeedback,
+} from "../feedback/feedback.service";
 import * as projectService from "./projects.service";
 import {
   createProjectSchema,
@@ -42,11 +48,26 @@ router.get("/:id/feedback", async (c) => {
   return ok(c, await listFeedback(project.id, before, undefined, status));
 });
 
+router.get("/:id/feedback/:feedbackId", async (c) => {
+  const project = await projectService.getProject(parseStringParam(c.req.param("id"), "id"));
+  const feedbackId = parseStringParam(c.req.param("feedbackId"), "feedbackId");
+  return ok(c, await getFeedback(project.id, feedbackId));
+});
+
+/** Edit status, kind or text; a filed report's GitHub issue follows. Returns the report. */
 router.patch("/:id/feedback/:feedbackId", async (c) => {
   const project = await projectService.getProject(parseStringParam(c.req.param("id"), "id"));
   const feedbackId = parseStringParam(c.req.param("feedbackId"), "feedbackId");
-  const { status } = await parseBody(c, updateFeedbackSchema);
-  return ok(c, await setFeedbackStatus(project, feedbackId, status));
+  const input = await parseBody(c, updateFeedbackSchema);
+  return ok(c, await updateFeedback(project, feedbackId, input, new URL(c.req.url).origin));
+});
+
+/** Delete a report from FeedbackBee; its GitHub issue and media stay. */
+router.delete("/:id/feedback/:feedbackId", async (c) => {
+  const project = await projectService.getProject(parseStringParam(c.req.param("id"), "id"));
+  const feedbackId = parseStringParam(c.req.param("feedbackId"), "feedbackId");
+  await deleteFeedback(project.id, feedbackId);
+  return ok(c, { id: feedbackId });
 });
 
 /** Pull issue statuses from GitHub: for missed webhooks, or apps without them. */

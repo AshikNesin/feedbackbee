@@ -12,6 +12,7 @@
     "vitest.config.worker.ts",
     ".github/workflows/worker-tests.yml",
     ".github/workflows/mobile-sdks.yml",
+    ".github/workflows/mobile-apps.yml",
     ".github/workflows/release.yml",
     ".github/workflows/test.yml",
     ".github/workflows/react-doctor.yml",
