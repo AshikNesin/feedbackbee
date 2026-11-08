@@ -20,6 +20,16 @@ One inbox per project, filtered by type. Rows expand to the screenshot, session 
   <img src="docs/screenshots/dashboard-detail.png" alt="Expanded feedback row showing the annotated screenshot, issue and reply buttons, and browser context" width="49%" />
 </p>
 
+### Every client, light and dark
+
+The web widget and the native SDKs share one set of screens and one palette. Native sheets follow the host app's appearance; the web widget takes `data-theme="light|dark|auto"`. React Native opens the native sheets. These are renders of the real UI: Playwright for the web, the SDKs' own appearance tests for Android (Robolectric) and iOS / macOS (CI).
+
+| Web widget                                                                                          | Android                                                                                                        |
+| --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| <img src="docs/screenshots/clients/web-form.png" alt="Web widget form in light and dark themes" />  | <img src="docs/screenshots/clients/android-form.png" alt="Android feedback sheet in light and dark mode" />    |
+| **iOS**                                                                                             | **macOS**                                                                                                      |
+| <img src="docs/screenshots/clients/ios-form.png" alt="iOS feedback sheet in light and dark mode" /> | <img src="docs/screenshots/clients/macos-form.png" alt="macOS feedback window in light and dark appearance" /> |
+
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/AshikNesin/feedbackbee)
 
 One click provisions D1 + R2, builds, and deploys; migrations apply on the first request. Before connecting GitHub, set the required encryption secret with `openssl rand -base64 32 | pnpm exec wrangler secret put FEEDBACKBEE_ENCRYPTION_KEY`. Keep this Worker secret outside D1 and its backups; do not change or lose it. Open `/app` on the deployed URL and the first sign-in creates your owner account (the website from `site/` is served at `/`). In **Settings → GitHub**, register a private GitHub App from the manifest, choose a personal or organization owner, then install it on the repositories you want to use. FeedbackBee does not accept manually pasted GitHub credentials.

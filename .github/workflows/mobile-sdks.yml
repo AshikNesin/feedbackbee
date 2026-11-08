@@ -80,5 +80,14 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-      - name: Build and unit tests
+      - name: Build and unit tests (includes light/dark snapshots)
         run: ./gradlew :sdk:assembleRelease :sdk:testReleaseUnitTest
+        env:
+          FEEDBACKBEE_SNAPSHOT_DIR: ${{ runner.temp }}/snapshots
+      - name: Upload light/dark snapshots
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-appearance-snapshots
+          path: ${{ runner.temp }}/snapshots
+          if-no-files-found: warn

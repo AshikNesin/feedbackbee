@@ -67,6 +67,10 @@ The native sheet on each platform: the same three screens (pick a type, write th
 markup and voice note, sent). The screens are described in the [Apple](../apple/README.md#what-the-user-sees) and
 [Android](../android/README.md#what-the-user-sees) READMEs.
 
+| iOS                                                                                                    | Android                                                                                                        |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| <img src="../docs/screenshots/clients/ios-form.png" alt="iOS feedback sheet in light and dark mode" /> | <img src="../docs/screenshots/clients/android-form.png" alt="Android feedback sheet in light and dark mode" /> |
+
 ## Light and dark mode
 
 The sheet follows your app's color scheme on both platforms, with nothing to configure:

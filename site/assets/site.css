@@ -754,6 +754,71 @@ html:not(.js) .needs-js {
   }
 }
 
+/* clients: real renders of each SDK's sheet, light | dark */
+.clients {
+  padding-top: var(--section-gap);
+}
+.client-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-xl) var(--gap-columns);
+  margin: var(--space-2xl) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.client-grid figure {
+  margin: 0;
+}
+.client-shot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 16 / 9;
+  padding: var(--space-lg);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-card);
+  background: var(--color-paper-2);
+}
+.client-shot img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+.client-grid figcaption {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-md);
+  margin-top: var(--space-sm);
+  font-size: var(--text-sm);
+}
+.client-grid figcaption a,
+.client-note a {
+  color: var(--color-muted);
+  text-decoration: underline;
+  text-underline-offset: 0.16em;
+}
+.client-grid figcaption a:hover,
+.client-note a:hover {
+  color: var(--color-ink);
+}
+.client-note {
+  margin-top: var(--space-xl);
+  color: var(--color-muted);
+}
+.clients .nowrap {
+  white-space: nowrap;
+}
+@media (max-width: 60rem) {
+  .client-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .client-shot {
+    padding: var(--space-md);
+  }
+}
+
 /* features: six tiles, each opening on a small piece of the product */
 .features {
   padding-top: var(--section-gap);

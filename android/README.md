@@ -93,7 +93,14 @@ The detection logic is plain Kotlin (`ShakeAnalyzer`) with JUnit tests for a sha
 
 ## What the user sees
 
-The sheet mirrors the web widget: a white panel, 360dp wide at most, rounded top corners.
+<p>
+  <img src="../docs/screenshots/clients/android-picker.png" alt="Android kind picker in light and dark mode" width="49%" />
+  <img src="../docs/screenshots/clients/android-form.png" alt="Android feedback form in light and dark mode" width="49%" />
+</p>
+
+Rendered by `SheetScreenshotTest` (Robolectric native graphics); set `FEEDBACKBEE_SNAPSHOT_DIR` to write the PNGs.
+
+The sheet mirrors the web widget: a panel 360dp wide at most, with rounded top corners, in light or dark to match the app.
 
 1. **Share feedback.** Three simple rows: Report an issue, Share an idea, Something else. A close button top-right.
 2. **Report an issue / Share an idea / Tell us more.** A back arrow, labeled feedback and optional email fields,

@@ -9,7 +9,8 @@ by one script; no framework. The Worker serves it at `/`; the dashboard is at `/
 - `pages/*.html`: one file per page, starting with a `<!--meta {json}-->` block
   (`path`, `title`, `description`, optional `ogDescription`, `og`, `noindex`).
 - `assets/`: copied as-is to the output root. `site.css` and `site.js` (the whole
-  look and the small page script), `img/`, `og/` (1200×630 social card), `demo/`
+  look and the small page script), `img/` (`img/clients/`: the light | dark renders of each client's sheet,
+  WebP copies of `docs/screenshots/clients/`), `og/` (1200×630 social card), `demo/`
   (the product demo: `demo-music.*` plays on the page muted with a sound toggle,
   `demo.*` is the same cut without audio for sharing; recorded with Playwright
   against the real widget, only the submit response mocked), plus

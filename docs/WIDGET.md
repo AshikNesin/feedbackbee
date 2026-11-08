@@ -182,6 +182,11 @@ per hour per project and IP.
 
 ## Light and dark mode
 
+<p>
+  <img src="screenshots/clients/web-picker.png" alt="Web widget kind picker, data-theme light and dark" width="49%" />
+  <img src="screenshots/clients/web-form.png" alt="Web widget form, data-theme light and dark" width="49%" />
+</p>
+
 | `data-theme`      | Behaviour                                                                                    |
 | ----------------- | -------------------------------------------------------------------------------------------- |
 | `light` (default) | Always light. Existing embeds don't change.                                                  |

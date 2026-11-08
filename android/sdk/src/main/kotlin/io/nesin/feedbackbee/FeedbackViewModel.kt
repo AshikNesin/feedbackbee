@@ -53,7 +53,7 @@ internal class FeedbackViewModel : ViewModel() {
                 emailLocked = reporter?.email != null,
                 kindLocked = options.lockKind,
             )
-            if (options.kind == null && !options.lockKind) current.from.withDraft(draft) else draft
+            if (options.kind == null && !options.lockKind) Choosing(current.from.withDraft(draft)) else draft
         }
     }
 

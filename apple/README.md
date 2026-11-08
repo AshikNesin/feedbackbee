@@ -91,6 +91,13 @@ values outside the contract's limits are dropped with a log rather than failing 
 
 ## What the user sees
 
+| iOS                                                                                                   | macOS                                                                                                           |
+| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| <img src="../docs/screenshots/clients/ios-picker.png" alt="iOS kind picker in light and dark mode" /> | <img src="../docs/screenshots/clients/macos-picker.png" alt="macOS kind picker in light and dark appearance" /> |
+| <img src="../docs/screenshots/clients/ios-form.png" alt="iOS feedback form in light and dark mode" /> | <img src="../docs/screenshots/clients/macos-form.png" alt="macOS feedback form in light and dark appearance" /> |
+
+Rendered by the appearance tests in CI (`.github/workflows/mobile-sdks.yml` uploads them as `appearance-snapshots`).
+
 The same three screens as Android and the web widget, in light and dark mode (see [Light and dark mode](#light-and-dark-mode)):
 
 1. **Share feedback.** Report an issue, Share an idea, Something else.

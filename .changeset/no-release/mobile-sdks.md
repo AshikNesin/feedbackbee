@@ -7,3 +7,8 @@ optional `currentActivity` argument on the Android SDK's `init`, and a
 contract only gains `ios` and `macos` as documented `os_name` values. The web
 widget gains an opt-in `data-theme` (default `light`, unchanged), documented in
 the new app-owned `docs/WIDGET.md` (also excluded from groot sync).
+
+The Android SDK's `open()` without a kind now shows the kind picker (it skipped
+straight to the form). The README, SDK READMEs, `docs/WIDGET.md` and the website
+show light | dark renders of each client from `docs/screenshots/clients/`
+(app-owned, under the excluded `docs/screenshots/**`).

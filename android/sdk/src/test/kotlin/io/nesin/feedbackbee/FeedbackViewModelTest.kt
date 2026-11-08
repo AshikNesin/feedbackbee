@@ -46,6 +46,21 @@ class FeedbackViewModelTest {
     }
 
     @Test
+    fun openWithoutAKindShowsThePickerWithThePrefill() {
+        Reporter.identify(email = "jane@acme.com", name = null, id = null)
+        try {
+            viewModel.applyOptions(OpenOptions(text = "Prefilled"))
+            val choosing = viewModel.state.value as Choosing
+            assertEquals("Prefilled", choosing.from.draft.text)
+            assertEquals("jane@acme.com", choosing.from.draft.email)
+            viewModel.chooseKind(FeedbackKind.Issue)
+            assertEquals(FeedbackKind.Issue, (viewModel.state.value as Draft).kind)
+        } finally {
+            Reporter.reset()
+        }
+    }
+
+    @Test
     fun applyOptionsOnlyPrefillsAVirginSheet() {
         Reporter.identify(email = "jane@acme.com", name = null, id = null)
         try {
