@@ -67,6 +67,10 @@ changes a managed surface without a changeset of its own naming the package:
 | `packages/<pkg>/package.json` (any key but `name`, `version`, `private`) | that package                      |
 | `apps/web/drizzle/**`, `.groot/**`                                       | the root package                  |
 
+In a child project the gate covers only `apps/web/drizzle/**`: synced
+`packages/**` and `.groot/**` are versioned by groot's own changesets, so a
+sync branch needs neither a changeset nor a reason for them.
+
 Docs-only or internal changes to those paths can instead add a reviewed
 reason file under `.no-release/` (any non-empty `.md`; it covers the
 whole branch). Changesets and reasons merged by earlier branches cover

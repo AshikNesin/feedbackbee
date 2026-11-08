@@ -19,6 +19,8 @@
 //      Release workflow.
 //   4. The release bot's own commits are exempt, because versioning PRs are
 //      the output of this gate, not its input.
+//   5. In a child project, packages/** and .groot/** are synced from groot
+//      and versioned there; only the child's own managed paths need coverage.
 //
 // A no-release reason file records why a change ships without a version bump
 // (docs-only, internal refactor, test-only). It covers the whole branch, not
@@ -56,6 +58,19 @@ export function matchesManagedPrefix(file) {
     return new RegExp(pattern).test(file);
   });
 }
+
+// In a child project, packages/** and .groot/** arrive by `pnpm groot:sync`
+// and are versioned by groot's own changesets, so the child's gate covers only
+// what it owns (apps/web/drizzle). A child is a repo whose
+// .groot/boilerplate-sync.json names a boilerplate other than itself.
+export function isChildProject(rootDir) {
+  const config = path.join(rootDir, ".groot", "boilerplate-sync.json");
+  if (!existsSync(config)) return false;
+  const boilerplate = JSON.parse(readFileSync(config, "utf8")).boilerplate?.name;
+  return Boolean(boilerplate) && boilerplate !== readPackageName(rootDir);
+}
+
+const syncedFromBoilerplate = (file) => file.startsWith("packages/") || file.startsWith(".groot/");
 
 // True when the package.json changed between two blobs in a way a consumer
 // can observe: a different value under any top-level key except name,
@@ -181,8 +196,10 @@ export function collect(state) {
   const entries = state.changedEntries ?? state.changedFiles.map((f) => ({ file: f }));
   const changedManagedFiles = [];
   const managedPackages = new Set();
+  const child = isChildProject(rootDir);
   for (const entry of entries) {
     if (!matchesManagedPrefix(entry.file)) continue;
+    if (child && syncedFromBoilerplate(entry.file)) continue;
     if (
       isKitPackageJson(entry.file) &&
       !pkgJsonChangeIsReleaseRelevant(

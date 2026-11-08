@@ -5,8 +5,8 @@
   },
   "last_sync": {
     "version": "3.2.1",
-    "commit": "6603cb1d5cc79d6571047b06ddaf191d5c006b33",
-    "date": "2026-11-08T20:06:54.644Z"
+    "commit": "8ef2973318e178ab4662ed11e3a4324d97f74a04",
+    "date": "2026-11-08T20:13:51.788Z"
   },
   "additional_exclusions": [
     "vitest.config.worker.ts",

@@ -199,6 +199,25 @@ describe("changesets gate", () => {
     expect(state.managedPackages).toEqual(["my-app"]);
   }, 20_000);
 
+  it("in a child project, covers only its own migrations, not files synced from groot", async () => {
+    const { state } = await collectFixture(
+      {
+        "package.json": JSON.stringify({ name: "my-app" }),
+        ".groot/boilerplate-sync.json": JSON.stringify({ boilerplate: { name: "groot" } }),
+        "packages/core/package.json": CORE_PKG,
+      },
+      [
+        "packages/core/src/logger/index.ts",
+        ".groot/lib/patterns.ts",
+        ".groot/boilerplate-sync.json",
+        "apps/web/drizzle/0003_add_tags.sql",
+      ],
+      [],
+    );
+    expect(state.managedPackages).toEqual(["my-app"]);
+    expect(state.changedManagedFiles).toEqual(["apps/web/drizzle/0003_add_tags.sql"]);
+  }, 20_000);
+
   it("accepts a migration changeset naming the root package.json name", () => {
     const run = runOnBranch({
       ...MIGRATION,
