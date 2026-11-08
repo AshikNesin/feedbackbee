@@ -1,7 +1,8 @@
 import { SignJWT } from "jose";
 import { z } from "zod";
 import { Boom } from "@groot/core/errors";
-import { db, githubApps } from "../../db";
+import { db, githubApps, type FeedbackStatus } from "../../db";
+import { IN_PROGRESS_LABEL, issueUpdate, type IssueSnapshot } from "../../lib/issue-status";
 import type { GithubRepositoryDTO } from "../../wire-types";
 import { decryptPrivateKey, importAppKey } from "./github.crypto";
 
@@ -22,6 +23,7 @@ export const appCredentialsSchema = z.object({
   slug: z.string().regex(/^[\w-]+$/),
   name: z.string(),
   pem: z.string().min(1),
+  webhook_secret: z.string().min(1).nullable().optional(),
 });
 
 export async function githubFetch(
@@ -70,14 +72,17 @@ export async function appAuthentication() {
   const app = await getApp();
   if (!app) throw Boom.unavailable("Connect a GitHub App in Settings → GitHub first");
   const key = await importAppKey(await decryptPrivateKey(app.privateKey));
+  return { app, jwt: await signAppJwt(app.appId, key) };
+}
+
+export async function signAppJwt(appId: number, key: CryptoKey) {
   const now = Math.floor(Date.now() / 1000);
-  const jwt = await new SignJWT({})
+  return new SignJWT({})
     .setProtectedHeader({ alg: "RS256" })
-    .setIssuer(String(app.appId))
+    .setIssuer(String(appId))
     .setIssuedAt(now - 60)
     .setExpirationTime(now + 540)
     .sign(key);
-  return { app, jwt };
 }
 
 type Authentication = Awaited<ReturnType<typeof appAuthentication>>;
@@ -184,22 +189,132 @@ export async function repositoryAccess(repo: string) {
   return { auth, installationId: installation.id, repositoryId: parsed.data.id, path };
 }
 
+/** A repository-scoped caller that retries once with a fresh token on 401. */
+async function repositoryCaller(repo: string) {
+  const access = await repositoryAccess(repo);
+  let token = await installationToken(access.auth, access.installationId, access.repositoryId);
+  return {
+    path: access.path,
+    async call(path: string, init?: RequestInit) {
+      let response = await githubFetch(path, token, init);
+      if (response.status === 401) {
+        token = await installationToken(
+          access.auth,
+          access.installationId,
+          access.repositoryId,
+          true,
+        );
+        response = await githubFetch(path, token, init);
+      }
+      return response;
+    },
+  };
+}
+
 export async function createGithubIssue(
   repo: string,
   issue: { title: string; body: string; labels: string[] },
 ) {
-  const access = await repositoryAccess(repo);
-  let token = await installationToken(access.auth, access.installationId, access.repositoryId);
+  const github = await repositoryCaller(repo);
   const init = { method: "POST", body: JSON.stringify(issue) };
-  let response = await githubFetch(`/repos/${access.path}/issues`, token, init);
-  if (response.status === 401) {
-    token = await installationToken(access.auth, access.installationId, access.repositoryId, true);
-    response = await githubFetch(`/repos/${access.path}/issues`, token, init);
-  }
+  const response = await github.call(`/repos/${github.path}/issues`, init);
   if (!response.ok) throw Boom.unavailable(`GitHub ${response.status}: request failed`);
   const parsed = z
     .object({ number: z.number().int().positive(), html_url: z.url() })
     .safeParse(await response.json());
   if (!parsed.success) throw Boom.unavailable("GitHub returned an invalid issue");
   return { number: parsed.data.number, url: parsed.data.html_url };
+}
+
+const graphqlIssueSchema = z
+  .object({
+    state: z.enum(["OPEN", "CLOSED"]),
+    stateReason: z.string().nullable().optional(),
+    labels: z.object({ nodes: z.array(z.object({ name: z.string() })) }),
+  })
+  .nullable();
+
+/** Issues read per GraphQL query; one request covers a page of feedback. */
+export const ISSUE_BATCH = 100;
+
+/**
+ * Current state of up to {@link ISSUE_BATCH} issues in one GraphQL request.
+ * Deleted, transferred or inaccessible issues are absent from the result.
+ */
+export async function fetchGithubIssues(
+  repo: string,
+  numbers: number[],
+): Promise<Map<number, IssueSnapshot>> {
+  const result = new Map<number, IssueSnapshot>();
+  const unique = [...new Set(numbers.map((n) => Math.trunc(n)))].slice(0, ISSUE_BATCH);
+  if (unique.length === 0) return result;
+  const [owner, name] = repo.split("/");
+  const fields = unique
+    .map(
+      (n) =>
+        `i${n}: issue(number: ${n}) { state stateReason labels(first: 50) { nodes { name } } }`,
+    )
+    .join("\n");
+  const github = await repositoryCaller(repo);
+  const response = await github.call("/graphql", {
+    method: "POST",
+    body: JSON.stringify({
+      query: `query($owner: String!, $name: String!) { repository(owner: $owner, name: $name) { ${fields} } }`,
+      variables: { owner, name },
+    }),
+  });
+  if (!response.ok) throw Boom.unavailable(`GitHub ${response.status}: request failed`);
+  // Missing issues come back as null plus an `errors` entry; the rest still resolve.
+  const parsed = z
+    .object({
+      data: z.object({ repository: z.record(z.string(), graphqlIssueSchema).nullable() }),
+    })
+    .safeParse(await response.json().catch(() => null));
+  if (!parsed.success || !parsed.data.data.repository)
+    throw Boom.unavailable("GitHub returned an invalid response");
+  for (const n of unique) {
+    const issue = parsed.data.data.repository[`i${n}`];
+    if (issue)
+      result.set(n, {
+        state: issue.state === "OPEN" ? "open" : "closed",
+        stateReason: issue.stateReason ?? null,
+        labels: issue.labels.nodes.map((label) => label.name),
+      });
+  }
+  return result;
+}
+
+/** Make the issue reflect `status`: open/closed with its reason, and the in-progress label. */
+export async function updateGithubIssue(repo: string, number: number, status: FeedbackStatus) {
+  const update = issueUpdate(status);
+  const github = await repositoryCaller(repo);
+  const issue = `/repos/${github.path}/issues/${number}`;
+  const patched = await github.call(issue, {
+    method: "PATCH",
+    body: JSON.stringify({
+      state: update.state,
+      ...(update.stateReason ? { state_reason: update.stateReason } : {}),
+    }),
+  });
+  if (!patched.ok) throw Boom.unavailable(`GitHub ${patched.status}: issue update failed`);
+  const label = update.inProgressLabel
+    ? await github.call(`${issue}/labels`, {
+        method: "POST",
+        body: JSON.stringify({ labels: [IN_PROGRESS_LABEL] }),
+      })
+    : await github.call(`${issue}/labels/${encodeURIComponent(IN_PROGRESS_LABEL)}`, {
+        method: "DELETE",
+      });
+  // 404 on DELETE: the label was not on the issue.
+  if (!label.ok && label.status !== 404)
+    throw Boom.unavailable(`GitHub ${label.status}: label update failed`);
+}
+
+/** Set the App's webhook secret, for manifests where GitHub did not return one. */
+export async function setWebhookSecret(jwt: string, secret: string) {
+  const response = await githubFetch("/app/hook/config", jwt, {
+    method: "PATCH",
+    body: JSON.stringify({ secret, content_type: "json" }),
+  });
+  if (!response.ok) throw Boom.unavailable(`GitHub ${response.status}: webhook setup failed`);
 }

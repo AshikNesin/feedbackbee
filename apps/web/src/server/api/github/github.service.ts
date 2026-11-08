@@ -1,4 +1,5 @@
 import { and, asc, eq, gt, lt, sql } from "drizzle-orm";
+import type { z } from "zod";
 import { Boom } from "@groot/core/errors";
 import { batch, changes, db, githubApps, githubFlows, users } from "../../db";
 import { runtime } from "../../runtime";
@@ -16,6 +17,8 @@ import {
   getApp,
   githubJSON,
   listRepositories,
+  setWebhookSecret,
+  signAppJwt,
 } from "./github.client";
 
 export async function requireOwner(userId: number) {
@@ -52,7 +55,7 @@ export async function settings(): Promise<GithubSettingsDTO> {
   }
   return {
     encryptionConfigured: configured,
-    app: app ? { slug: app.slug, name: app.name } : null,
+    app: app ? { slug: app.slug, name: app.name, webhooks: app.webhookSecret !== null } : null,
     repositories,
     connectionError,
   };
@@ -99,9 +102,9 @@ export async function startManifest(userId: number, origin: string, organization
       redirect_url: `${origin}/api/v1/github/callback`,
       setup_url: `${origin}/api/v1/github/installed`,
       public: false,
-      hook_attributes: { url: `${origin}/api/v1/github/webhook`, active: false },
+      hook_attributes: { url: `${origin}/api/v1/github/webhook`, active: true },
       default_permissions: { issues: "write" },
-      default_events: [],
+      default_events: ["issues"],
     },
   };
 }
@@ -146,6 +149,8 @@ export async function completeManifest(state: string, binding: string, code: str
   );
   await importAppKey(credentials.pem);
   const encrypted = await encryptPrivateKey(credentials.pem);
+  const webhookSecret = await ensureWebhookSecret(credentials);
+  const encryptedSecret = webhookSecret ? await encryptPrivateKey(webhookSecret) : null;
   // Disconnect deletes the claimed flow too, preventing an in-flight exchange from reconnecting it.
   const [inserted] = await batch([
     db.insert(githubApps).select(
@@ -156,6 +161,7 @@ export async function completeManifest(state: string, binding: string, code: str
           slug: sql<string>`${credentials.slug}`.as("slug"),
           name: sql<string>`${credentials.name}`.as("name"),
           privateKey: sql<string>`${encrypted}`.as("private_key"),
+          webhookSecret: sql<string | null>`${encryptedSecret}`.as("webhook_secret"),
         })
         .from(githubFlows)
         .where(
@@ -171,6 +177,22 @@ export async function completeManifest(state: string, binding: string, code: str
   ]);
   if (changes(inserted) !== 1) throw Boom.badRequest("GitHub setup was cancelled. Start again");
   clearGithubTokens();
+}
+
+/**
+ * GitHub returns a generated secret with the manifest conversion; when it does
+ * not, set one. Without a secret the app still works, just without webhook sync.
+ */
+async function ensureWebhookSecret(credentials: z.infer<typeof appCredentialsSchema>) {
+  if (credentials.webhook_secret) return credentials.webhook_secret;
+  try {
+    const secret = randomSecret();
+    const jwt = await signAppJwt(credentials.id, await importAppKey(credentials.pem));
+    await setWebhookSecret(jwt, secret);
+    return secret;
+  } catch {
+    return null;
+  }
 }
 
 export async function completeInstallation(state: string, binding: string, installationId: number) {

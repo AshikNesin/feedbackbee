@@ -1,17 +1,23 @@
-import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { Boom } from "@groot/core/errors";
 import {
   batchAll,
   db,
   feedback,
   feedbackImages,
+  projects,
   type Feedback,
   type FeedbackState,
+  type FeedbackStatus,
+  type Project,
 } from "../../db";
 import { createIssue, issueBody, issueLabels, issueTitle } from "../../lib/github";
+import { statusFromIssue } from "../../lib/issue-status";
 import { isReplayKey, mediaKey, sniff, type MediaRole } from "../../lib/media";
 import { originAllowed } from "../../lib/origins";
 import { runtime } from "../../runtime";
+import { fetchGithubIssues, ISSUE_BATCH, updateGithubIssue } from "../github/github.client";
+import { safeGithubError } from "../github/github.service";
 import { findProjectBySlug } from "../projects/projects.service";
 import { LIMITS, type Submission } from "./feedback.schema";
 
@@ -124,6 +130,7 @@ export async function submitFeedback(
     issueNumber: null,
     issueUrl: null,
     issueError: null,
+    status: "open",
     createdAt: new Date(),
   };
   await batchAll([
@@ -166,6 +173,7 @@ export async function listFeedback(
   projectId: string,
   before?: number,
   limit = 25,
+  status?: FeedbackStatus,
 ): Promise<FeedbackPage> {
   const rows = await db
     .select()
@@ -173,6 +181,7 @@ export async function listFeedback(
     .where(
       and(
         eq(feedback.projectId, projectId),
+        status ? eq(feedback.status, status) : undefined,
         before ? lt(feedback.createdAt, new Date(before)) : undefined,
       ),
     )
@@ -200,4 +209,102 @@ export async function listFeedback(
     items: page.map((row) => ({ ...row, images: imagesById.get(row.id) ?? [] })),
     hasMore: rows.length > limit,
   };
+}
+
+/**
+ * Set a report's status from the dashboard. GitHub is updated first, so a
+ * failure leaves both sides unchanged; the webhook that follows is a no-op.
+ * Reports without an issue keep a local-only status.
+ */
+export async function setFeedbackStatus(
+  project: Project,
+  feedbackId: string,
+  status: FeedbackStatus,
+): Promise<{ id: string; status: FeedbackStatus }> {
+  const [row] = await db
+    .select({ id: feedback.id, status: feedback.status, issueNumber: feedback.issueNumber })
+    .from(feedback)
+    .where(and(eq(feedback.id, feedbackId), eq(feedback.projectId, project.id)))
+    .limit(1);
+  if (!row) throw Boom.notFound("Feedback not found");
+  if (row.status !== status) {
+    if (row.issueNumber) {
+      try {
+        await updateGithubIssue(project.githubRepo, row.issueNumber, status);
+      } catch (error) {
+        throw Boom.unavailable(`Couldn't update the GitHub issue: ${safeGithubError(error)}`);
+      }
+    }
+    await db.update(feedback).set({ status }).where(eq(feedback.id, row.id));
+  }
+  return { id: row.id, status };
+}
+
+type TrackedRow = { id: string; status: FeedbackStatus; issueNumber: number | null };
+
+/** Read the issues of `rows` from GitHub and store any status that changed. */
+async function pullStatuses(repo: string, rows: TrackedRow[]): Promise<number> {
+  let updated = 0;
+  for (let i = 0; i < rows.length; i += ISSUE_BATCH) {
+    const chunk = rows.slice(i, i + ISSUE_BATCH);
+    const issues = await fetchGithubIssues(
+      repo,
+      chunk.flatMap((row) => (row.issueNumber ? [row.issueNumber] : [])),
+    );
+    const changed = chunk.flatMap((row) => {
+      const issue = row.issueNumber ? issues.get(row.issueNumber) : undefined;
+      const status = issue && statusFromIssue(issue);
+      return status && status !== row.status
+        ? [db.update(feedback).set({ status }).where(eq(feedback.id, row.id))]
+        : [];
+    });
+    await batchAll(changed);
+    updated += changed.length;
+  }
+  return updated;
+}
+
+/** Feedback checked per manual sync: newest first, bounded by Workers' subrequest limit. */
+const SYNC_LIMIT = 500;
+
+/** "Sync from GitHub": refresh the statuses of a project's most recent filed reports. */
+export async function syncProjectStatuses(
+  project: Project,
+): Promise<{ checked: number; updated: number }> {
+  const rows = await db
+    .select({ id: feedback.id, status: feedback.status, issueNumber: feedback.issueNumber })
+    .from(feedback)
+    .where(and(eq(feedback.projectId, project.id), isNotNull(feedback.issueNumber)))
+    .orderBy(desc(feedback.createdAt))
+    .limit(SYNC_LIMIT);
+  try {
+    return { checked: rows.length, updated: await pullStatuses(project.githubRepo, rows) };
+  } catch (error) {
+    throw Boom.unavailable(safeGithubError(error));
+  }
+}
+
+/**
+ * An `issues` webhook: refresh the reports filed as that issue. The payload is
+ * only a signal; the current state is read back from GitHub, so out-of-order
+ * deliveries cannot leave a stale status.
+ */
+export async function syncIssueStatus(repo: string, issueNumber: number): Promise<number> {
+  const rows = await db
+    .select({
+      id: feedback.id,
+      status: feedback.status,
+      issueNumber: feedback.issueNumber,
+      githubRepo: projects.githubRepo,
+    })
+    .from(feedback)
+    .innerJoin(projects, eq(projects.id, feedback.projectId))
+    .where(
+      and(
+        eq(feedback.issueNumber, issueNumber),
+        sql`lower(${projects.githubRepo}) = ${repo.toLowerCase()}`,
+      ),
+    );
+  if (rows.length === 0) return 0;
+  return pullStatuses(rows[0]!.githubRepo, rows);
 }

@@ -63,30 +63,35 @@ let counter = 0;
 
 let seededGithubApp: Promise<void> | undefined;
 
+/** Encrypt like the server does (AES-GCM, the all-zero test key from vitest.config.worker.ts). */
+export async function encryptForTest(value: string): Promise<string> {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await crypto.subtle.importKey("raw", new Uint8Array(32), "AES-GCM", false, [
+    "encrypt",
+  ]);
+  const encrypted = new Uint8Array(
+    await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, additionalData: new TextEncoder().encode("feedbackbee:github:v1") },
+      key,
+      new TextEncoder().encode(value),
+    ),
+  );
+  const encode = (bytes: Uint8Array) => {
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  };
+  return `v1.${encode(iv)}.${encode(encrypted)}`;
+}
+
 /** Seed the shared test app with an AES-GCM encrypted, generated RSA key. */
 export function ensureGithubApp(): Promise<void> {
   stubGithubApp();
   seededGithubApp ??= (async () => {
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await crypto.subtle.importKey("raw", new Uint8Array(32), "AES-GCM", false, [
-      "encrypt",
-    ]);
-    const encrypted = new Uint8Array(
-      await crypto.subtle.encrypt(
-        { name: "AES-GCM", iv, additionalData: new TextEncoder().encode("feedbackbee:github:v1") },
-        key,
-        new TextEncoder().encode(await githubPrivateKey()),
-      ),
-    );
-    const encode = (bytes: Uint8Array) => {
-      let binary = "";
-      for (const byte of bytes) binary += String.fromCharCode(byte);
-      return btoa(binary);
-    };
     await env.DB.prepare(
       "INSERT OR IGNORE INTO github_apps (id, app_id, slug, name, private_key) VALUES (1, 321, 'feedbackbee-test', 'FeedbackBee test', ?)",
     )
-      .bind(`v1.${encode(iv)}.${encode(encrypted)}`)
+      .bind(await encryptForTest(await githubPrivateKey()))
       .run();
   })();
   return seededGithubApp;

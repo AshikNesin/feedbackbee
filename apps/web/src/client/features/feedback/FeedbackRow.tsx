@@ -3,23 +3,39 @@ import { Badge } from "@groot/ui/badge";
 import { Button } from "@groot/ui/button";
 import { DataField, DataFields } from "@groot/ui/display";
 import { listRowClass } from "@groot/ui/list-row";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@groot/ui/select";
 import { StatusBadge } from "@groot/ui/status-badge";
 import { Text, monoClass } from "@groot/ui/typography";
 import { cn } from "@groot/ui/lib/utils";
 import { formatLocaleDateTime, formatRelativeTime } from "@groot/shell/lib/date.utils";
-import type { FeedbackItemDTO } from "../../../server/wire-types";
-import { KIND_LABELS, browser, clock, isReplay, pagePath } from "./format";
+import type { FeedbackItemDTO, FeedbackStatus } from "../../../server/wire-types";
+import { errorMessage } from "../../lib/errors";
+import {
+  KIND_LABELS,
+  STATUSES,
+  STATUS_LABELS,
+  STATUS_VARIANTS,
+  browser,
+  clock,
+  isReplay,
+  pagePath,
+} from "./format";
+import { useSetFeedbackStatus } from "./useFeedback";
 
 /** One report: a summary row that expands into its attachments and context. */
 export function FeedbackRow({
+  projectId,
   item,
   open,
   onToggle,
 }: {
+  projectId: string;
   item: FeedbackItemDTO;
   open: boolean;
   onToggle: () => void;
 }) {
+  const setStatus = useSetFeedbackStatus(projectId);
+  const status = setStatus.isPending ? setStatus.variables.status : item.status;
   const images = item.images.map((key) => `/f/${key}`);
   const replay = isReplay(item.recordingKey);
   const video = item.recordingKey && !replay ? `/f/${item.recordingKey}` : null;
@@ -64,6 +80,7 @@ export function FeedbackRow({
           {images.length > 0 && (
             <img src={images[0]} alt="" loading="lazy" className="size-9 rounded-md object-cover" />
           )}
+          <StatusBadge status={STATUS_VARIANTS[status]} label={STATUS_LABELS[status]} />
           {item.state === "created" ? (
             <Badge variant="secondary">#{item.issueNumber}</Badge>
           ) : (
@@ -97,6 +114,24 @@ export function FeedbackRow({
           )}
 
           <div className="flex flex-wrap gap-2">
+            <Select
+              value={status}
+              disabled={setStatus.isPending}
+              onValueChange={(value) =>
+                setStatus.mutate({ id: item.id, status: value as FeedbackStatus })
+              }
+            >
+              <SelectTrigger size="sm" className="w-36" aria-label="Status">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUSES.map((value) => (
+                  <SelectItem key={value} value={value}>
+                    {STATUS_LABELS[value]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {item.issueUrl && (
               <Button variant="outline" size="sm" asChild>
                 <a href={item.issueUrl} target="_blank" rel="noreferrer">
@@ -122,6 +157,12 @@ export function FeedbackRow({
               </Button>
             )}
           </div>
+
+          {setStatus.isError && (
+            <p role="alert">
+              <Text tone="destructive">{errorMessage(setStatus.error)}</Text>
+            </p>
+          )}
 
           {item.state === "issue_error" && item.issueError && (
             <p>

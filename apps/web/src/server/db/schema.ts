@@ -16,6 +16,13 @@ export type FeedbackKind = (typeof FEEDBACK_KINDS)[number];
 export const FEEDBACK_STATES = ["pending", "created", "issue_error"] as const;
 export type FeedbackState = (typeof FEEDBACK_STATES)[number];
 
+/**
+ * Triage status, kept in sync with the GitHub issue both ways (`lib/issue-status.ts`):
+ * open, open + the `in progress` label, closed as completed, closed as not planned.
+ */
+export const FEEDBACK_STATUSES = ["open", "in_progress", "done", "wont_fix"] as const;
+export type FeedbackStatus = (typeof FEEDBACK_STATUSES)[number];
+
 /** GitHub label per feedback kind. A kind without a label files the issue unlabelled. */
 export type LabelsMap = Partial<Record<FeedbackKind, string>>;
 
@@ -71,11 +78,16 @@ export const feedback = sqliteTable(
     issueNumber: integer("issue_number"),
     issueUrl: text("issue_url"),
     issueError: text("issue_error"),
+    status: text("status", { enum: FEEDBACK_STATUSES }).notNull().default("open"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
   },
-  (table) => [index("feedback_project_created_idx").on(table.projectId, table.createdAt)],
+  (table) => [
+    index("feedback_project_created_idx").on(table.projectId, table.createdAt),
+    index("feedback_project_status_created_idx").on(table.projectId, table.status, table.createdAt),
+    index("feedback_issue_idx").on(table.issueNumber),
+  ],
 );
 
 /** Images of a report, in the order the reporter attached them. */
@@ -114,6 +126,8 @@ export const githubApps = sqliteTable("github_apps", {
   slug: text("slug").notNull(),
   name: text("name").notNull(),
   privateKey: text("private_key").notNull(),
+  /** Encrypted like `privateKey`. Null for apps registered before webhooks were enabled. */
+  webhookSecret: text("webhook_secret"),
 });
 
 /** One-time browser-bound setup attempts; neither state nor cookie is stored raw. */

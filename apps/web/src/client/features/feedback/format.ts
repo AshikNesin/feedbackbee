@@ -1,9 +1,26 @@
-import type { FeedbackKind } from "../../../server/wire-types";
+import type { FeedbackKind, FeedbackStatus } from "../../../server/wire-types";
 
 export const KIND_LABELS: Record<FeedbackKind, string> = {
   issue: "Issue",
   feature_request: "Feature request",
   other: "Other",
+};
+
+export const STATUS_LABELS: Record<FeedbackStatus, string> = {
+  open: "Open",
+  in_progress: "In progress",
+  done: "Done",
+  wont_fix: "Won't fix",
+};
+
+export const STATUSES = Object.keys(STATUS_LABELS) as FeedbackStatus[];
+
+/** `StatusBadge` variant per status. */
+export const STATUS_VARIANTS: Record<FeedbackStatus, string> = {
+  open: "pending",
+  in_progress: "active",
+  done: "success",
+  wont_fix: "cancelled",
 };
 
 /** `m:ss` for a recording or voice-note length. */

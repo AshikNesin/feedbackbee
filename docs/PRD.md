@@ -99,6 +99,7 @@ Pages:
 
 - **Projects.** A sidebar list (a picker on phones) plus a "New project" dialog; the project id is derived from the name and stays stable. No per-project tokens. The last opened project is remembered.
 - **Project inbox.** One list filtered by type (All, Issues, Ideas, Other). Each row shows the message, time, page and reporter, with chips for screenshot, replay, voice note and issue state. A row expands to the screenshot, voice player, links to the GitHub issue and replay, a mailto reply, and the device context. Paged with "Load more".
+- **Status.** Each report has a status (Open, In progress, Done, Won't fix), filterable in the inbox and kept in sync with its GitHub issue both ways: open, open + `in progress` label, closed as completed, closed as not planned. Changing it in the dashboard updates the issue; GitHub changes arrive by webhook, and **Sync from GitHub** catches up on missed ones. Reports whose issue was never filed keep a local status.
 - **Setup.** Hidden behind a button (open by default while a project has no feedback): web and Android snippets with copy buttons, the target repo, and delete project.
 - **Settings.** Change password. That is all.
 
@@ -150,21 +151,24 @@ Public (the submit endpoint answers CORS `*`, rate-limited by IP via D1 counter 
 
 Authenticated (groot's JWT cookie; passkeys optional):
 
-| Method | Path                                    | Purpose                                       |
-| ------ | --------------------------------------- | --------------------------------------------- |
-| POST   | `/api/v1/auth/login`                    | Sign in (the first sign-in creates the owner) |
-| POST   | `/api/v1/auth/logout`                   |                                               |
-| GET    | `/api/v1/auth/me`                       | The signed-in user                            |
-| GET    | `/api/v1/projects`                      | List                                          |
-| POST   | `/api/v1/projects`                      | Create                                        |
-| GET    | `/api/v1/projects/:id`                  | One project                                   |
-| PATCH  | `/api/v1/projects/:id`                  | Edit (name, repo, labels)                     |
-| DELETE | `/api/v1/projects/:id`                  | Delete project + feedback rows (media kept)   |
-| GET    | `/api/v1/projects/:id/feedback?before=` | Paged list, newest first (cursor: epoch ms)   |
+| Method | Path                                            | Purpose                                                             |
+| ------ | ----------------------------------------------- | ------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/login`                            | Sign in (the first sign-in creates the owner)                       |
+| POST   | `/api/v1/auth/logout`                           |                                                                     |
+| GET    | `/api/v1/auth/me`                               | The signed-in user                                                  |
+| GET    | `/api/v1/projects`                              | List                                                                |
+| POST   | `/api/v1/projects`                              | Create                                                              |
+| GET    | `/api/v1/projects/:id`                          | One project                                                         |
+| PATCH  | `/api/v1/projects/:id`                          | Edit (name, repo, labels)                                           |
+| DELETE | `/api/v1/projects/:id`                          | Delete project + feedback rows (media kept)                         |
+| GET    | `/api/v1/projects/:id/feedback?before=&status=` | Paged list, newest first (cursor: epoch ms), optional status filter |
+| PATCH  | `/api/v1/projects/:id/feedback/:fid`            | Set status; updates the GitHub issue                                |
+| POST   | `/api/v1/projects/:id/sync`                     | Pull issue statuses from GitHub (newest 500)                        |
+| POST   | `/api/v1/github/webhook`                        | GitHub `issues` webhook (signature-verified)                        |
 
 ### 8. Security
 
-- Each deployment registers one private GitHub App from **Settings → GitHub**. The owner may be a personal account or an organization. The manifest grants Issues write and only GitHub's mandatory repository metadata permission; webhook delivery is inactive because all GitHub API traffic is outbound. No GitHub credentials are pasted manually.
+- Each deployment registers one private GitHub App from **Settings → GitHub**. The owner may be a personal account or an organization. The manifest grants Issues write and only GitHub's mandatory repository metadata permission, and subscribes to the `issues` webhook for status sync. Webhook requests are accepted only with a valid `X-Hub-Signature-256` (the GitHub-generated secret is stored encrypted like the private key) and are treated as a signal: the issue's current state is read back from GitHub. No GitHub credentials are pasted manually.
 - `FEEDBACKBEE_ENCRYPTION_KEY` is a required random base64-encoded 32-byte Worker secret (`openssl rand -base64 32`). The server exchanges the manifest registration code and encrypts the App private key in D1 with this key. Keep the secret outside D1 and its backups. Installation access is discovered by refreshing from GitHub; users install the App on selected repositories and choose a repository for each project. Installation tokens remain in memory, expire, and are refreshed automatically.
 - One App is supported per deployment; multiple installations are usable when GitHub's private App ownership rules permit them. Disconnect removes the local connection only: it does not uninstall or delete the GitHub App and does not remove existing feedback. Reconnect by connecting again and selecting the same repositories. Losing `FEEDBACKBEE_ENCRYPTION_KEY` requires disconnecting and re-registering; key rotation is not supported, so the existing key must not be casually changed.
 - The registration callback must use the deployment's canonical public HTTPS `ORIGIN`. The Worker can infer `ORIGIN` from the first request, but production should configure it explicitly before registering. Local registration requires a public HTTPS tunnel and an explicit tunnel `ORIGIN`.
