@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Code, Globe, Smartphone, Sparkles, type LucideIcon } from "lucide-react";
+import { Apple, Atom, Code, Globe, Smartphone, Sparkles, type LucideIcon } from "lucide-react";
 import { Button } from "@groot/ui/button";
 import {
   Dialog,
@@ -116,6 +116,114 @@ dependencies {
   ];
 }
 
+function appleSteps(project: ProjectDTO, origin: string): Step[] {
+  return [
+    {
+      text: (
+        <>
+          Add the package from a checkout of FeedbackBee (it is not published yet). In Xcode:{" "}
+          <Mono>File → Add Package Dependencies… → Add Local…</Mono>, pick{" "}
+          <Mono>feedbackbee/apple</Mono>, and add the <Mono>FeedbackBee</Mono> library to your
+          target. iOS 15+ and macOS 12+.
+        </>
+      ),
+    },
+    {
+      text: (
+        <>
+          Configure it once at launch (<Mono>application(_:didFinishLaunchingWithOptions:)</Mono>,{" "}
+          <Mono>applicationDidFinishLaunching(_:)</Mono> or your SwiftUI <Mono>App.init</Mono>). On
+          iOS, shake to report is on.
+        </>
+      ),
+      code: {
+        lang: "swift",
+        source: `import FeedbackBee
+
+try FeedbackBee.configure(
+    projectId: "${project.slug}",
+    endpoint: "${origin}"
+)`,
+      },
+    },
+    {
+      text: (
+        <>
+          Open it from your own button. Macs don&apos;t shake, so add a{" "}
+          <Mono>Help → Send Feedback…</Mono> item:
+        </>
+      ),
+      code: {
+        lang: "swift",
+        source: `FeedbackBee.open()
+
+// macOS (AppKit)
+NSApp.helpMenu?.addItem(FeedbackBee.menuItem())`,
+      },
+    },
+    {
+      text: (
+        <>
+          For voice notes, add <Mono>NSMicrophoneUsageDescription</Mono> to your Info.plist. A
+          sandboxed Mac app also needs the <Mono>com.apple.security.network.client</Mono>{" "}
+          entitlement to send reports.
+        </>
+      ),
+    },
+  ];
+}
+
+function reactNativeSteps(project: ProjectDTO, origin: string): Step[] {
+  return [
+    {
+      text: (
+        <>
+          Build a tarball from a checkout of FeedbackBee (it is not on npm yet) and install it, then
+          run <Mono>pod install</Mono>:
+        </>
+      ),
+      code: {
+        lang: "text",
+        source: `# in your FeedbackBee checkout
+cd react-native
+pnpm install --ignore-workspace && pnpm pack
+
+# in your app
+npm install ../feedbackbee/react-native/*.tgz
+cd ios && pod install`,
+      },
+    },
+    {
+      text: (
+        <>
+          Init it once at startup. Shake to report is on. Needs React Native 0.76+ with the New
+          Architecture; Expo needs a development build.
+        </>
+      ),
+      code: {
+        lang: "ts",
+        source: `import FeedbackBee from "react-native-feedbackbee";
+
+FeedbackBee.init({
+  projectId: "${project.slug}",
+  endpoint: "${origin}",
+});`,
+      },
+    },
+    {
+      text: <>Or open it from your own button:</>,
+      code: { lang: "ts", source: "FeedbackBee.open();" },
+    },
+    {
+      text: (
+        <>
+          For voice notes on iOS, add <Mono>NSMicrophoneUsageDescription</Mono> to your Info.plist.
+        </>
+      ),
+    },
+  ];
+}
+
 const DOCS = "https://github.com/AshikNesin/feedbackbee";
 
 /**
@@ -135,6 +243,14 @@ export function agentPrompt(project: ProjectDTO, origin: string): string {
     "",
     `FeedbackBee.init(this, projectId = "${project.slug}", endpoint = "${origin}")`,
     "",
+    `If this is an iOS or macOS app, follow ${DOCS}/blob/main/apple/README.md: add the local Swift package, then configure it once at launch:`,
+    "",
+    `try FeedbackBee.configure(projectId: "${project.slug}", endpoint: "${origin}")`,
+    "",
+    `If this is a React Native app, follow ${DOCS}/blob/main/react-native/README.md: install the package, run pod install, then at startup call:`,
+    "",
+    `FeedbackBee.init({ projectId: "${project.slug}", endpoint: "${origin}" });`,
+    "",
   ];
   if (project.allowedOrigins.length > 0) {
     lines.push(
@@ -143,7 +259,7 @@ export function agentPrompt(project: ProjectDTO, origin: string): string {
     );
   }
   lines.push(
-    "Don't change anything else. When you're done, tell me where you added it, then how to check it: open the app, click the feedback button in the corner (or shake the phone on Android) and send a test report. It should show up at " +
+    "Don't change anything else. When you're done, tell me where you added it, then how to check it: open the app, click the feedback button in the corner (or shake the phone on Android and iOS, or choose Help → Send Feedback… on macOS) and send a test report. It should show up at " +
       `${origin}/app/projects/${project.slug}.`,
     "",
     `Docs: ${DOCS}#readme`,
@@ -151,7 +267,10 @@ export function agentPrompt(project: ProjectDTO, origin: string): string {
   return lines.join("\n");
 }
 
-/** Install steps for the web widget and the Android SDK, the project's values filled in. */
+/**
+ * Install steps for the web widget, the Android SDK, the iOS + macOS package and
+ * the React Native module, plus an agent prompt, the project's values filled in.
+ */
 export function SetupDialog({ project }: { project: ProjectDTO }) {
   const origin = window.location.origin;
   return (
@@ -171,7 +290,10 @@ export function SetupDialog({ project }: { project: ProjectDTO }) {
         </DialogHeader>
         <DialogBody>
           <Tabs defaultValue="web" className="gap-4">
-            <TabsList variant="line" className="w-full justify-start gap-3 border-b border-border">
+            <TabsList
+              variant="line"
+              className="w-full justify-start gap-3 overflow-x-auto border-b border-border"
+            >
               <TabsTrigger value="web" className="flex-none">
                 <Globe className="size-4" />
                 Web
@@ -179,6 +301,14 @@ export function SetupDialog({ project }: { project: ProjectDTO }) {
               <TabsTrigger value="android" className="flex-none">
                 <Smartphone className="size-4" />
                 Android
+              </TabsTrigger>
+              <TabsTrigger value="apple" className="flex-none">
+                <Apple className="size-4" />
+                iOS &amp; macOS
+              </TabsTrigger>
+              <TabsTrigger value="react-native" className="flex-none">
+                <Atom className="size-4" />
+                React Native
               </TabsTrigger>
               <TabsTrigger value="prompt" className="flex-none">
                 <Sparkles className="size-4" />
@@ -199,6 +329,22 @@ export function SetupDialog({ project }: { project: ProjectDTO }) {
                 title="Android app"
                 kind="Kotlin SDK, minSdk 26"
                 steps={androidSteps(project, origin)}
+              />
+            </TabsContent>
+            <TabsContent value="apple">
+              <SetupSteps
+                icon={Apple}
+                title="iOS and macOS app"
+                kind="Swift package, iOS 15+ and macOS 12+"
+                steps={appleSteps(project, origin)}
+              />
+            </TabsContent>
+            <TabsContent value="react-native">
+              <SetupSteps
+                icon={Atom}
+                title="React Native app"
+                kind="TurboModule over the native SDKs, RN 0.76+"
+                steps={reactNativeSteps(project, origin)}
               />
             </TabsContent>
             <TabsContent value="prompt">

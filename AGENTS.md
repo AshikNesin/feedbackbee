@@ -16,14 +16,14 @@ Use **pnpm** for everything. Don't call `vp` directly (use `pnpm check`,
 
 - **Never edit synced files for app needs.** `packages/**`, `scripts/**` (except
   `scripts/seed.ts`), `*.config.*`, `tsconfig*.json`, `.github/workflows/**`,
-  `docs/**` (except `CONTRACT.md`, `DEPLOY.md`, `PRD.md`, `screenshots/`) come
+  `docs/**` (except `CONTRACT.md`, `DEPLOY.md`, `PRD.md`, `WIDGET.md`, `screenshots/`) come
   from groot. A real fix belongs in groot first (as `uploadPaths` was); a
   FeedbackBee-only file goes in an app-owned path or in
   `.groot/boilerplate-sync.json` → `additional_exclusions`.
 - **Packages never import from `apps/`.** Apps import packages, never the reverse.
 - **The upload contract is versioned.** `POST /api/v1/feedback` is called by
   shipped widgets and mobile apps. A change to its fields or responses updates
-  `docs/CONTRACT.md`, the widget (`apps/web/src/server/embed/widget.js`), the
+  `docs/CONTRACT.md`, the widget (`apps/web/src/server/embed/widget.js`, documented in `docs/WIDGET.md`), the
   Android SDK (`android/sdk/.../upload/`) and the Apple SDK
   (`apple/Sources/FeedbackBee/Upload/`, iOS + macOS) together; a breaking change needs a new
   version path. It answers CORS `*` (`openCorsPaths`) and sets its own size
