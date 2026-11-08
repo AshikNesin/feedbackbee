@@ -1,3 +1,4 @@
+import { users } from "@groot/core/database/schema";
 import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { timestamps } from "@groot/core/database/schema";
 
@@ -26,7 +27,7 @@ export const projects = sqliteTable("projects", {
   name: text("name").notNull(),
   /** Public project id used by the embed snippet and the Android SDK. */
   slug: text("slug").notNull().unique(),
-  /** `owner/repo`. Issues are filed with the deployment's GITHUB_TOKEN secret. */
+  /** `owner/repo`, verified against the deployment's GitHub App installation. */
   githubRepo: text("github_repo").notNull(),
   labels: text("labels", { mode: "json" }).$type<LabelsMap>().notNull(),
   /**
@@ -105,3 +106,23 @@ export type Feedback = typeof feedback.$inferSelect;
 export type NewFeedback = typeof feedback.$inferInsert;
 
 export * from "@groot/core/database/schema";
+
+/** One end-user-owned GitHub App per deployment. Only ciphertext is persisted. */
+export const githubApps = sqliteTable("github_apps", {
+  id: integer("id").primaryKey(),
+  appId: integer("app_id").notNull(),
+  slug: text("slug").notNull(),
+  name: text("name").notNull(),
+  privateKey: text("private_key").notNull(),
+});
+
+/** One-time browser-bound setup attempts; neither state nor cookie is stored raw. */
+export const githubFlows = sqliteTable("github_flows", {
+  state: text("state").primaryKey(),
+  binding: text("binding").notNull(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  kind: text("kind", { enum: ["manifest", "install"] }).notNull(),
+  expiresAt: integer("expires_at").notNull(),
+});
