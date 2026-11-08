@@ -126,7 +126,11 @@ test("health and the widget scripts are public, with their cache headers", async
   expect(embed.status).toBe(200);
   expect(embed.headers.get("content-type")).toContain("application/javascript");
   expect(embed.headers.get("cache-control")).toContain("max-age=300");
-  expect(await embed.text()).toContain("/api/v1/feedback");
+  const widget = await embed.text();
+  expect(widget).toContain("/api/v1/feedback");
+  expect(widget).toContain("data-theme");
+  expect(widget).toContain("prefers-color-scheme:dark");
+  expect(widget).toContain("--fb-panel:#18181b");
 
   for (const path of ["/embed-capture.js", "/embed-record.js", "/replay-player.js"]) {
     const res = await SELF.fetch(`${ORIGIN}${path}`);

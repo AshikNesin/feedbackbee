@@ -40,11 +40,11 @@ final class IOSAppearanceTests: XCTestCase {
                 }
 
                 // Bottom-left corner of the panel, which runs to the bottom edge.
-                let panel = Snapshot.pixel(cgImage, x: 12 * 2, y: cgImage.height - 6 * 2)
+                let corner = Snapshot.pixel(cgImage, x: 12 * 2, y: cgImage.height - 6 * 2)
                 if mode == "light" {
-                    XCTAssertEqual([panel.r, panel.g, panel.b], [255, 255, 255], "\(screen) panel in light mode")
+                    XCTAssertEqual([corner.r, corner.g, corner.b], [255, 255, 255], "\(screen) panel in light mode")
                 } else {
-                    XCTAssertEqual([panel.r, panel.g, panel.b], [24, 24, 27], "\(screen) panel in dark mode")
+                    XCTAssertEqual([corner.r, corner.g, corner.b], [24, 24, 27], "\(screen) panel in dark mode")
                 }
                 window.isHidden = true
             }

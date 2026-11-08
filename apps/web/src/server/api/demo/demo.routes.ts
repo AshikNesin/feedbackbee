@@ -52,13 +52,17 @@ document.getElementById('bee-identified').addEventListener('click', function () 
 });
 </script>
 </div>
-<script src="/embed.js" data-project="demo" async></script>
+<script src="/embed.js" data-project="demo"__THEME__ async></script>
 </body>
 </html>`;
 
 router.get("/demo", async (c) => {
   await ensureDemoProject();
-  return c.html(DEMO_HTML);
+  // `?theme=light|dark|auto` exercises the widget's data-theme option.
+  const theme = c.req.query("theme");
+  const attr =
+    theme === "light" || theme === "dark" || theme === "auto" ? ` data-theme="${theme}"` : "";
+  return c.html(DEMO_HTML.replace("__THEME__", attr));
 });
 
 export default router;
