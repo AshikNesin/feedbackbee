@@ -50,11 +50,12 @@ FeedbackBee.init(application, projectId = "myapp", endpoint = "https://bee.examp
 FeedbackBee.show() // open the sheet yourself
 ```
 
-| Parameter   | Default  | Notes                                                                                                            |
-| ----------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
-| `projectId` | required | From your dashboard. A blank id throws `IllegalArgumentException`.                                               |
-| `endpoint`  | required | Your FeedbackBee website or Worker base URL, including `https://`. No default server. A trailing `/` is trimmed. |
-| `shake`     | `true`   | `false` removes the accelerometer listener entirely.                                                             |
+| Parameter         | Default  | Notes                                                                                                                                  |
+| ----------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `projectId`       | required | From your dashboard. A blank id throws `IllegalArgumentException`.                                                                     |
+| `endpoint`        | required | Your FeedbackBee website or Worker base URL, including `https://`. No default server. A trailing `/` is trimmed.                       |
+| `shake`           | `true`   | `false` removes the accelerometer listener entirely.                                                                                   |
+| `currentActivity` | `null`   | Only for bridges that init after an activity resumed (the React Native module passes it). `Application.onCreate` callers leave it out. |
 
 **Upgrading:** add `endpoint` to existing `init` calls. The argument order is application, project id, endpoint,
 then optional `shake`. `DEFAULT_ENDPOINT` has been removed. Blank or malformed URLs are rejected immediately,

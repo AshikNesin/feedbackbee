@@ -1,5 +1,6 @@
 package io.nesin.feedbackbee
 
+import android.app.Activity
 import android.app.Application
 import android.os.Handler
 import android.os.Looper
@@ -40,14 +41,22 @@ object FeedbackBee {
      * @param projectId the project id from your FeedbackBee dashboard.
      * @param endpoint required base URL of your FeedbackBee website or Worker. There is no default server.
      * @param shake when true (the default), three firm jolts within 1.5 seconds open the sheet.
+     * @param currentActivity the activity already in the foreground, when `init` runs after it resumed
+     *   (a React Native or Flutter bridge, say). `Application.onCreate` callers leave it null.
      * @throws IllegalArgumentException if [projectId] is blank or [endpoint] is not an http(s) URL.
      */
     @JvmStatic
     @JvmOverloads
-    fun init(application: Application, projectId: String, endpoint: String, shake: Boolean = true) {
+    fun init(
+        application: Application,
+        projectId: String,
+        endpoint: String,
+        shake: Boolean = true,
+        currentActivity: Activity? = null,
+    ) {
         val config = FeedbackConfig.create(projectId, endpoint)
         val previous = installation
-        val resumed = previous?.resumedActivity
+        val resumed = currentActivity ?: previous?.resumedActivity
         previous?.uninstall()
         installation = Installation(application, config, shake).also { it.install(resumed) }
     }

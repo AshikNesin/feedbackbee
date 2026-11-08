@@ -1,0 +1,88 @@
+buildscript {
+  ext.getExtOrDefault = { name ->
+    return rootProject.ext.has(name) ? rootProject.ext.get(name) : project.properties["FeedbackBee_" + name]
+  }
+
+  repositories {
+    google()
+    mavenCentral()
+  }
+
+  dependencies {
+    classpath "com.android.tools.build:gradle:8.7.2"
+    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:${getExtOrDefault("kotlinVersion")}"
+  }
+}
+
+apply plugin: "com.android.library"
+apply plugin: "kotlin-android"
+apply plugin: "com.facebook.react"
+
+def getExtOrIntegerDefault(name) {
+  return rootProject.ext.has(name) ? rootProject.ext.get(name) : (project.properties["FeedbackBee_" + name]).toInteger()
+}
+
+// The Android SDK (../../android/sdk) is compiled into this module from vendor/, copied by
+// `pnpm vendor` and on `pnpm pack`, so apps need no extra settings.gradle includes.
+def vendorDir = file("${projectDir}/../vendor/android")
+if (!vendorDir.exists()) {
+  throw new GradleException("react-native-feedbackbee: vendor/android is missing. Install the package from `pnpm pack`, or run `pnpm vendor` in react-native/.")
+}
+
+android {
+  // Must match the SDK's namespace: its sources reference io.nesin.feedbackbee.R.
+  namespace "io.nesin.feedbackbee"
+  compileSdkVersion getExtOrIntegerDefault("compileSdkVersion")
+  resourcePrefix "fbb_"
+
+  defaultConfig {
+    minSdkVersion Math.max(26, getExtOrIntegerDefault("minSdkVersion"))
+    targetSdkVersion getExtOrIntegerDefault("targetSdkVersion")
+  }
+
+  buildTypes {
+    release {
+      minifyEnabled false
+    }
+  }
+
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+
+  kotlinOptions {
+    jvmTarget = "17"
+  }
+
+  sourceSets {
+    main {
+      java.srcDirs += ["${vendorDir}/kotlin", "generated/java", "generated/jni"]
+      res.srcDirs += ["${vendorDir}/res"]
+    }
+  }
+}
+
+repositories {
+  mavenCentral()
+  google()
+}
+
+dependencies {
+  implementation "com.facebook.react:react-android"
+  implementation "org.jetbrains.kotlin:kotlin-stdlib:${getExtOrDefault("kotlinVersion")}"
+
+  // The Android SDK's own dependencies (android/sdk/build.gradle.kts).
+  implementation "androidx.activity:activity:1.9.3"
+  implementation "androidx.fragment:fragment:1.8.5"
+  implementation "androidx.core:core:1.15.0"
+  implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7"
+  implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7"
+  implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0"
+}
+
+react {
+  jsRootDir = file("../src/")
+  libraryName = "RNFeedbackBeeSpec"
+  codegenJavaPackageName = "io.nesin.feedbackbee.reactnative"
+}

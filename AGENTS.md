@@ -5,7 +5,7 @@ the Cloudflare free tier. FeedbackBee is a child of the
 [groot](https://github.com/AshikNesin/groot) boilerplate: `packages/*`, root
 configs, `scripts/`, `docs/` and `.groot/` are synced from groot
 (`pnpm groot:sync`); FeedbackBee's own code lives in `apps/web/`, `tests/worker/`,
-`android/` and `site/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
+`android/`, `ios/`, `react-native/` and `site/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
 the product docs are [`docs/PRD.md`](./docs/PRD.md) and the upload contract
 [`docs/CONTRACT.md`](./docs/CONTRACT.md).
 
@@ -22,9 +22,10 @@ Use **pnpm** for everything. Don't call `vp` directly (use `pnpm check`,
   `.groot/boilerplate-sync.json` → `additional_exclusions`.
 - **Packages never import from `apps/`.** Apps import packages, never the reverse.
 - **The upload contract is versioned.** `POST /api/v1/feedback` is called by
-  shipped widgets and Android apps. A change to its fields or responses updates
-  `docs/CONTRACT.md`, the widget (`apps/web/src/server/embed/widget.js`) and the
-  Android SDK (`android/sdk/.../upload/`) together; a breaking change needs a new
+  shipped widgets and mobile apps. A change to its fields or responses updates
+  `docs/CONTRACT.md`, the widget (`apps/web/src/server/embed/widget.js`), the
+  Android SDK (`android/sdk/.../upload/`) and the iOS SDK
+  (`ios/Sources/FeedbackBee/Upload/`) together; a breaking change needs a new
   version path. It answers CORS `*` (`openCorsPaths`) and sets its own size
   caps (`uploadPaths`) in `app.ts`.
 - **GitHub auth uses one GitHub App per deployment**, registered from the
@@ -125,3 +126,8 @@ one with its credentials. The dashboard API (`/api/v1/projects…`) sits behind
 - `pnpm deploy:worker`: build + `wrangler deploy` (migrations apply on first request)
 - `pnpm groot:check` / `pnpm groot:sync`: boilerplate updates
 - Android: `cd android && ./gradlew :sdk:assembleRelease :app:assembleDebug :sdk:testReleaseUnitTest`
+- iOS: `cd ios && swift test` (core, runs on Linux too); the UIKit layer builds with
+  `xcodebuild build -scheme FeedbackBee -destination "generic/platform=iOS Simulator"`
+- React Native: `cd react-native && pnpm install --ignore-workspace && pnpm typecheck && pnpm codegen`.
+  It vendors `ios/` and `android/` sources (`pnpm vendor`); a native SDK API change
+  may need its bridge (`react-native/ios`, `react-native/android`) updated too

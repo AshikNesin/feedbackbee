@@ -11,6 +11,7 @@
   "additional_exclusions": [
     "vitest.config.worker.ts",
     ".github/workflows/worker-tests.yml",
+    ".github/workflows/mobile-sdks.yml",
     ".github/workflows/release.yml",
     "docs/CONTRACT.md",
     "docs/DEPLOY.md",

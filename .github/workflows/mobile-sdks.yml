@@ -1,0 +1,68 @@
+# FeedbackBee's mobile SDKs: ios/, react-native/ and android/.
+# App-owned: listed in .groot/boilerplate-sync.json additional_exclusions.
+name: Mobile SDKs
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths: ["ios/**", "react-native/**", "android/**", ".github/workflows/mobile-sdks.yml"]
+  push:
+    branches: ["main"]
+    paths: ["ios/**", "react-native/**", "android/**", ".github/workflows/mobile-sdks.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-sdks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    name: iOS SDK
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v5
+      - name: Core tests
+        run: swift test
+      - name: Build for iOS (UIKit layer)
+        run: xcodebuild build -scheme FeedbackBee -destination "generic/platform=iOS Simulator" -quiet
+
+  react-native:
+    name: React Native module
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: react-native
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+      - name: Install
+        run: pnpm install --ignore-workspace
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Codegen
+        run: pnpm codegen
+      - name: Pack (vendors the native SDKs)
+        run: pnpm pack && tar -tzf react-native-feedbackbee-*.tgz | grep -q "package/vendor/ios/FeedbackBee/FeedbackBee.swift"
+
+  android:
+    name: Android SDK
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Build and unit tests
+        run: ./gradlew :sdk:assembleRelease :sdk:testReleaseUnitTest

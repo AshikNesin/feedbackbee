@@ -1,0 +1,56 @@
+{
+  "name": "react-native-feedbackbee",
+  "version": "0.1.0",
+  "description": "FeedbackBee for React Native: shake-to-feedback with annotated screenshots and voice notes, filed as GitHub issues",
+  "homepage": "https://github.com/AshikNesin/feedbackbee/tree/main/react-native#readme",
+  "license": "MIT",
+  "author": "Ashik Nesin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AshikNesin/feedbackbee.git",
+    "directory": "react-native"
+  },
+  "source": "src/index.ts",
+  "files": [
+    "src",
+    "lib",
+    "ios",
+    "vendor",
+    "android/build.gradle",
+    "android/gradle.properties",
+    "android/src",
+    "FeedbackBeeReactNative.podspec",
+    "react-native.config.js"
+  ],
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "scripts": {
+    "vendor": "node scripts/vendor-sdks.mjs",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "codegen": "node scripts/check-codegen.mjs",
+    "prepack": "node scripts/vendor-sdks.mjs && tsc -p tsconfig.build.json"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.1",
+    "react": "^19.3.0",
+    "react-native": "0.88.1",
+    "typescript": "^6.0.3"
+  },
+  "peerDependencies": {
+    "react-native": ">=0.76"
+  },
+  "codegenConfig": {
+    "name": "RNFeedbackBeeSpec",
+    "type": "modules",
+    "jsSrcsDir": "src",
+    "android": {
+      "javaPackageName": "io.nesin.feedbackbee.reactnative"
+    },
+    "ios": {
+      "modulesProvider": {
+        "FeedbackBee": "FeedbackBeeModule"
+      }
+    }
+  }
+}

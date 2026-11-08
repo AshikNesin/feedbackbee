@@ -28,6 +28,8 @@ One click provisions D1 + R2, builds, and deploys; migrations apply on the first
 - **Upload contract**: [docs/CONTRACT.md](docs/CONTRACT.md)
 - **Deploy runbook**: [docs/DEPLOY.md](docs/DEPLOY.md)
 - **Android SDK**: `android/` (Kotlin, `FeedbackBee.init(app, projectId, endpoint)`, shake-to-feedback)
+- **iOS SDK**: `ios/` (Swift package, `FeedbackBee.configure(projectId:endpoint:)`, shake-to-feedback)
+- **React Native**: `react-native/` (TurboModule over the native SDKs, `FeedbackBee.init({ projectId, endpoint })`)
 - **Boilerplate**: built on [groot](https://github.com/AshikNesin/groot) (Hono + React + Drizzle); its guides start at [docs/README.md](docs/README.md)
 
 ## Embed in any web app
@@ -44,6 +46,26 @@ FeedbackBee.open() // or your own button
 ```
 
 The Android `endpoint` is required: use your FeedbackBee website or Worker base URL. There is no default server.
+
+## iOS
+
+```swift
+try FeedbackBee.configure(projectId: "myapp", endpoint: "https://your-bee.workers.dev")
+FeedbackBee.open() // or your own button
+```
+
+See [ios/README.md](ios/README.md).
+
+## React Native
+
+```ts
+import FeedbackBee from "react-native-feedbackbee";
+
+FeedbackBee.init({ projectId: "myapp", endpoint: "https://your-bee.workers.dev" });
+FeedbackBee.open(); // or your own button
+```
+
+The sheet, capture and upload are the native iOS and Android SDKs; see [react-native/README.md](react-native/README.md).
 
 ## Local dev
 
