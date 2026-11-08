@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -30,8 +29,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Mail
-import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Tag
@@ -100,6 +99,7 @@ fun ReportScreen(graph: AppGraph, projectId: String, feedbackId: String, onBack:
     var menu by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
     var viewer by remember { mutableStateOf<String?>(null) }
+    var playing by remember { mutableStateOf<Playback?>(null) }
 
     // Opened before the list had it (or after it was filtered out): fetch the one report.
     LaunchedEffect(feedbackId, item == null) {
@@ -218,13 +218,19 @@ fun ReportScreen(graph: AppGraph, projectId: String, feedbackId: String, onBack:
             }
             report.recordingKey?.let { key ->
                 RowDivider(48)
-                val label = if (report.isReplay) "Replay" else "Recording"
-                val url = if (report.isReplay) api.replayUrl(key) else api.mediaUrl(key)
-                InfoRow(label, clock(report.recordingSeconds), Icons.Filled.PlayCircle) { uri.openUri(url) }
+                if (report.isReplay) {
+                    InfoRow("Replay", clock(report.recordingSeconds), Icons.Filled.PlayCircle, action = Icons.Filled.PlayArrow) {
+                        playing = Playback.Replay(api.replayUrl(key))
+                    }
+                } else {
+                    InfoRow("Recording", clock(report.recordingSeconds), Icons.Filled.PlayCircle, action = Icons.Filled.PlayArrow) {
+                        playing = Playback.Video(api.mediaUrl(key))
+                    }
+                }
             }
             report.audioKey?.let { key ->
                 RowDivider(48)
-                InfoRow("Voice note", clock(report.audioSeconds), Icons.Filled.Mic) { uri.openUri(api.mediaUrl(key)) }
+                AudioPlayerRow(api.mediaUrl(key), report.audioSeconds)
             }
 
             val reporter = listOfNotNull(report.reporterEmail, report.reporterName, report.reporterId)
@@ -278,6 +284,11 @@ fun ReportScreen(graph: AppGraph, projectId: String, feedbackId: String, onBack:
         )
     }
     viewer?.let { url -> ImageViewer(url, onClose = { viewer = null }) }
+    when (val media = playing) {
+        is Playback.Replay -> ReplayViewer(media.url, onClose = { playing = null })
+        is Playback.Video -> VideoViewer(media.url, onClose = { playing = null })
+        null -> Unit
+    }
 }
 
 /** Full-screen image: pinch to zoom, drag to pan, tap to close. */
@@ -315,4 +326,10 @@ private fun ImageViewer(url: String, onClose: () -> Unit) {
             }
         }
     }
+}
+
+/** What's open full screen: a session replay (web page) or a screen recording (video). */
+private sealed interface Playback {
+    data class Replay(val url: String) : Playback
+    data class Video(val url: String) : Playback
 }

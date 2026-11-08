@@ -53,6 +53,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.nesin.feedbackbee.app.AppGraph
 import io.nesin.feedbackbee.app.data.GithubRepository
 import io.nesin.feedbackbee.app.data.Project
+import io.nesin.feedbackbee.app.data.RepositoriesState
 import io.nesin.feedbackbee.app.data.isValidSlug
 import io.nesin.feedbackbee.app.data.slugify
 import io.nesin.feedbackbee.app.data.userMessage
@@ -137,16 +138,18 @@ private fun NewProjectSheet(graph: AppGraph, onDismiss: () -> Unit, onCreated: (
     var slug by rememberSaveable { mutableStateOf("") }
     var slugEdited by rememberSaveable { mutableStateOf(false) }
     var repo by rememberSaveable { mutableStateOf<String?>(null) }
-    var repos by remember { mutableStateOf<List<GithubRepository>?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) {
-        runCatching { graph.api().repositories() }
-            .onSuccess { repos = it; if (it.size == 1) repo = it[0].fullName }
-            .onFailure { repos = emptyList(); error = it.userMessage() }
+    val loaded by graph.projects.repositories.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { graph.projects.loadRepositories() }
+    val repos: List<GithubRepository>? = when (val r = loaded) {
+        RepositoriesState.Loading -> null
+        is RepositoriesState.Loaded -> r.repositories
+        is RepositoriesState.Failed -> emptyList()
     }
+    LaunchedEffect(repos) { if (repo == null && repos?.size == 1) repo = repos[0].fullName }
+    val loadError = (loaded as? RepositoriesState.Failed)?.message
 
     val effectiveSlug = if (slugEdited) slug else slugify(name)
     val canCreate = name.isNotBlank() && isValidSlug(effectiveSlug) && repo != null && !busy
@@ -197,7 +200,7 @@ private fun NewProjectSheet(graph: AppGraph, onDismiss: () -> Unit, onCreated: (
                     }
                 }
             }
-            error?.let { Text(it, color = Bee.danger, style = MaterialTheme.typography.bodyMedium) }
+            (error ?: loadError)?.let { Text(it, color = Bee.danger, style = MaterialTheme.typography.bodyMedium) }
             Button(
                 onClick = {
                     busy = true

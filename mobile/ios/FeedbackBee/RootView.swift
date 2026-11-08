@@ -1,5 +1,6 @@
 import FeedbackBeeCore
 import SwiftUI
+import UIKit
 
 enum Route: Hashable {
     case inbox(projectId: String)
@@ -12,6 +13,26 @@ struct RootView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
+        #if DEBUG
+        if DemoMode.screen == .share {
+            // The Share Extension's UI, as it appears over the app the user shared from.
+            Color.gray.opacity(0.3).ignoresSafeArea().sheet(isPresented: .constant(true)) {
+                ShareView(
+                    model: model,
+                    attachments: [ComposeAttachment(data: DemoServer.screenshot, thumbnail: UIImage(data: DemoServer.screenshot)!)],
+                    text: "Checkout button overlaps the footer on small screens",
+                    onDone: { _ in }
+                )
+            }
+        } else {
+            content
+        }
+        #else
+        content
+        #endif
+    }
+
+    @ViewBuilder private var content: some View {
         if let session = model.session {
             SignedInView().id(session.token)
         } else {

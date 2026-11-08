@@ -25,7 +25,7 @@ xcrun simctl status_bar "$udid" override --time 9:41 --batteryState charged --ba
 mkdir -p "$out"
 for appearance in light dark; do
   xcrun simctl ui "$udid" appearance "$appearance"
-  for screen in signIn projects inbox compose report edit newProject settings; do
+  for screen in signIn projects inbox compose report edit newProject settings share; do
     xcrun simctl terminate "$udid" "$bundle" 2>/dev/null || true
     xcrun simctl launch "$udid" "$bundle" -demoScreen "$screen" >/dev/null
     sleep 4

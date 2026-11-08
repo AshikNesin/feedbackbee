@@ -4,18 +4,45 @@ import SwiftUI
 import UIKit
 
 /// Reports carry at most 5 images (docs/CONTRACT.md).
-private let maxImages = 5
+let maxImages = 5
+
+/// An image attached to a new report: the original bytes (encoded at send
+/// time) and a small thumbnail for the sheet.
+struct ComposeAttachment: Identifiable {
+    let id = UUID()
+    let data: Data
+    let thumbnail: UIImage
+
+    /// Decodes a thumbnail off the main thread; nil when `data` isn't an image.
+    static func make(_ data: Data) async -> ComposeAttachment? {
+        let thumb = await Task.detached(priority: .userInitiated) { ImageLoader.downsample(data, maxPixels: 168) }.value
+        return thumb.map { ComposeAttachment(data: data, thumbnail: $0) }
+    }
+}
 
 /// The quick-file sheet (DESIGN.md §4.5): kind chips, the note already
 /// focused, optional photos, Send. With `allowImages` off it edits a report.
-/// `onSubmit` throws to keep the sheet open with the error shown.
+/// `onSubmit` throws to keep the sheet open with the error shown. Used in the
+/// app (as a sheet) and in the Share Extension (as its whole UI, with `onClose`).
 struct ComposeSheet: View {
     let title: String
     let action: String
-    var initialKind: Kind = .issue
-    var initialText: String = ""
-    var allowImages = true
+    var initialKind: Kind
+    var initialText: String
+    var allowImages: Bool
+    var header: AnyView?
+    /// Called on Cancel and after a successful send; nil dismisses the sheet.
+    var onClose: (() -> Void)?
     let onSubmit: (Kind, String, [Upload]) async throws -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var kind: Kind = .issue
+    @State private var text = ""
+    @State private var attachments: [ComposeAttachment]
+    @State private var picks: [PhotosPickerItem] = []
+    @State private var busy = false
+    @State private var error: String?
+    @FocusState private var focused: Bool
 
     init(
         title: String,
@@ -23,6 +50,9 @@ struct ComposeSheet: View {
         initialKind: Kind = .issue,
         initialText: String = "",
         allowImages: Bool = true,
+        attachments: [ComposeAttachment] = [],
+        header: AnyView? = nil,
+        onClose: (() -> Void)? = nil,
         onSubmit: @escaping (Kind, String, [Upload]) async throws -> Void
     ) {
         self.title = title
@@ -30,17 +60,11 @@ struct ComposeSheet: View {
         self.initialKind = initialKind
         self.initialText = initialText
         self.allowImages = allowImages
+        self.header = header
+        self.onClose = onClose
         self.onSubmit = onSubmit
+        _attachments = State(initialValue: Array(attachments.prefix(maxImages)))
     }
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var kind: Kind = .issue
-    @State private var text = ""
-    @State private var picks: [PhotosPickerItem] = []
-    @State private var thumbnails: [UIImage] = []
-    @State private var busy = false
-    @State private var error: String?
-    @FocusState private var focused: Bool
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var changed: Bool { trimmed != initialText.trimmingCharacters(in: .whitespacesAndNewlines) || kind != initialKind }
@@ -49,6 +73,7 @@ struct ComposeSheet: View {
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
+                if let header { header }
                 HStack(spacing: 8) {
                     ForEach(Kind.allCases) { option in
                         Chip(label: option.short, dot: Bee.kind(option), selected: kind == option, selectedFill: Bee.muted, selectedInk: Bee.ink) {
@@ -73,18 +98,20 @@ struct ComposeSheet: View {
 
                 if allowImages {
                     HStack(spacing: 8) {
-                        PhotosPicker(selection: $picks, maxSelectionCount: maxImages, matching: .images) {
-                            Image(systemName: "photo.badge.plus").font(.title3).foregroundStyle(Bee.inkMuted)
-                                .frame(width: 56, height: 56)
-                                .background(Bee.muted, in: RoundedRectangle(cornerRadius: 10))
+                        if attachments.count < maxImages {
+                            PhotosPicker(selection: $picks, maxSelectionCount: maxImages - attachments.count, matching: .images) {
+                                Image(systemName: "photo.badge.plus").font(.title3).foregroundStyle(Bee.inkMuted)
+                                    .frame(width: 56, height: 56)
+                                    .background(Bee.muted, in: RoundedRectangle(cornerRadius: 10))
+                            }
+                            .accessibilityLabel("Attach images")
                         }
-                        .accessibilityLabel("Attach images")
-                        ForEach(Array(thumbnails.enumerated()), id: \.offset) { index, image in
-                            Image(uiImage: image).resizable().scaledToFill()
+                        ForEach(attachments) { attachment in
+                            Image(uiImage: attachment.thumbnail).resizable().scaledToFill()
                                 .frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: 10))
                                 .overlay(alignment: .topTrailing) {
                                     Button {
-                                        picks.remove(at: index)
+                                        attachments.removeAll { $0.id == attachment.id }
                                     } label: {
                                         Image(systemName: "xmark.circle.fill").symbolRenderingMode(.palette)
                                             .foregroundStyle(.white, .black.opacity(0.6))
@@ -103,7 +130,7 @@ struct ComposeSheet: View {
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.disabled(busy) }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: close).disabled(busy) }
                 ToolbarItem(placement: .confirmationAction) {
                     if busy {
                         ProgressView()
@@ -121,17 +148,31 @@ struct ComposeSheet: View {
             text = initialText
             focused = true
         }
-        .task(id: picks) { thumbnails = await loadThumbnails(picks) }
+        .onChange(of: picks) { _, new in
+            guard !new.isEmpty else { return }
+            Task {
+                for pick in new where attachments.count < maxImages {
+                    if let data = try? await pick.loadTransferable(type: Data.self), let made = await ComposeAttachment.make(data) {
+                        attachments.append(made)
+                    }
+                }
+                picks = []
+            }
+        }
+    }
+
+    private func close() {
+        if let onClose { onClose() } else { dismiss() }
     }
 
     private func send() {
         busy = true
         error = nil
+        let originals = allowImages ? attachments.map(\.data) : []
         Task {
             do {
-                let uploads = allowImages ? await encodeUploads(picks) : []
-                try await onSubmit(kind, trimmed, uploads)
-                dismiss()
+                try await onSubmit(kind, trimmed, await encodeUploads(originals))
+                close()
             } catch {
                 self.error = userMessage(error)
                 busy = false
@@ -140,25 +181,13 @@ struct ComposeSheet: View {
     }
 }
 
-/// Picked photos → JPEG uploads, scaled down off the main thread so a report
-/// with five photos stays far under the server's 10 MB / 50 MB caps and sends fast.
-private func encodeUploads(_ picks: [PhotosPickerItem]) async -> [Upload] {
-    var uploads: [Upload] = []
-    for (index, pick) in picks.enumerated() {
-        guard let data = try? await pick.loadTransferable(type: Data.self) else { continue }
-        let jpeg = await Task.detached(priority: .userInitiated) { () -> Data? in
+/// Image bytes → JPEG uploads, scaled to 2048 px off the main thread so a
+/// report with five photos stays far under the server's 10 MB / 50 MB caps.
+func encodeUploads(_ originals: [Data]) async -> [Upload] {
+    await Task.detached(priority: .userInitiated) {
+        originals.enumerated().compactMap { index, data in
             ImageLoader.downsample(data, maxPixels: 2048)?.jpegData(compressionQuality: 0.85)
-        }.value
-        if let jpeg { uploads.append(Upload(data: jpeg, mime: "image/jpeg", fileName: "image-\(index + 1).jpg")) }
-    }
-    return uploads
-}
-
-private func loadThumbnails(_ picks: [PhotosPickerItem]) async -> [UIImage] {
-    var images: [UIImage] = []
-    for pick in picks {
-        guard let data = try? await pick.loadTransferable(type: Data.self) else { continue }
-        if let thumb = await Task.detached(operation: { ImageLoader.downsample(data, maxPixels: 168) }).value { images.append(thumb) }
-    }
-    return images
+                .map { Upload(data: $0, mime: "image/jpeg", fileName: "image-\(index + 1).jpg") }
+        }
+    }.value
 }

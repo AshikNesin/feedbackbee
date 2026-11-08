@@ -54,6 +54,19 @@ class ProjectsStore(private val graph: AppGraph, private val scope: CoroutineSco
 
     fun find(id: String): Project? = _state.value.projects.firstOrNull { it.id == id }
 
+    private val _repositories = MutableStateFlow<RepositoriesState>(RepositoriesState.Loading)
+    /** Repositories the GitHub App can file in, for New project. */
+    val repositories: StateFlow<RepositoriesState> = _repositories.asStateFlow()
+
+    fun loadRepositories() {
+        if (_repositories.value is RepositoriesState.Loaded) return
+        _repositories.value = RepositoriesState.Loading
+        scope.launch {
+            _repositories.value = runCatching { graph.api().repositories() }
+                .fold({ RepositoriesState.Loaded(it) }, { RepositoriesState.Failed(it.userMessage()) })
+        }
+    }
+
     suspend fun create(name: String, slug: String, repo: String): Project {
         val project = graph.api().createProject(name, slug, repo)
         _state.update { it.copy(projects = listOf(project) + it.projects) }
@@ -66,6 +79,12 @@ class ProjectsStore(private val graph: AppGraph, private val scope: CoroutineSco
         _state.update { s -> s.copy(projects = s.projects.filterNot { it.id == project.id }) }
         graph.cache.saveProjects(_state.value.projects)
     }
+}
+
+sealed interface RepositoriesState {
+    data object Loading : RepositoriesState
+    data class Loaded(val repositories: List<GithubRepository>) : RepositoriesState
+    data class Failed(val message: String) : RepositoriesState
 }
 
 @Immutable

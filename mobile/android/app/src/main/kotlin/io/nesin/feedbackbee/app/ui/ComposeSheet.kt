@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -73,12 +74,18 @@ fun ComposeSheet(
     initialKind: Kind = Kind.Issue,
     initialText: String = "",
     allowImages: Boolean = true,
+    /** Images already attached, e.g. shared into the app (at most 5 are kept). */
+    initialImages: List<Uri> = emptyList(),
+    /** Shown under the title, e.g. the share sheet's project picker. */
+    header: (@Composable () -> Unit)? = null,
     onDismiss: () -> Unit,
+    /** After a successful send; defaults to [onDismiss]. */
+    onSubmitted: () -> Unit = onDismiss,
     onSubmit: suspend (Kind, String, List<Uri>) -> Unit,
 ) {
     var kind by rememberSaveable { mutableStateOf(initialKind) }
     var text by rememberSaveable { mutableStateOf(initialText) }
-    val images = remember { mutableStateListOf<Uri>() }
+    val images = remember { mutableStateListOf<Uri>().apply { addAll(initialImages.distinct().take(MAX_IMAGES)) } }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -104,6 +111,7 @@ fun ComposeSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge, color = Bee.ink)
+            header?.invoke()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 for (option in Kind.entries) {
                     FilterChip(
@@ -136,10 +144,17 @@ fun ComposeSheet(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.size(64.dp).clip(MaterialTheme.shapes.small).background(Bee.muted),
                             )
-                            IconButton(
-                                onClick = { images.remove(uri) },
-                                modifier = Modifier.align(Alignment.TopEnd).size(24.dp).background(Bee.ink.copy(alpha = 0.7f), CircleShape),
-                            ) { Icon(Icons.Filled.Close, contentDescription = "Remove image", tint = Bee.paper, modifier = Modifier.size(14.dp)) }
+                            // A small badge; the 48dp touch target comes from the padding around it.
+                            Box(
+                                Modifier
+                                    .align(Alignment.TopEnd)
+                                    .clip(CircleShape)
+                                    .clickable(onClickLabel = "Remove image") { images.remove(uri) }
+                                    .padding(4.dp)
+                                    .size(20.dp)
+                                    .background(Bee.ink.copy(alpha = 0.75f), CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(Icons.Filled.Close, contentDescription = "Remove image", tint = Bee.paper, modifier = Modifier.size(12.dp)) }
                         }
                     }
                 }
@@ -159,7 +174,7 @@ fun ComposeSheet(
                         error = null
                         scope.launch {
                             runCatching { onSubmit(kind, text.trim(), images.toList()) }
-                                .onSuccess { sheet.hide(); onDismiss() }
+                                .onSuccess { sheet.hide(); onSubmitted() }
                                 .onFailure { error = it.userMessage(); busy = false }
                         }
                     },

@@ -8,16 +8,56 @@
 
 /* Begin PBXBuildFile section */
 		FB0000000000000000000101 /* FeedbackBeeCore in Frameworks */ = {isa = PBXBuildFile; productRef = FB0000000000000000000701 /* FeedbackBeeCore */; };
+		FB0000000000000000000102 /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = FB0000000000000000000202 /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		FB0000000000000000000103 /* FeedbackBeeCore in Frameworks */ = {isa = PBXBuildFile; productRef = FB0000000000000000000702 /* FeedbackBeeCore */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		FB0000000000000000000E01 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = FB0000000000000000000901 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = FB0000000000000000000602;
+			remoteInfo = ShareExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FB0000000000000000000803 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				FB0000000000000000000102 /* ShareExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		FB0000000000000000000201 /* FeedbackBee.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = FeedbackBee.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB0000000000000000000202 /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		FB0000000000000000000203 /* FeedbackBee.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = FeedbackBee.entitlements; sourceTree = "<group>"; };
+		FB0000000000000000000204 /* ShareExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ShareExtension.entitlements; sourceTree = "<group>"; };
+		FB0000000000000000000205 /* ShareExtension-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "ShareExtension-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FB0000000000000000000301 /* FeedbackBee */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = FeedbackBee;
+			sourceTree = "<group>";
+		};
+		FB0000000000000000000302 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
+			sourceTree = "<group>";
+		};
+		FB0000000000000000000303 /* ShareExtension */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = ShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +71,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FB0000000000000000000402 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FB0000000000000000000103 /* FeedbackBeeCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -38,6 +86,11 @@
 			isa = PBXGroup;
 			children = (
 				FB0000000000000000000301 /* FeedbackBee */,
+				FB0000000000000000000302 /* Shared */,
+				FB0000000000000000000303 /* ShareExtension */,
+				FB0000000000000000000203 /* FeedbackBee.entitlements */,
+				FB0000000000000000000204 /* ShareExtension.entitlements */,
+				FB0000000000000000000205 /* ShareExtension-Info.plist */,
 				FB0000000000000000000502 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -46,6 +99,7 @@
 			isa = PBXGroup;
 			children = (
 				FB0000000000000000000201 /* FeedbackBee.app */,
+				FB0000000000000000000202 /* ShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -60,13 +114,16 @@
 				FB0000000000000000000801 /* Sources */,
 				FB0000000000000000000401 /* Frameworks */,
 				FB0000000000000000000802 /* Resources */,
+				FB0000000000000000000803 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				FB0000000000000000000D01 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				FB0000000000000000000301 /* FeedbackBee */,
+				FB0000000000000000000302 /* Shared */,
 			);
 			name = FeedbackBee;
 			packageProductDependencies = (
@@ -75,6 +132,30 @@
 			productName = FeedbackBee;
 			productReference = FB0000000000000000000201 /* FeedbackBee.app */;
 			productType = "com.apple.product-type.application";
+		};
+		FB0000000000000000000602 /* ShareExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FB0000000000000000000A03 /* Build configuration list for PBXNativeTarget "ShareExtension" */;
+			buildPhases = (
+				FB0000000000000000000804 /* Sources */,
+				FB0000000000000000000402 /* Frameworks */,
+				FB0000000000000000000805 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				FB0000000000000000000302 /* Shared */,
+				FB0000000000000000000303 /* ShareExtension */,
+			);
+			name = ShareExtension;
+			packageProductDependencies = (
+				FB0000000000000000000702 /* FeedbackBeeCore */,
+			);
+			productName = ShareExtension;
+			productReference = FB0000000000000000000202 /* ShareExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
 
@@ -87,6 +168,9 @@
 				LastUpgradeCheck = 1600;
 				TargetAttributes = {
 					FB0000000000000000000601 = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					FB0000000000000000000602 = {
 						CreatedOnToolsVersion = 16.0;
 					};
 				};
@@ -109,12 +193,20 @@
 			projectRoot = "";
 			targets = (
 				FB0000000000000000000601 /* FeedbackBee */,
+				FB0000000000000000000602 /* ShareExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		FB0000000000000000000802 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		FB0000000000000000000805 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -131,7 +223,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		FB0000000000000000000804 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		FB0000000000000000000D01 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = FB0000000000000000000602 /* ShareExtension */;
+			targetProxy = FB0000000000000000000E01 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		FB0000000000000000000C01 /* Debug */ = {
@@ -191,6 +298,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FeedbackBee.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -220,6 +328,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = FeedbackBee.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
@@ -238,6 +347,56 @@
 				MARKETING_VERSION = 0.1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = io.nesin.feedbackbee;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		FB0000000000000000000C05 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShareExtension-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = FeedbackBee;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.nesin.feedbackbee.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		FB0000000000000000000C06 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = ShareExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ShareExtension-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = FeedbackBee;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.nesin.feedbackbee.share;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -265,6 +424,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		FB0000000000000000000A03 /* Build configuration list for PBXNativeTarget "ShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FB0000000000000000000C05 /* Debug */,
+				FB0000000000000000000C06 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -276,6 +444,10 @@
 
 /* Begin XCSwiftPackageProductDependency section */
 		FB0000000000000000000701 /* FeedbackBeeCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = FeedbackBeeCore;
+		};
+		FB0000000000000000000702 /* FeedbackBeeCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = FeedbackBeeCore;
 		};

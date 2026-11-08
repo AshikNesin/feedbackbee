@@ -51,6 +51,8 @@ fun InfoRow(
     value: String,
     icon: ImageVector? = null,
     valueColor: androidx.compose.ui.graphics.Color = Bee.ink,
+    /** Trailing icon of a tappable row: open-in by default, play for in-app media. */
+    action: ImageVector = Icons.AutoMirrored.Filled.OpenInNew,
     onClick: (() -> Unit)? = null,
 ) {
     Row(
@@ -72,7 +74,7 @@ fun InfoRow(
             modifier = Modifier.weight(1f),
         )
         if (onClick != null) {
-            Icon(Icons.AutoMirrored.Filled.OpenInNew, contentDescription = null, tint = Bee.inkMuted, modifier = Modifier.size(16.dp))
+            Icon(action, contentDescription = null, tint = Bee.inkMuted, modifier = Modifier.size(16.dp))
         }
     }
 }

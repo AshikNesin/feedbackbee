@@ -18,6 +18,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.printToString
 import androidx.test.core.app.ApplicationProvider
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
@@ -65,6 +66,7 @@ class ScreensTest(private val dark: Boolean) {
     @get:Rule val compose = createComposeRule()
 
     private lateinit var server: MockWebServer
+    private lateinit var fake: FakeServer
     private lateinit var app: Application
     private val theme get() = if (dark) "dark" else "light"
 
@@ -81,7 +83,8 @@ class ScreensTest(private val dark: Boolean) {
             ImageLoader.Builder(context).allowHardware(false).imageDecoderEnabled(false).build()
         }
         server = MockWebServer()
-        server.dispatcher = FakeServer(screenshotPng())
+        fake = FakeServer(screenshotPng())
+        server.dispatcher = fake
         server.start()
     }
 
@@ -89,18 +92,49 @@ class ScreensTest(private val dark: Boolean) {
 
     private fun host() = server.url("/").toString().trimEnd('/')
 
-    private fun launch(signedIn: Boolean = true, lastProject: String? = null) {
+    private fun graph(signedIn: Boolean = true, lastProject: String? = null): AppGraph {
         val store = SessionStore(app, PlainCipher)
         store.save(Session(host(), "ashik@nesin.io", "test-token"))
         if (!signedIn) store.clear()
         store.lastProjectId = lastProject
-        val graph = AppGraph(app, store)
+        return AppGraph(app, store)
+    }
+
+    private fun launch(signedIn: Boolean = true, lastProject: String? = null) {
+        val graph = graph(signedIn, lastProject)
         compose.setContent { BeeTheme(dark = dark) { Root(graph, MutableStateFlow(0)) } }
     }
 
+    /** The share target's UI, as ShareActivity shows it, with a shared screenshot file. */
+    private fun share(text: String, withImage: Boolean, signedIn: Boolean = true, onFiled: (String) -> Unit = {}): AppGraph {
+        val graph = graph(signedIn, lastProject = "p1")
+        val images = if (withImage) {
+            val file = File(app.cacheDir, "shared.png").apply { writeBytes(screenshotPng()) }
+            listOf(android.net.Uri.fromFile(file))
+        } else {
+            emptyList()
+        }
+        compose.setContent {
+            BeeTheme(dark = dark) {
+                io.nesin.feedbackbee.app.ui.ShareScreen(graph, text, images, onFiled = onFiled, onCancel = {}, onOpenApp = {})
+            }
+        }
+        return graph
+    }
+
+    /** Wait for [text]; on timeout, print every window's UI tree so a failure explains itself. */
     private fun waitForText(text: String, substring: Boolean = false) {
-        compose.waitUntil(20_000) {
-            compose.onAllNodesWithText(text, substring = substring, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+        try {
+            compose.waitUntil(20_000) {
+                compose.onAllNodesWithText(text, substring = substring, useUnmergedTree = true).fetchSemanticsNodes().isNotEmpty()
+            }
+        } catch (timeout: Throwable) {
+            val roots = compose.onAllNodes(androidx.compose.ui.test.isRoot())
+            System.err.println("Requests served: ${fake.seen}")
+            for (i in 0 until roots.fetchSemanticsNodes().size) {
+                System.err.println(roots[i].printToString(maxDepth = 40))
+            }
+            throw timeout
         }
     }
 
@@ -206,6 +240,38 @@ class ScreensTest(private val dark: Boolean) {
         shoot("08-new-project")
     }
 
+    @Test fun shareSheet() {
+        share("Checkout button overlaps the footer on small screens", withImage = true)
+        waitForText("Acme iOS")
+        shoot("10-share-sheet")
+    }
+
+    @Test fun shareFilesToTheChosenProject() {
+        var filedIn: String? = null
+        share("Shared from the browser", withImage = false) { filedIn = it }
+        waitForText("Acme iOS")
+        compose.onNodeWithText("Send", useUnmergedTree = true).performClick()
+        compose.waitUntil(20_000) { filedIn != null }
+        assertTrue(filedIn == "Acme Web")
+        val body = fake.filed.single()
+        assertTrue(body.contains("acme-web"))
+        assertTrue(body.contains("Shared from the browser"))
+        assertTrue(body.contains("android"))
+    }
+
+    @Test fun shareSignedOut() {
+        share("anything", withImage = false, signedIn = false)
+        waitForText("Sign in first")
+        shoot("11-share-signed-out")
+    }
+
+    @Test fun replayOpensInApp() {
+        openReport()
+        compose.onNodeWithText("Replay", useUnmergedTree = true).performClick()
+        waitForText("Session replay")
+        assertTrue(compose.onAllNodesWithContentDescription("Open in browser").fetchSemanticsNodes().isNotEmpty())
+    }
+
     @Test fun settings() {
         launch()
         waitForText("Acme Web")
@@ -228,6 +294,11 @@ class ScreensTest(private val dark: Boolean) {
 
 /** A FeedbackBee server with one owner, three projects and a lively inbox. */
 private class FakeServer(private val png: ByteArray) : Dispatcher() {
+    /** Bodies of reports filed through POST /api/v1/feedback. */
+    val filed = java.util.concurrent.CopyOnWriteArrayList<String>()
+    /** Every request served, for failure reports. */
+    val seen = java.util.concurrent.CopyOnWriteArrayList<String>()
+
     private val now = Instant.now()
     private fun ago(minutes: Long) = now.minusSeconds(minutes * 60).toString()
 
@@ -253,7 +324,7 @@ private class FakeServer(private val png: ByteArray) : Dispatcher() {
         "createdAt":"${ago(minutes)}","images":[${(1..images).joinToString(",") { "\"p/p1/f/shot-$id-$it.png\"" }}]}"""
 
     private val items = listOf(
-        item("f1", "issue", "Checkout total doesn't update after removing a coupon. It still shows the discounted price until I refresh the page.", 4, issue = 128, images = 2, email = "maya@customer.dev", recording = "p/p1/f/r1.rrweb.gz"),
+        item("f1", "issue", "Checkout total doesn't update after removing a coupon. It still shows the discounted price until I refresh the page.", 4, issue = 128, images = 2, email = "maya@customer.dev", recording = "p/p1/f/r1.rrweb.gz", audio = true),
         item("f2", "feature_request", "Dark mode for the dashboard please, I use it at night a lot", 38, "in_progress", issue = 127, email = "leo@studio.io"),
         item("f3", "issue", "Upload button does nothing on Safari 18 when the file is larger than 5 MB", 170, issue = 126, images = 1, os = "ios", device = "iPhone 16 Pro", audio = true),
         item("f4", "other", "Love the new onboarding, took me two minutes to set up.", 600, "done", issue = 125, url = "https://acme.dev/welcome"),
@@ -268,7 +339,12 @@ private class FakeServer(private val png: ByteArray) : Dispatcher() {
 
     override fun dispatch(request: RecordedRequest): MockResponse {
         val path = request.path.orEmpty().substringBefore('?')
+        seen.add("${request.method} ${request.path}")
         return when {
+            path == "/api/v1/feedback" && request.method == "POST" -> {
+                filed.add(request.body.readUtf8())
+                ok("""{"id":"f1","state":"created","issueUrl":"https://github.com/acme/web/issues/129"}""").setResponseCode(201)
+            }
             path.startsWith("/f/") -> MockResponse().setHeader("Content-Type", "image/png").setBody(Buffer().write(png))
             path == "/api/v1/projects" -> ok(projects)
             path == "/api/v1/github/repositories" -> ok(repos)

@@ -6,6 +6,7 @@ import SwiftUI
 struct InboxView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.openURL) private var openURL
+    @Environment(\.scenePhase) private var scenePhase
     let projectId: String
     @Binding var composeOnOpen: Bool
     @Binding var path: [Route]
@@ -56,6 +57,10 @@ struct InboxView: View {
                     composeOnOpen = false
                     composing = true
                 }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // Back from another app: the Share Extension may have filed something.
+                if phase == .active, store.loaded { Task { await store.refresh() } }
             }
             .onChange(of: composeOnOpen) { _, open in
                 if open { composeOnOpen = false; composing = true }

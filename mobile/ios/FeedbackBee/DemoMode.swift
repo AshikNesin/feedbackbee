@@ -6,7 +6,7 @@ import UIKit
 /// signed in to a built-in fake server with sample reports. Used by
 /// `screenshots.sh` (simulator screenshots of every screen, light and dark).
 enum DemoScreen: String {
-    case signIn, projects, inbox, compose, report, edit, newProject, settings
+    case signIn, projects, inbox, compose, report, edit, newProject, settings, share
 }
 
 enum DemoMode {
@@ -111,7 +111,7 @@ final class DemoServer: URLProtocol {
     ]
 
     /// A stand-in app screenshot with an annotation, like reporters attach.
-    private static let screenshot: Data = UIGraphicsImageRenderer(size: CGSize(width: 390, height: 520)).pngData { ctx in
+    static let screenshot: Data = UIGraphicsImageRenderer(size: CGSize(width: 390, height: 520)).pngData { ctx in
         UIColor(hex: 0xF8FAFC).setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 390, height: 520))
         UIColor(hex: 0x1E293B).setFill(); ctx.fill(CGRect(x: 0, y: 0, width: 390, height: 56))
         UIColor(hex: 0xE2E8F0).setFill()

@@ -19,6 +19,7 @@ struct ReportView: View {
     @State private var editing = false
     @State private var confirmDelete = false
     @State private var viewing: ViewedImage?
+    @State private var media: MediaSheet?
 
     private var store: InboxStore { model.inbox(projectId) }
     /// The live copy from the list, else the last one we saw (survives a refresh filtering it out).
@@ -66,6 +67,7 @@ struct ReportView: View {
             if let report { Text(deleteReportMessage(report)) }
         }
         .fullScreenCover(item: $viewing) { ImageViewer(url: $0.url) }
+        .fullScreenCover(item: $media) { MediaSheetView(sheet: $0) }
         .toast($store.message)
     }
 
@@ -122,11 +124,13 @@ struct ReportView: View {
                     LabeledContent("Issue", value: "Filing…")
                 }
                 if let key = report.recordingKey {
-                    let url = report.isReplay ? model.api.replayURL(key) : model.api.mediaURL(key)
-                    linkRow(report.isReplay ? "Replay" : "Recording", clock(report.recordingSeconds), icon: "play.circle") { openURL(url) }
+                    let replay = report.isReplay
+                    playRow(replay ? "Replay" : "Recording", clock(report.recordingSeconds)) {
+                        media = replay ? .replay(model.api.replayURL(key)) : .video(model.api.mediaURL(key))
+                    }
                 }
                 if let key = report.audioKey {
-                    linkRow("Voice note", clock(report.audioSeconds), icon: "mic") { openURL(model.api.mediaURL(key)) }
+                    AudioPlayerRow(url: model.api.mediaURL(key), duration: report.audioSeconds)
                 }
             }
 
@@ -167,6 +171,19 @@ struct ReportView: View {
         if let ua = r.userAgent { rows.append(("User agent", ua)) }
         for (key, value) in (r.metadata ?? [:]).sorted(by: { $0.key < $1.key }) { rows.append((key, value.description)) }
         return rows
+    }
+
+    /// A row that plays media in the app.
+    private func playRow(_ label: String, _ value: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: "play.circle").foregroundStyle(Bee.inkMuted).frame(width: 22)
+                Text(label).foregroundStyle(Bee.inkMuted)
+                Spacer()
+                Text(value).foregroundStyle(Bee.ink)
+                Image(systemName: "play.fill").font(.caption).foregroundStyle(Bee.inkMuted)
+            }
+        }
     }
 
     private func linkRow(_ label: String, _ value: String, icon: String?, action: @escaping () -> Void) -> some View {

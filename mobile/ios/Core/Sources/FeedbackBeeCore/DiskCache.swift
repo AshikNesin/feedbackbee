@@ -8,11 +8,8 @@ public struct DiskCache: Sendable {
 
     public init(directory: URL) { self.directory = directory }
 
-    /// `Library/Caches/feedbackbee` in the app container.
-    public static func standard() -> DiskCache {
-        let base = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
-        return DiskCache(directory: base.appendingPathComponent("feedbackbee", isDirectory: true))
-    }
+    /// The cache the app and its Share Extension share (`AppGroup.cacheDirectory()`).
+    public static func standard() -> DiskCache { DiskCache(directory: AppGroup.cacheDirectory()) }
 
     public func projects() async -> [Project]? { await read("projects.json") }
     public func saveProjects(_ projects: [Project]) async { await write("projects.json", projects) }

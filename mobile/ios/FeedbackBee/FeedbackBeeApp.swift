@@ -23,15 +23,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         #if DEBUG
         if let screen = DemoMode.screen { return DemoMode.model(screen) }
         #endif
-        return AppModel(
-            store: SessionStore(secrets: KeychainSecrets()),
-            cache: .standard(),
-            device: DeviceContext(
-                appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
-                osVersion: UIDevice.current.systemVersion,
-                deviceModel: AppDelegate.hardwareModel()
-            )
-        )
+        return AppModel.shared()
     }()
 
     static let newIssueAction = "io.nesin.feedbackbee.new-issue"
@@ -55,15 +47,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         let config = UISceneConfiguration(name: nil, sessionRole: session.role)
         config.delegateClass = SceneDelegate.self
         return config
-    }
-
-    /// "iPhone17,1": the model identifier, as the Apple SDK reports it.
-    static func hardwareModel() -> String {
-        var info = utsname()
-        uname(&info)
-        return withUnsafePointer(to: &info.machine) {
-            $0.withMemoryRebound(to: CChar.self, capacity: 1) { String(cString: $0) }
-        }
     }
 }
 

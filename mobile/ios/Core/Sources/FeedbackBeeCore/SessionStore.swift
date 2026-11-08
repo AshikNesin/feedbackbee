@@ -67,33 +67,77 @@ public final class MemorySecrets: SecretStorage, @unchecked Sendable {
     public func delete(_ key: String) { _ = lock.withLock { values.removeValue(forKey: key) } }
 }
 
+/// The App Group the app and its Share Extension share: session defaults, the
+/// Keychain item and the disk cache, so sharing works without signing in twice.
+public enum AppGroup {
+    public static let id = "group.io.nesin.feedbackbee"
+
+    /// The group's defaults; the app's own when the group isn't available (tests, Linux).
+    public static var defaults: UserDefaults { UserDefaults(suiteName: id) ?? .standard }
+
+    /// `Library/Caches/feedbackbee` in the group container, else in the app container.
+    public static func cacheDirectory() -> URL {
+        #if os(iOS) || os(macOS)
+        if let group = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: id) {
+            return group.appendingPathComponent("Library/Caches/feedbackbee", isDirectory: true)
+        }
+        #endif
+        return FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("feedbackbee", isDirectory: true)
+    }
+}
+
 #if canImport(Security)
-/// Generic-password Keychain items for this app, this device only.
+/// Generic-password Keychain items for this app, this device only. With an
+/// access group (the App Group) the Share Extension reads the same item; if
+/// the build lacks that entitlement, it falls back to the app's own group.
 public struct KeychainSecrets: SecretStorage {
     private let service: String
-    public init(service: String = "io.nesin.feedbackbee") { self.service = service }
+    private let accessGroup: String?
+
+    public init(service: String = "io.nesin.feedbackbee", accessGroup: String? = nil) {
+        self.service = service
+        self.accessGroup = accessGroup
+    }
 
     public func read(_ key: String) -> String? {
-        var query = base(key)
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var out: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess, let data = out as? Data else { return nil }
-        return String(data: data, encoding: .utf8)
+        for group in groups {
+            var query = base(key, group)
+            query[kSecReturnData as String] = true
+            query[kSecMatchLimit as String] = kSecMatchLimitOne
+            var out: AnyObject?
+            if SecItemCopyMatching(query as CFDictionary, &out) == errSecSuccess, let data = out as? Data {
+                return String(data: data, encoding: .utf8)
+            }
+        }
+        return nil
     }
 
     public func write(_ key: String, _ value: String) {
         delete(key)
-        var item = base(key)
-        item[kSecValueData as String] = Data(value.utf8)
-        item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(item as CFDictionary, nil)
+        for group in groups {
+            var item = base(key, group)
+            item[kSecValueData as String] = Data(value.utf8)
+            item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+            if SecItemAdd(item as CFDictionary, nil) != errSecMissingEntitlement { return }
+        }
     }
 
-    public func delete(_ key: String) { SecItemDelete(base(key) as CFDictionary) }
+    public func delete(_ key: String) {
+        for group in groups { SecItemDelete(base(key, group) as CFDictionary) }
+    }
 
-    private func base(_ key: String) -> [String: Any] {
-        [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: key]
+    /// The shared group first, then the app's default group.
+    private var groups: [String?] { accessGroup == nil ? [nil] : [accessGroup, nil] }
+
+    private func base(_ key: String, _ group: String?) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: key,
+        ]
+        if let group { query[kSecAttrAccessGroup as String] = group }
+        return query
     }
 }
 #endif

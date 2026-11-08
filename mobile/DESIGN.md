@@ -79,6 +79,15 @@ own corner radius.
 Home-screen shortcut / quick action **New issue** opens the quick-file sheet
 on the last project.
 
+7. **Share sheet.** "Share → FeedbackBee" from any app floats the quick-file
+   sheet over it: a row of project chips (honey when selected, last project
+   first) above the kind chips, prefilled with the shared images and text.
+   Closes when filed ("Filed in Acme Web"); signed out, a card says to sign in
+   in the app first.
+8. **Playback.** Voice notes play inline in the report (play/pause, scrubber,
+   `0:05 / 0:14`). Recordings open full screen on black; replays open the
+   server's replay page full screen on paper, with Open in browser.
+
 ## 5. Performance rules
 
 - First paint never waits for the network: the last inbox page per project
