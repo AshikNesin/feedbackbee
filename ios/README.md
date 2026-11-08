@@ -80,9 +80,12 @@ overrides `motionEnded` without calling `super` swallows the gesture; use `open(
 ## Performance
 
 - Nothing runs until a shake or `open()`. `configure` stores the config and installs the shake hook once.
-- Screenshots are taken only when the camera is tapped, PNG-encoded with ImageIO off the main thread, and shown from a
-  downsampled thumbnail. Annotation strokes are individual `CAShapeLayer`s, so drawing redraws only the stroke under the
-  finger.
+- Typing updates only the placeholder and the Send button; the rest of the form re-renders only when its state changes.
+  State comparisons treat the screenshot by identity, so they never compare its PNG bytes.
+- Annotation strokes are individual `CAShapeLayer`s in image pixel space under one scaled container layer. A touch
+  extends only the stroke under the finger (in place, with coalesced touches), and rotation only changes one transform.
+- After the capture, the main thread never handles a full-resolution bitmap. Flattening the markup (skipped when there
+  is none), PNG encoding with ImageIO and the preview thumbnail run in one background task.
 - The upload body is written to a temporary file and streamed by `URLSession` from disk, so attachments are never
   duplicated in memory. Redirects are refused (they would drop the POST body), as on Android.
 

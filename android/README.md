@@ -80,14 +80,14 @@ the only consumers of the old `bug` / `idea` / `feedback` values, and current Wo
 
 ## Shake
 
-|                  |                                                                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Triggers         | Three firm jolts (above 15 m/s², gravity included) within 1.5 seconds. A long push counts once; peaks under 120 ms apart count once. |
-| Runs             | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz). Nothing runs in the background.                             |
-| Can't stack      | Shakes are ignored while a sheet is open, and the counter resets after each trigger.                                                 |
-| Turn it off      | `FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)`                                   |
-| Open manually    | `FeedbackBee.open()`, for example from a "Send feedback" menu item.                                                                  |
-| No accelerometer | Logged once at init. Use `open()`.                                                                                                   |
+|                  |                                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Triggers         | Three firm jolts (above 15 m/s², gravity included) within 1.5 seconds. A long push counts once; peaks under 120 ms apart count once.                |
+| Runs             | Only while an activity is resumed, at `SENSOR_DELAY_GAME` (about 50 Hz), batched up to 100 ms so the CPU can sleep. Nothing runs in the background. |
+| Can't stack      | Shakes are ignored while a sheet is open, and the counter resets after each trigger.                                                                |
+| Turn it off      | `FeedbackBee.init(this, projectId = "myapp", endpoint = "https://bee.example.dev", shake = false)`                                                  |
+| Open manually    | `FeedbackBee.open()`, for example from a "Send feedback" menu item.                                                                                 |
+| No accelerometer | Logged once at init. Use `open()`.                                                                                                                  |
 
 The detection logic is plain Kotlin (`ShakeAnalyzer`) with JUnit tests for a shake and several non-shakes.
 

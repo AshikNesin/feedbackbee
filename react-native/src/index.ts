@@ -1,4 +1,6 @@
-import NativeFeedbackBee from "./NativeFeedbackBee";
+import type { Spec } from "./NativeFeedbackBee";
+
+declare const require: (id: string) => { default: Spec | null };
 
 /** Wire values from the upload contract. */
 export type FeedbackKind = "issue" | "feature_request" | "other";
@@ -31,17 +33,20 @@ export interface Reporter {
 /** `null` or `undefined` removes the key. */
 export type ContextValue = string | number | boolean | null | undefined;
 
+let nativeModule: Spec | null | undefined;
 let warnedMissing = false;
 
-function native() {
-  if (!NativeFeedbackBee && !warnedMissing) {
+/** Looked up on first call, not at import, so importing the package costs nothing at app launch. */
+function native(): Spec | null {
+  if (nativeModule === undefined) nativeModule = require("./NativeFeedbackBee").default;
+  if (!nativeModule && !warnedMissing) {
     warnedMissing = true;
     console.warn(
       "FeedbackBee: the native module is not linked, so feedback calls do nothing. " +
         "Rebuild the app after installing react-native-feedbackbee (Expo Go is not supported; use a development build).",
     );
   }
-  return NativeFeedbackBee;
+  return nativeModule;
 }
 
 export const FeedbackBee = {

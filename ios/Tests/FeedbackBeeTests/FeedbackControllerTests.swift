@@ -99,6 +99,14 @@ final class FeedbackControllerTests: XCTestCase {
         XCTAssertNil(controller.state.form?.screenshot)
     }
 
+    @MainActor func testScreenshotEqualityIsIdentityNotBytes() async {
+        let png = Data(count: 1024)
+        let shot = Screenshot(png: png, pixelWidth: 1, pixelHeight: 1)
+        let copy = shot
+        XCTAssertEqual(shot, copy)
+        XCTAssertNotEqual(shot, Screenshot(png: png, pixelWidth: 1, pixelHeight: 1), "a retake is a new screenshot")
+    }
+
     @MainActor func testOnChangeFiresOncePerTransition() async {
         let controller = FeedbackController(reporter: Reporter())
         var count = 0

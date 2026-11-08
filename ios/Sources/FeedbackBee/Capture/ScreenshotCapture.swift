@@ -16,15 +16,27 @@ enum ScreenshotCapture {
         }
     }
 
-    /// PNG-encodes off the main thread with ImageIO, shrinking until it fits the 10 MB contract cap.
-    static func encode(_ image: UIImage) async -> Screenshot? {
-        guard let cgImage = image.cgImage else { return nil }
-        return await Task.detached(priority: .userInitiated) { () -> Screenshot? in
-            var current = cgImage
+    struct Processed: @unchecked Sendable {
+        let screenshot: Screenshot
+        let thumbnail: UIImage?
+    }
+
+    /// Flattens the annotations, PNG-encodes with ImageIO (shrinking until it fits the 10 MB contract
+    /// cap) and downsamples a preview, all in one background task: the main thread never touches a
+    /// full-resolution bitmap after capture.
+    static func process(_ annotated: AnnotatedScreenshot) async -> Processed? {
+        await Task.detached(priority: .userInitiated) { () -> Processed? in
+            guard var current = annotated.flattened() else { return nil }
             for _ in 0..<4 {
                 guard let png = pngData(current) else { return nil }
                 if png.count <= FeedbackLimits.maxScreenshotBytes {
-                    return Screenshot(png: png, pixelWidth: current.width, pixelHeight: current.height)
+                    let preview = UIImage(cgImage: current)
+                    let width: CGFloat = 720
+                    let size = CGSize(width: width, height: width * CGFloat(current.height) / CGFloat(max(current.width, 1)))
+                    return Processed(
+                        screenshot: Screenshot(png: png, pixelWidth: current.width, pixelHeight: current.height),
+                        thumbnail: preview.preparingThumbnail(of: size) ?? preview
+                    )
                 }
                 guard let smaller = scaled(current, by: 0.75) else { return nil }
                 current = smaller

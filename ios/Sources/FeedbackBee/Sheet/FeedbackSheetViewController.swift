@@ -116,7 +116,11 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
 
     // MARK: Rendering
 
+    private var lastRendered: FeedbackState?
+
     private func render(_ state: FeedbackState) {
+        defer { lastRendered = state }
+        if renderKeystroke(state) { return }
         switch state {
         case .choosing: renderChoose()
         case .sent(let url): renderDone(issueUrl: url)
@@ -125,6 +129,18 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
         let uploading: Bool
         if case .uploading = state { uploading = true } else { uploading = false }
         closeButton.isEnabled = !uploading
+    }
+
+    /// Typing only changes the note or email, which the text views already show: update the two
+    /// controls that depend on them instead of re-rendering the whole form on every keystroke.
+    private func renderKeystroke(_ state: FeedbackState) -> Bool {
+        guard case .editing(let next) = state, case .editing(var previous)? = lastRendered else { return false }
+        previous.text = next.text
+        previous.email = next.email
+        guard previous == next else { return false }
+        notePlaceholder.isHidden = !next.text.isEmpty
+        if sendButton.isEnabled != next.canSend { sendButton.isEnabled = next.canSend }
+        return true
     }
 
     private func renderChoose() {
@@ -222,11 +238,11 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
 
     private func attachScreenshot() {
         view.endEditing(true)
-        guard let image = captureHost() else {
+        guard let image = captureHost(), let cgImage = image.cgImage else {
             controller.reportProblem("Couldn't capture the screen. Please try again.")
             return
         }
-        let annotator = AnnotationViewController(image: image)
+        let annotator = AnnotationViewController(image: cgImage, pointScale: image.scale)
         annotator.onCancel = { [weak annotator] in annotator?.dismiss(animated: true) }
         annotator.onSave = { [weak self, weak annotator] annotated in
             annotator?.dismiss(animated: true)
@@ -235,20 +251,16 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
         present(annotator, animated: !UIAccessibility.isReduceMotionEnabled)
     }
 
-    private func storeScreenshot(_ image: UIImage) {
-        // The thumbnail is downsampled once so the 160pt preview never holds a full-resolution bitmap.
-        let thumbnailSize = CGSize(width: 720, height: 720 * image.size.height / max(image.size.width, 1))
+    private func storeScreenshot(_ annotated: AnnotatedScreenshot) {
         Task { [weak self] in
-            let encoded = await ScreenshotCapture.encode(image)
-            let preview = await image.byPreparingThumbnail(ofSize: thumbnailSize)
-            guard let self else { return }
-            guard let encoded else {
-                self.controller.reportProblem("The screenshot is too large to upload.")
+            guard let processed = await ScreenshotCapture.process(annotated) else {
+                self?.controller.reportProblem("The screenshot is too large to upload.")
                 return
             }
-            self.latestThumbnail = preview ?? image
+            guard let self else { return }
+            self.latestThumbnail = processed.thumbnail
             self.shownScreenshot = nil
-            self.controller.attachScreenshot(encoded)
+            self.controller.attachScreenshot(processed.screenshot)
         }
     }
 
@@ -284,6 +296,7 @@ final class FeedbackSheetViewController: UIViewController, UITextViewDelegate, U
     private func showMicDenied() {
         voiceHint.text = "Microphone access is off. Enable it in Settings to record a voice note."
         voiceHint.isHidden = false
+        lastRendered = nil // same state, new permission: force a full render
         render(controller.state)
     }
 

@@ -8,8 +8,9 @@ The sheet, screenshot, annotation, recording and upload are all native, so:
 - **No JS work while the sheet is open.** Nothing renders in React, nothing crosses the bridge per keystroke or stroke.
 - **Five calls, all JSI.** `init`, `open`, `identify`, `setContext` and `reset` are direct TurboModule calls with
   scalar arguments; only `init` is synchronous (it validates the config so mistakes throw in JS).
-- **Zero cost at startup.** The module is created on first use, there are no event listeners, and shake detection uses
-  the platform's own signal (iOS's shake gesture; on Android a sensor listener only while an activity is resumed).
+- **Zero cost at startup.** Importing the package does nothing: the native module is looked up on the first call, its
+  iOS setup skips the main queue, and there are no event listeners. Shake detection uses the platform's own signal
+  (iOS's shake gesture; on Android, a batched accelerometer listener only while an activity is resumed).
 - **Large attachments never touch JS.** Screenshots and voice notes go from the native capture to the HTTP stream.
 
 Requires React Native 0.76+ with the New Architecture (the default since 0.76, and the only one since 0.82),

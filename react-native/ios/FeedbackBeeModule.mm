@@ -16,6 +16,12 @@
 
 RCT_EXPORT_MODULE(FeedbackBee)
 
+// The Swift SDK hops to the main thread itself; creating this module never needs it.
++ (BOOL)requiresMainQueueSetup
+{
+  return NO;
+}
+
 - (NSString *_Nullable)configure:(NSString *)projectId endpoint:(NSString *)endpoint shake:(BOOL)shake
 {
   return [FeedbackBeeBridge configureWithProjectId:projectId endpoint:endpoint shake:shake];

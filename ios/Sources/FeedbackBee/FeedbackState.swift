@@ -5,6 +5,16 @@ struct Screenshot: Equatable {
     let png: Data
     let pixelWidth: Int
     let pixelHeight: Int
+    private let id = UUID()
+
+    init(png: Data, pixelWidth: Int, pixelHeight: Int) {
+        self.png = png
+        self.pixelWidth = pixelWidth
+        self.pixelHeight = pixelHeight
+    }
+
+    /// Identity, not bytes: state is compared on every keystroke, and this PNG can be megabytes.
+    static func == (lhs: Screenshot, rhs: Screenshot) -> Bool { lhs.id == rhs.id }
 }
 
 struct Draft: Equatable {
