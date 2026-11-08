@@ -38,10 +38,13 @@ const optionalText = (max: number) =>
     return text !== undefined && text.length <= max ? text : undefined;
   }, z.string().optional());
 
-const optionalNumber = z.preprocess((value) => {
-  const text = blankToUndefined(value);
-  return text === undefined ? undefined : Number(text);
-}, z.number({ error: "must be a number" }).optional());
+const optionalNumber = z.preprocess(
+  (value) => {
+    const text = blankToUndefined(value);
+    return text === undefined ? undefined : Number(text);
+  },
+  z.number({ error: "must be a number" }).optional(),
+);
 
 /** Repeated file parts, empty ones dropped. A text value where a file belongs is ignored. */
 const files = z.preprocess(

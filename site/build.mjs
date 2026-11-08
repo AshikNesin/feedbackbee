@@ -9,6 +9,8 @@ import path from "node:path";
 
 const ROOT = path.resolve(new URL(".", import.meta.url).pathname);
 const OUT = path.resolve(ROOT, "..", "dist", "client");
+// A build script, like scripts/** (exempt from R3): no validated app env exists here.
+// oxlint-disable-next-line repo/no-raw-env
 const SITE_URL = (process.env.SITE_URL ?? "https://feedbackbee.nesin.io").replace(/\/$/, "");
 
 const layout = fs.readFileSync(path.join(ROOT, "layout.html"), "utf8");

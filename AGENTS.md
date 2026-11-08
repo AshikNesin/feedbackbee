@@ -54,6 +54,24 @@ Use **pnpm** for everything. Don't call `vp` directly (use `pnpm check`,
 - **A change to a managed surface needs a changeset** (`pnpm changeset`, or a
   reason under `.changeset/no-release/`); `pnpm check:changesets` enforces it.
 
+## Rules and their enforcers
+
+R1 to R9 are groot's lint rules in `scripts/lint/boundaries.ts` (synced), run
+by `pnpm check`.
+
+| Rule                                                               | Enforcer                              |
+| ------------------------------------------------------------------ | ------------------------------------- |
+| Packages never import from `apps/`.                                | R1                                    |
+| `packages/core/src` uses Web APIs, not `node:` modules.            | R2                                    |
+| Read env through core `env`, never `process.env`.                  | R3                                    |
+| Import `cn` from `@groot/ui/lib/utils`.                            | R4                                    |
+| Render breadcrumbs with `Breadcrumbs` from `@groot/ui/breadcrumb`. | R5a, R5b, R5c                         |
+| No transactions in `packages/`; D1 has none.                       | R7                                    |
+| Only `bootstrap()` sets `db`; never open a driver outside `db/`.   | R8a, R8b                              |
+| Only the session guard sets the `SESSION_INVALID` code.            | R9                                    |
+| UI colors come from design tokens.                                 | `pnpm check:tokens`                   |
+| Change a `schema.ts`, then commit `pnpm db:generate`'s SQL.        | Migrations step in the Tests workflow |
+
 ## Runtime
 
 Production is Cloudflare Workers (`apps/web/src/server/entry.worker.ts`): D1,
