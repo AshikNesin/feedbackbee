@@ -18,7 +18,7 @@ import { bootWorker } from "./worker/boot";
 export interface WorkerBindings {
   DB: D1Database;
   MEDIA: R2Bucket & MediaBucket;
-  GITHUB_TOKEN?: string;
+  FEEDBACKBEE_ENCRYPTION_KEY?: string;
   [key: string]: unknown;
 }
 
