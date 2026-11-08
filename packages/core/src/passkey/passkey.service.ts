@@ -9,10 +9,10 @@ import type {
 import { Boom } from "../errors";
 import { logger } from "../logger";
 import { db, passkeys, type Passkey } from "../database";
-import { findUserById, findUserByEmail } from "../auth/auth.service";
-import type { SessionUser } from "../auth/auth.schema";
+import { findUserById, findUserByEmail, toPublicUser, type PublicUser } from "../auth/auth.service";
+import type { SignInResponse } from "../auth/auth.schema";
 import type { PasskeySummary } from "./passkey.schema";
-import { generateToken } from "../utils/jwt.utils";
+import { issueSession } from "../session/token";
 import { fromBase64Url, utf8Decode } from "../utils/encoding.utils";
 import { createNamespaceKv } from "../kv";
 import {
@@ -55,11 +55,12 @@ async function storeChallenge(challenge: string): Promise<void> {
   await challengeKv.set(challenge, true, CHALLENGE_TTL_MS);
 }
 
-/** Challenges are single use: consume on first sight. */
+/**
+ * Challenges are single use: `take` deletes a live one and returns it in one
+ * statement, so of two concurrent verifications of one challenge only one passes.
+ */
 async function consumeChallenge(challenge: string): Promise<boolean> {
-  const exists = await challengeKv.has(challenge);
-  if (exists) await challengeKv.delete(challenge);
-  return exists;
+  return (await challengeKv.take(challenge)) !== undefined;
 }
 
 function errorMessage(error: unknown): string {
@@ -170,11 +171,16 @@ export async function generateAuthenticationOptions({
   return options;
 }
 
-export async function verifyAuthentication({
+/**
+ * Verify a passkey assertion against a challenge this server issued: the
+ * account on success, a plain 400/401 otherwise (never `SESSION_INVALID`).
+ * The route signs it in with `startSession`.
+ */
+export async function authenticatePasskey({
   response,
 }: {
   response: AuthenticationResponseJSON;
-}): Promise<{ token: string; user: SessionUser }> {
+}): Promise<PublicUser> {
   const challenge = extractChallengeFromResponse(response);
   if (!(await consumeChallenge(challenge))) {
     throw Boom.badRequest("Challenge not found or expired");
@@ -204,11 +210,18 @@ export async function verifyAuthentication({
     .set({ counter: verification.authenticationInfo.newCounter, lastUsedAt: new Date() })
     .where(eq(passkeys.id, passkey.id));
 
-  const token = await generateToken({ userId: user.id, email: user.email });
   logger.info({ userId: user.id, passkeyId: passkey.id }, "User authenticated with passkey");
+  return toPublicUser(user);
+}
 
-  const { password: _password, ...userWithoutPassword } = user;
-  return { token, user: userWithoutPassword };
+/**
+ * @deprecated Use `authenticatePasskey`, then `startSession` from
+ * `@groot/core/session`, which also sets the cookie.
+ */
+export async function verifyAuthentication(input: {
+  response: AuthenticationResponseJSON;
+}): Promise<SignInResponse> {
+  return issueSession(await authenticatePasskey(input));
 }
 
 export async function listPasskeys({ userId }: { userId: number }): Promise<PasskeySummary[]> {

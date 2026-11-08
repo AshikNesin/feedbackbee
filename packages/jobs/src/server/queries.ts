@@ -1,8 +1,8 @@
-import { and, asc, count, desc, eq, gt, gte, lte } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, gte, lte, or, sql } from "drizzle-orm";
 import { db } from "@groot/core/database";
 import { Boom } from "@groot/core/errors";
 import { JOB_STATES, VALID_JOB_STATES, isValidJobState, type JobState } from "../lifecycle";
-import { jobs, jobLogs, jobSchedules, type Job, type JobLog, type JobSchedule } from "./schema";
+import { jobs, jobLogs, jobSchedules, type JobLog, type JobSchedule } from "./schema";
 import { deleteJobLogs } from "./logger";
 import { getRegisteredHandlers } from "./worker";
 import type { GetJobsOptions, JobQueryResponse, JobStats } from "./types";
@@ -16,10 +16,7 @@ function assertState(state: string): JobState {
   return state;
 }
 
-export async function getJobById(jobId: string): Promise<Job | null> {
-  const [job] = await db.select().from(jobs).where(eq(jobs.id, jobId)).limit(1);
-  return job ?? null;
-}
+export { getJobById } from "./transitions";
 
 export async function getQueueStats(): Promise<JobStats> {
   const rows = await db
@@ -38,10 +35,22 @@ export async function getAvailableQueues(): Promise<string[]> {
 }
 
 export async function getJobs(options: GetJobsOptions = {}): Promise<JobQueryResponse> {
-  const { state, name, startDate, endDate, limit = 50, offset = 0 } = options;
+  const { state, name, search, startDate, endDate, limit = 50, offset = 0 } = options;
   const filters = [];
   if (state) filters.push(eq(jobs.state, assertState(state)));
   if (name) filters.push(eq(jobs.name, name));
+  const query = search?.trim();
+  if (query) {
+    // Substring of the name or the id, case-insensitive (SQLite LIKE), with
+    // the LIKE wildcards in the query matched literally.
+    const pattern = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
+    filters.push(
+      or(
+        sql`${jobs.name} LIKE ${pattern} ESCAPE '\\'`,
+        sql`${jobs.id} LIKE ${pattern} ESCAPE '\\'`,
+      ),
+    );
+  }
   if (startDate) {
     const from = new Date(startDate);
     if (Number.isNaN(from.getTime())) throw Boom.badRequest(`Invalid startDate: ${startDate}`);

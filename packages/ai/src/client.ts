@@ -8,6 +8,7 @@ import {
 } from "@earendil-works/pi-ai/compat";
 import OpenAI from "openai";
 import type { z } from "zod";
+import { clampReasoningEffort } from "./capabilities";
 import { toPiContext, type PromptMessage } from "./messages";
 import { resolveModel } from "./model";
 import type { PromptDefinition } from "./prompt";
@@ -22,6 +23,7 @@ import type {
   ImageContent,
   PiAITool,
   TextContent,
+  ThinkingLevel,
 } from "./types";
 
 export type CompleteParams = CompletionOptions & {
@@ -62,7 +64,9 @@ export class AIClient {
    * Cheap — model resolution is a catalog lookup or plain object construction.
    */
   withModel(modelId: string): AIClient {
-    return new AIClient({ ...this.config, model: modelId });
+    const model =
+      typeof this.config.model === "string" ? modelId : resolveModel(this.config, modelId);
+    return new AIClient({ ...this.config, model });
   }
 
   /**
@@ -82,12 +86,10 @@ export class AIClient {
     const { prompt, ...options } = typeof params === "string" ? { prompt: params } : params;
     const context = toPiContext([{ role: "user", content: prompt }], options.systemPrompt);
     const streamOptions = this.buildStreamOptions(options);
+    const reasoning = this.reasoningFor(options);
 
-    const s = options.reasoning
-      ? piStreamSimple(this._model, context, {
-          ...streamOptions,
-          reasoning: options.reasoning,
-        })
+    const s = reasoning
+      ? piStreamSimple(this._model, context, { ...streamOptions, reasoning })
       : piStream(this._model, context, streamOptions);
 
     for await (const event of s) {
@@ -222,12 +224,22 @@ export class AIClient {
 
   private runComplete(context: Context, options: CompletionOptions): Promise<AssistantMessage> {
     const streamOptions = this.buildStreamOptions(options);
-    return options.reasoning
-      ? piCompleteSimple(this._model, context, {
-          ...streamOptions,
-          reasoning: options.reasoning,
-        })
+    const reasoning = this.reasoningFor(options);
+    return reasoning
+      ? piCompleteSimple(this._model, context, { ...streamOptions, reasoning })
       : piComplete(this._model, context, streamOptions);
+  }
+
+  /**
+   * The reasoning level to send. A model pi-ai knows the levels of (it carries
+   * a `thinkingLevelMap`) gets the request as-is and pi-ai clamps it. Any
+   * other model, such as a gateway model behind `baseUrl`, gets the request
+   * capped at `maxReasoningEffort(model.id)`, and none at all when that model
+   * takes no effort control.
+   */
+  private reasoningFor(options: CompletionOptions): ThinkingLevel | undefined {
+    if (!options.reasoning || this._model.thinkingLevelMap) return options.reasoning;
+    return clampReasoningEffort(this._model.id, options.reasoning);
   }
 
   private buildStreamOptions(options: CompletionOptions) {

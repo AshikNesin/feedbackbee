@@ -1,5 +1,172 @@
 # @groot/ui
 
+## 1.3.0
+
+### Minor Changes
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`d9fcc26`](https://github.com/AshikNesin/groot/commit/d9fcc26278342e6ae725c6cda497400782548715) Thanks [@AshikNesin](https://github.com/AshikNesin)! - fix(shell): a ⌘K tab lists its own group, even when another shares its heading
+  
+  - **`@groot/shell`:** the palette's group tabs filtered rows by heading, so
+    two `CommandGroupEntry`s with the same `heading` but different `id`s showed
+    each other's rows under both tabs. Tabs now filter by the group's id
+    (`id`, or `heading` when there is none).
+  - **`@groot/ui`: `@groot/ui/command` is deprecated.** Its cmdk-based
+    `Command`, `CommandDialog`, `CommandInput`, `CommandList`, `CommandEmpty`,
+    `CommandGroup`, `CommandSeparator`, `CommandItem`, `CommandFooter` and
+    `CommandShortcut` are replaced by the command menu
+    (`@groot/ui/command-menu`), which the shell's palette uses, and are removed
+    in the next major.
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`82718e6`](https://github.com/AshikNesin/groot/commit/82718e6c579bae0269f16d42f4e2a74c4ecdde3b) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(ui): one hotkeys module, `@groot/ui/hotkeys`, with one precedence
+  
+  - **`@groot/ui/hotkeys`** holds the shortcut grammar (`parseShortcut`,
+    `matchesShortcut`, `hasModifier`, `formatShortcut`, `isMacPlatform`,
+    `useIsMac`), one `isEditable`, `isDialogOpen` and
+    `useHotkey(combo, handler, { scope?, inFields?, open?, within?, enabled? })`.
+    All hotkeys share one window listener, and a press runs one handler: a
+    `"dialog"` hotkey whose dialog is open answers first (so ⌘K closes the
+    palette); while any dialog is open nothing else answers; otherwise a
+    `"dialog"` hotkey beats a `"global"` one and the most recently bound wins.
+    `@groot/ui/command-menu` re-exports the grammar, so its imports keep
+    working, and `CommandMenuDialog` binds its combo through `useHotkey`.
+  - **`@groot/shell`: nav shortcuts stand down behind dialogs.** A
+    `NavDestination.shortcut` is a global hotkey: `mod+,` no longer navigates
+    behind the open ⌘K palette or any other open dialog, and a nav shortcut on
+    the palette's own combo no longer fires alongside it. The settings search's
+    `/` uses the same module.
+  - **`@groot/shell`: `isNavActive(pathname, to)`** (`@groot/shell/lib/shell-config`)
+    is the one "is this nav destination active" check; the sidebar and
+    `Layout`'s full-page test use it.
+  - **`@groot/shell`: `ThemeMenu`** (`@groot/shell/components/Layout`) is
+    deprecated: nothing renders it (Theme lives in Settings › Appearance and the
+    ⌘K Theme group). It is removed in the next major.
+
+## 1.2.0
+
+### Minor Changes
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(kit): upstream the kit fixes and features made first in tiny-agents
+  
+  - **`@groot/ui`: Fluid motion in the primitives.** New `@groot/ui/motion`
+    entry (`spring` tiers, `useModalPresence`, `FluidHighlight`). `Dialog` and
+    `AlertDialog` spring in and stay mounted through their exit; `DialogContent`
+    gains `size` (`sm` 400px default, `md`, `lg`, `xl`) and `position`
+    (`center` / `top`). `TabsList` slides its selected pill (or `line`
+    underline) and shows a hover pill; `Tooltip` is an inverted chip that springs
+    in and fades out, with a 200ms provider delay; `Select`, `DropdownMenu` and
+    `Command` share one gliding row highlight; `CommandDialog` opens top-anchored
+    at `lg`, and `Command` gains a `CommandFooter` of keyboard hints. Existing
+    props are unchanged. Client tests should set
+    `MotionGlobalConfig.skipAnimations = true` (see `tests/client/setup.ts`).
+  - **`@groot/ui`: `Breadcrumbs`.** `<Breadcrumbs page={job.name}><Link to="/jobs">Jobs</Link></Breadcrumbs>`
+    places the list items and separators, so a separator can't land inside an
+    item. Storage (`@groot/shell`) and JobDetail (`@groot/jobs`) use it.
+  - **`@groot/shell`: login returns to the page that asked for it.**
+    `ProtectedRoute` passes the location to `/login`, and a successful password
+    or passkey sign-in goes back there (in-app paths only) instead of `/`.
+  - **`@groot/shell`: Inter is no longer imported by `index.css`.** Tailwind
+    inlined that `@import` before Vite saw it, so the font files were never
+    emitted and production served `index.html` in their place. Import it from
+    your client entry instead: `import "@fontsource-variable/inter";` before
+    `import "@groot/shell/index.css";`.
+  - **`@groot/shell`: fixes.** Auth pages use `min-h-dvh`; the dev demo
+    credentials have a space after the label; the page scrollbar follows the
+    theme; Storage's icon buttons have accessible names, its select column has a
+    screen-reader header, folders show `-` for Modified instead of the epoch,
+    folder names have readable contrast, and viewing a UTF-8 text file no longer
+    shows mojibake. The row buttons' names include the file name, so an e2e
+    locator like `getByRole("cell", { name })` needs `exact: true`. The passkey card title is a level-2 heading.
+  - **`@groot/jobs`: accessible state filter.** The overflow state menu sits
+    beside the tab list (a tablist may only hold tabs) and has a label.
+  - **`@groot/core`: fixes.** Storage downloads of `text/*` with no charset are
+    served as `charset=utf-8`. Login re-hashes a password stored with an older
+    PBKDF2 iteration count (`needsRehash`).
+  - **App: missing build files 404.** The Node SPA fallback answers a request for
+    a missing asset (`/assets/*`, common static extensions) with a 404 instead of
+    `index.html`, and the client reloads once when a lazy chunk fails to load
+    after a deploy.
+
+### Patch Changes
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): take the latest compatible releases
+  
+  Vite+ 1.5 with Vitest 5.1, hono 4.13, jose 6.2.15, motion 14.10, Tailwind
+  4.3.5, wrangler 4.158 and jsdom 31. `@earendil-works/pi-ai` stays at 1.4.0:
+  1.5.0 drops `Type`, `TSchema` and `Static` from its `compat` entry, which
+  `@groot/ai` imports.
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): upgrade dependencies to the versions tiny-agents runs
+  
+  Every dependency groot shares with tiny-agents now matches its version, so a
+  sync no longer conflicts on version ranges.
+  
+  - **Majors.** Vite+ 1.4 with Vitest 5, Sentry 11 (`@sentry/node`,
+    `@sentry/cloudflare` and the build plugins), SimpleWebAuthn 14,
+    better-sqlite3 13, jsdom 30, `@testing-library/jest-dom` 7,
+    `@hookform/resolvers` 6, `@types/node` 26, changesets 3 (with
+    `@changesets/changelog-github` 1) and `openai` 7.
+  - **Minors and patches.** React 19.3, radix-ui 1.8, lucide-react 1.61, zod 4.6,
+    TanStack Query 5.104, the CodeMirror pins, pi-ai 1.4 and the rest.
+  - **Call sites.** Sentry 11 dropped `sendDefaultPii`; its `dataCollection`
+    defaults already attach user info, cookies and headers, so both entries just
+    drop the option. SimpleWebAuthn 14 renamed `AuthenticatorTransportFuture` to
+    `AuthenticatorTransport`.
+  - **Changesets 3** skips private packages unless asked, so
+    `.changeset/config.json` sets `privatePackages: { version: true, tag: false }`
+    to keep versioning the private kit packages (tags still come from the
+    release workflow).
+
+- [#158](https://github.com/AshikNesin/groot/pull/158) [`b2ecb45`](https://github.com/AshikNesin/groot/commit/b2ecb452ac2ee6429a6d4c9b460a5df45b7b4a27) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): `@hookform/resolvers` 7
+  
+  7.0's breaking changes are all in the typebox resolver; `zodResolver`, the
+  only one `@groot/ui/form` uses, is unchanged.
+
+## 1.1.0
+
+### Minor Changes
+
+- [#147](https://github.com/AshikNesin/groot/pull/147) [`4a97dbe`](https://github.com/AshikNesin/groot/commit/4a97dbef479531c72e160a000c2af0a214225ccb) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Replace the ⌘K command palette UI with the Fluid Functionalism command menu.
+
+  `@groot/ui/command-menu` is a new public subpath (`CommandMenu`,
+  `CommandMenuDialog`, `CommandMenuInput`, `CommandMenuTabs`, `CommandMenuList`,
+  `CommandMenuItem`, `CommandMenuFooter`, …) vendored from
+  fluidfunctionalism.com (MIT) with its support code in `packages/ui/vendor/fluid`.
+  It adds a `motion` dependency. `@groot/ui/command` (cmdk) is unchanged and
+  still exported.
+
+  `CommandPaletteDialog` now renders the new menu: a fluid hover highlight, group
+  tabs, a key-hint footer that names what Enter does, and ⌘K / Ctrl+K bound by
+  the dialog itself (the `Layout` listener is gone). `CommandItemEntry` gains
+  optional `action`, `description`, `shortcut`, `keywords` and `suggested`
+  fields; existing entries keep working unchanged. The shell stylesheet adds the
+  Fluid surface, hover and shadow tokens, mapped onto the groot palette.
+
+## 1.0.0
+
+### Major Changes
+
+- [`0eff25d`](https://github.com/AshikNesin/groot/commit/0eff25daff7315a63e28af7e419e13beac5e7ac9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Dead exports trimmed from the kit surface.
+
+  - **`titleClass` is no longer exported** from `@groot/ui/typography` (or the `@groot/ui` barrel). It was the `Text` `title` variant's class list with the export left over; use `<Text variant="title">` — identical classes.
+  - **The deprecated `CommandPalette` wrapper is removed** from `@groot/shell/components/CommandPalette`; render `CommandPaletteTrigger` and `CommandPaletteDialog` directly.
+  - **`CommandPaletteTrigger` drops the `iconOnly` prop** and always renders the icon button — the labeled, input-styled variant had no callers left.
+
+### Minor Changes
+
+- [`a7a0f17`](https://github.com/AshikNesin/groot/commit/a7a0f1739e0de3e8b4770f81033f69cc1ef51863) Thanks [@AshikNesin](https://github.com/AshikNesin)! - `DialogContent` now dismisses on a click outside the dialog (overlay/pointer-down) by default, matching platform modal conventions — previously outside clicks were ignored everywhere except the command palette, which had to opt in explicitly.
+
+  If a dialog holds input that is expensive to re-enter, opt out with `<DialogContent dismissOnOutsideClick={false}>`; the X button, Escape and `DialogClose` keep working either way.
+
+### Patch Changes
+
+- [`1a38cc2`](https://github.com/AshikNesin/groot/commit/1a38cc221122ba029a6820bcab9ea7f3ca9f402b) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Button: instant hover colors and a press scale
+
+  The button animated every property (`transition-all`), so hover colors faded
+  in, against the DLS rule of instant color hover. It now transitions only
+  `transform`: pressing scales it to 0.97 over 150ms on a strong ease-out
+  (replacing the 1px nudge); menu triggers (`aria-haspopup`) still don't move,
+  and reduced motion turns the transition off.
+
 ## 0.8.0
 
 ### Minor Changes

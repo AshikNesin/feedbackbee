@@ -59,17 +59,20 @@ child projects; a release that bumps only kit packages creates no new tag.
 ### Which packages a changeset must name
 
 `pnpm check:changesets` (run in CI against the base branch) fails a branch that
-changes a managed surface without naming its package:
+changes a managed surface without a changeset of its own naming the package:
 
 | Changed path                                                             | Package to name                   |
 | ------------------------------------------------------------------------ | --------------------------------- |
 | `packages/<pkg>/src/**`                                                  | that package (`@groot/core`, ...) |
 | `packages/<pkg>/package.json` (any key but `name`, `version`, `private`) | that package                      |
-| `apps/web/drizzle/**`, `.groot/**`                                       | `groot`                           |
+| `apps/web/drizzle/**`, `.groot/**`                                       | the root package                  |
 
-Docs-only or internal changes to those paths can instead carry a reviewed
-reason file under `.changeset/no-release/` (any non-empty `.md`; it covers the
-whole branch). The release bot's own commits are exempt.
+Docs-only or internal changes to those paths can instead add a reviewed
+reason file under `.no-release/` (any non-empty `.md`; it covers the
+whole branch). Changesets and reasons merged by earlier branches cover
+nothing, even when the branch edits or renames them. The release bot's own commits are exempt. A changeset that names a
+package outside the pnpm workspace fails the gate, because `changeset status`
+and the Release workflow reject it.
 
 ### Writing a Changeset (for AI Agents)
 

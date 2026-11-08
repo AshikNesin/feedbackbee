@@ -40,7 +40,7 @@ describe("Tooltip", () => {
     // The a11y contract: the trigger references the tooltip content id.
     const describedBy = btn.getAttribute("aria-describedby");
     expect(describedBy).toBeTruthy();
-    expect(document.getElementById(describedBy!).getAttribute("role")).toBe("tooltip");
+    expect(document.getElementById(describedBy!)).toHaveAttribute("role", "tooltip");
   });
 
   it("requires a provider (documented usage contract)", () => {

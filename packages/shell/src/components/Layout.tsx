@@ -1,6 +1,6 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useRef, useState } from "react";
 import { useAuthStore } from "@groot/shell/store/auth";
 import { useCommandPaletteStore } from "@groot/shell/store/command-palette";
 import {
@@ -16,17 +16,26 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@groot/ui/dropdown-menu";
 import { Button } from "@groot/ui/button";
+import { formatShortcut, useHotkey, useIsMac } from "@groot/ui/hotkeys";
 import { cn } from "@groot/ui/lib/utils";
-import { useShellConfig } from "@groot/shell/lib/shell-config";
+import { isNavActive, useShellConfig } from "@groot/shell/lib/shell-config";
 import { isTheme, THEME_OPTIONS, useTheme } from "@groot/shell/lib/theme";
 import { useSignOut } from "@groot/shell/hooks/useSignOut";
-import { MoreHorizontal, LogOut, PanelLeftClose, PanelLeft, Monitor } from "lucide-react";
+import {
+  MoreHorizontal,
+  LogOut,
+  PanelLeftClose,
+  PanelLeft,
+  Monitor,
+  SquareTerminal,
+} from "lucide-react";
 
 const SIDEBAR_COLLAPSED_KEY = "groot.sidebar.collapsed";
 
@@ -39,6 +48,8 @@ export interface LayoutProps {
   header?: ReactNode;
   /** Extra ⌘K groups, listed after the `ShellConfig.nav` destinations and before Theme and Account. */
   commandGroups?: CommandGroupEntry[];
+  /** Also list the palette's built-in Navigation, Theme and Account groups (default true). */
+  commandBuiltIns?: boolean;
   /**
    * Whether `<main>` gets the shell's default horizontal + vertical padding.
    * Defaults to `true`. Set `false` when pages own their own padding (e.g. via
@@ -59,6 +70,7 @@ export interface LayoutProps {
 export function Layout({
   header,
   commandGroups,
+  commandBuiltIns,
   padded = true,
   mainClassName,
   className,
@@ -66,9 +78,10 @@ export function Layout({
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
   const location = useLocation();
-  const toggleCommandPalette = useCommandPaletteStore((state) => state.toggle);
   const { brand, nav } = useShellConfig();
   const signOut = useSignOut();
+  const setPaletteOpen = useCommandPaletteStore((state) => state.setOpen);
+  const openingPalette = useRef(false);
 
   // When a custom header is supplied the default sidebar (and its offset /
   // mobile bar) is disabled so the header owns the full top of the page.
@@ -89,20 +102,10 @@ export function Layout({
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));
   };
 
-  // Global ⌘K / Ctrl+K handler for the command palette.
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        if (e.repeat) return;
-        e.preventDefault();
-        toggleCommandPalette();
-      }
-    };
-    document.addEventListener("keydown", down);
-    return () => document.removeEventListener("keydown", down);
-  }, [toggleCommandPalette]);
-
   const menuNav = nav.filter((item) => !item.primary);
+
+  const fullPage = nav.some((item) => item.fullPage && isNavActive(location.pathname, item.to));
+  const showSidebar = useDefaultSidebar && !fullPage;
 
   const userMenuFooter = (
     <DropdownMenu>
@@ -133,54 +136,82 @@ export function Layout({
           />
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" side="top" className="w-52">
-        <ThemeMenu />
-        {menuNav.map(({ to, label, icon: Icon }) => (
-          <DropdownMenuItem key={to} onClick={() => navigate(to)}>
-            {Icon ? <Icon className="size-4" /> : null}
-            <span>{label}</span>
-          </DropdownMenuItem>
-        ))}
-        {menuNav.length > 0 && <DropdownMenuSeparator />}
-        <DropdownMenuItem
-          onClick={signOut}
-          className="text-destructive focus:text-destructive focus:bg-destructive/10"
-        >
-          <LogOut className="size-4" />
+      {/* Opens upward, so the last group sits next to the trigger and Log out
+          is the row farthest from it. */}
+      <DropdownMenuContent
+        align="start"
+        side="top"
+        sideOffset={8}
+        className="w-64"
+        onCloseAutoFocus={(event) => {
+          // The palette takes focus; handing it back to the trigger would
+          // pull it out of the dialog.
+          if (openingPalette.current) {
+            openingPalette.current = false;
+            event.preventDefault();
+          }
+        }}
+      >
+        <DropdownMenuItem onSelect={signOut} className={MENU_ROW}>
+          <LogOut />
           <span>Log out</span>
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            openingPalette.current = true;
+            setPaletteOpen(true);
+          }}
+          className={MENU_ROW}
+        >
+          <SquareTerminal />
+          <span>Command palette</span>
+          <ShortcutHint shortcut="mod+k" />
+        </DropdownMenuItem>
+        {menuNav.length > 0 && <DropdownMenuSeparator />}
+        {menuNav.map(({ to, label, icon: Icon, shortcut }) => (
+          <DropdownMenuItem key={to} onSelect={() => navigate(to)} className={MENU_ROW}>
+            {Icon ? <Icon /> : null}
+            <span>{label}</span>
+            {shortcut ? <ShortcutHint shortcut={shortcut} /> : null}
+          </DropdownMenuItem>
+        ))}
       </DropdownMenuContent>
     </DropdownMenu>
   );
-
   return (
     <div className={cn("min-h-dvh bg-background text-foreground", className)}>
       {/* Single shared command palette dialog — mounted once. */}
-      <CommandPaletteDialog groups={commandGroups} />
-
-      {header ?? (
-        <SidebarNav
-          items={nav.filter((item) => item.primary)}
-          brand={brand}
-          pathname={location.pathname}
-          open={sidebarOpen}
-          onOpenChange={setSidebarOpen}
-          collapsed={collapsed}
-          onCollapsedChange={handleCollapsedChange}
-          footer={userMenuFooter}
-        />
+      <CommandPaletteDialog groups={commandGroups} builtIns={commandBuiltIns} />
+      {nav.map((item) =>
+        item.shortcut ? <NavShortcut key={item.to} shortcut={item.shortcut} to={item.to} /> : null,
       )}
+
+      {fullPage
+        ? null
+        : (header ?? (
+            <SidebarNav
+              items={nav.filter((item) => item.primary)}
+              brand={brand}
+              pathname={location.pathname}
+              open={sidebarOpen}
+              onOpenChange={setSidebarOpen}
+              collapsed={collapsed}
+              onCollapsedChange={handleCollapsedChange}
+              footer={userMenuFooter}
+            />
+          ))}
 
       {/* Main column: sidebar offset on desktop (animated with the sidebar),
           full-width on mobile. Only applies when the default sidebar renders. */}
       <div
         className={cn(
           "transition-[padding] duration-300 ease-in-out",
-          useDefaultSidebar && (collapsed ? "lg:pl-16" : "lg:pl-56"),
+          showSidebar && (collapsed ? "lg:pl-16" : "lg:pl-56"),
         )}
       >
         {/* Top bar — mobile (sidebar toggle + brand + search icon). */}
-        {useDefaultSidebar && (
+        {showSidebar && (
           <header className="sticky top-0 z-30 flex h-14 items-center gap-2 border-b border-border bg-background px-4 lg:hidden">
             <Button
               variant="ghost"
@@ -209,8 +240,8 @@ export function Layout({
             // min-height would overflow the visible area (100dvh tracks it).
             // The 3.5rem offset only exists where the mobile top bar renders.
             "w-full",
-            useDefaultSidebar && "min-h-[calc(100dvh-3.5rem)]",
-            padded && "px-4 pb-10 pt-6 sm:px-6 lg:px-8",
+            showSidebar && "min-h-[calc(100dvh-3.5rem)]",
+            padded && !fullPage && "px-4 pb-10 pt-6 sm:px-6 lg:px-8",
             mainClassName,
           )}
         >
@@ -221,6 +252,36 @@ export function Layout({
   );
 }
 
+/** Account-menu row: Amp-like spacing between the icon and the label. */
+const MENU_ROW = "gap-2.5";
+
+/** Plain muted key glyphs ("⌘ ,"), not key caps, at a menu row's trailing edge. */
+function ShortcutHint({ shortcut }: { shortcut: string }) {
+  const mac = useIsMac();
+  return (
+    <DropdownMenuShortcut aria-hidden className="font-normal">
+      {formatShortcut(shortcut, mac).join(" ")}
+    </DropdownMenuShortcut>
+  );
+}
+
+/**
+ * Binds a `NavDestination.shortcut` to navigating there: a global hotkey, so
+ * it does not fire while a dialog (the ⌘K palette included) is open, and a
+ * combo without a modifier does not fire in a text field.
+ */
+function NavShortcut({ shortcut, to }: { shortcut: string; to: string }) {
+  const navigate = useNavigate();
+  useHotkey(shortcut, () => navigate(to));
+  return null;
+}
+
+/**
+ * A Theme submenu for a `DropdownMenu`.
+ *
+ * @deprecated Nothing renders it: Theme lives in Settings › Appearance and
+ * the ⌘K Theme group. Removed in the next major.
+ */
 export function ThemeMenu() {
   const { theme, setTheme } = useTheme();
 

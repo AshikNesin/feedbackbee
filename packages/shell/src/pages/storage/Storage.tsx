@@ -1,13 +1,7 @@
+import { useRef } from "react";
 import { Folder, FolderPlus, Home, RefreshCw, Trash2, Upload } from "lucide-react";
 import { Button } from "@groot/ui/button";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@groot/ui/breadcrumb";
+import { Breadcrumbs } from "@groot/ui/breadcrumb";
 import { EmptyState } from "@groot/ui/empty-state";
 import { SkeletonCard, SkeletonTable } from "@groot/ui/loading-skeleton";
 import { Table, TableBody, TableHead, TableHeader, TableRow } from "@groot/ui/table";
@@ -17,7 +11,7 @@ import { DesktopFileRow } from "./components/DesktopFileRow";
 import { MobileFileCard } from "./components/MobileFileCard";
 import { TextInputDialog } from "./components/TextInputDialog";
 
-import { useStorageActions } from "./hooks/useStorageActions";
+import { useStorageBrowser } from "./hooks/useStorageBrowser";
 import type { StorageFile } from "./hooks/useStorage";
 
 interface StorageProps {
@@ -29,102 +23,91 @@ interface StorageProps {
 }
 
 export function Storage({ onView }: StorageProps = {}) {
-  const s = useStorageActions();
+  const { files, isLoading, path, crumbs, selection, dialog, actions, fileActions, pending } =
+    useStorageBrowser({ onView });
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
 
-  const actions = (
-    <Button
-      variant="outline"
-      size="icon"
-      onClick={() => s.refetchFiles()}
-      aria-label="Refresh files"
-    >
+  const onUploadChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const input = event.target;
+    void actions.upload(Array.from(input.files ?? [])).finally(() => {
+      input.value = "";
+    });
+  };
+
+  const headerActions = (
+    <Button variant="outline" size="icon" onClick={actions.refresh} aria-label="Refresh files">
       <RefreshCw className="size-4" />
     </Button>
   );
 
-  const lastCrumbIndex = s.breadcrumbs.length - 1;
-
   const breadcrumb = (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <button
-              type="button"
-              onClick={() => s.navigateToFolder("")}
-              aria-label="Go to root folder"
-            >
-              <Home className="size-4" />
-            </button>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        {s.breadcrumbs.map((crumb, index) => (
-          <BreadcrumbItem key={crumb.path}>
-            <BreadcrumbSeparator />
-            {index === lastCrumbIndex ? (
-              <BreadcrumbPage>{crumb.name}</BreadcrumbPage>
-            ) : (
-              <BreadcrumbLink asChild>
-                <button type="button" onClick={() => s.navigateToFolder(crumb.path)}>
-                  {crumb.name}
-                </button>
-              </BreadcrumbLink>
-            )}
-          </BreadcrumbItem>
-        ))}
-      </BreadcrumbList>
-    </Breadcrumb>
+    <Breadcrumbs page={crumbs.at(-1)?.name}>
+      <button type="button" onClick={() => actions.open("")} aria-label="Go to root folder">
+        <Home className="size-4" />
+      </button>
+      {crumbs.slice(0, -1).map((crumb) => (
+        <button key={crumb.path} type="button" onClick={() => actions.open(crumb.path)}>
+          {crumb.name}
+        </button>
+      ))}
+    </Breadcrumbs>
   );
+
+  const renameTarget = dialog?.kind === "rename" ? dialog.file : null;
 
   return (
     <PageLayout
       title="Storage"
       description="Browse and manage your files and folders"
-      actions={actions}
+      actions={headerActions}
       breadcrumb={breadcrumb}
       maxWidth="7xl"
     >
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2">
         <input
-          ref={s.uploadInputRef}
+          ref={uploadInputRef}
           type="file"
           className="hidden"
           multiple
-          onChange={s.handleUpload}
+          onChange={onUploadChange}
         />
 
-        <Button onClick={() => s.uploadInputRef.current?.click()}>
+        <Button onClick={() => uploadInputRef.current?.click()} disabled={pending.upload}>
           <Upload className="size-4" />
           Upload
         </Button>
 
-        <Button variant="outline" onClick={() => s.setFolderDialogOpen(true)}>
+        <Button variant="outline" onClick={() => actions.openDialog({ kind: "createFolder" })}>
           <FolderPlus className="size-4" />
           New Folder
         </Button>
 
-        {s.selectedFiles.size > 0 && (
+        {selection.keys.length > 0 && (
           <>
-            <Button variant="outline" onClick={s.clearSelection}>
-              Clear ({s.selectedFiles.size})
+            <Button variant="outline" onClick={selection.clear}>
+              Clear ({selection.keys.length})
             </Button>
-            <Button variant="destructive" onClick={s.handleDeleteSelected}>
+            <Button
+              variant="destructive"
+              onClick={() => void actions.removeSelection()}
+              disabled={pending.remove}
+            >
               <Trash2 className="size-4" />
               Delete
             </Button>
           </>
         )}
 
-        {s.fileCount > 0 && (
-          <Button variant="outline" onClick={s.selectAllFiles}>
+        {selection.fileCount > 0 && (
+          <Button variant="outline" onClick={selection.selectAll}>
             Select All Files
           </Button>
         )}
       </div>
 
       {/* File list */}
-      {s.isLoading ? (
+      {isLoading ? (
         <>
           {/* Mobile card placeholders */}
           <div className="space-y-3 md:hidden">
@@ -137,7 +120,7 @@ export function Storage({ onView }: StorageProps = {}) {
             <SkeletonTable columns={5} rows={6} />
           </div>
         </>
-      ) : s.files.length === 0 ? (
+      ) : files.length === 0 ? (
         <EmptyState
           icon={Folder}
           title="No files found"
@@ -146,26 +129,28 @@ export function Storage({ onView }: StorageProps = {}) {
       ) : (
         <>
           {/* Mobile Card View */}
-          <div className="space-y-3 md:hidden">
-            {s.files.map((file) => (
-              <MobileFileCard
-                key={file.key}
-                file={file}
-                selected={s.selectedFiles.has(file.key)}
-                onToggle={s.toggleFileSelection}
-                onNavigate={s.navigateToFolder}
-                onDeleteFolder={s.handleDeleteFolder}
-                onView={onView}
-              />
+          <ul className="space-y-3 md:hidden" aria-label="Files">
+            {files.map((file) => (
+              <li key={file.key}>
+                <MobileFileCard
+                  file={file}
+                  selected={selection.has(file.key)}
+                  onToggle={selection.toggle}
+                  onNavigate={actions.open}
+                  actions={fileActions(file)}
+                />
+              </li>
             ))}
-          </div>
+          </ul>
 
           {/* Desktop Table View */}
           <div className="hidden overflow-hidden rounded-2xl bg-card ring-1 ring-foreground/10 md:block">
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead aria-label="Select file" className="w-12" />
+                  <TableHead className="w-12">
+                    <span className="sr-only">Select file</span>
+                  </TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Size</TableHead>
                   <TableHead>Modified</TableHead>
@@ -173,17 +158,14 @@ export function Storage({ onView }: StorageProps = {}) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {s.files.map((file) => (
+                {files.map((file) => (
                   <DesktopFileRow
                     key={file.key}
                     file={file}
-                    selected={s.selectedFiles.has(file.key)}
-                    onToggle={s.toggleFileSelection}
-                    onNavigate={s.navigateToFolder}
-                    onDeleteFolder={s.handleDeleteFolder}
-                    onDeleteFile={s.handleDeleteFile}
-                    onRename={s.startRename}
-                    onView={onView}
+                    selected={selection.has(file.key)}
+                    onToggle={selection.toggle}
+                    onNavigate={actions.open}
+                    actions={fileActions(file)}
                   />
                 ))}
               </TableBody>
@@ -193,31 +175,31 @@ export function Storage({ onView }: StorageProps = {}) {
       )}
 
       <TextInputDialog
-        open={s.folderDialogOpen}
-        onOpenChange={s.setFolderDialogOpen}
+        open={dialog?.kind === "createFolder"}
+        onOpenChange={(open) => !open && actions.closeDialog()}
         title="Create New Folder"
-        description={`Enter a name for the new folder in ${s.currentPath || "root"}`}
+        description={`Enter a name for the new folder in ${path || "root"}`}
         label="Folder Name"
         placeholder="my-folder"
         submitLabel="Create"
         pendingLabel="Creating..."
-        pending={s.createFolder.isPending}
-        onSubmit={s.handleCreateFolder}
+        pending={pending.createFolder}
+        onSubmit={(name) => void actions.createFolder(name)}
       />
 
       <TextInputDialog
-        open={Boolean(s.renameTarget)}
-        onOpenChange={(open) => !open && s.setRenameTarget(null)}
+        open={Boolean(renameTarget)}
+        onOpenChange={(open) => !open && actions.closeDialog()}
         title="Rename File"
         description="Enter a new name for the file"
         label="New Name"
         placeholder="filename.txt"
-        initialValue={s.renameTarget?.name}
-        hint={s.renameTarget ? `Current: ${s.renameTarget.name}` : undefined}
+        initialValue={renameTarget?.name}
+        hint={renameTarget ? `Current: ${renameTarget.name}` : undefined}
         submitLabel="Rename"
         pendingLabel="Renaming..."
-        pending={s.renameFile.isPending}
-        onSubmit={s.handleRename}
+        pending={pending.rename}
+        onSubmit={(newName) => renameTarget && void actions.rename(renameTarget, newName)}
       />
     </PageLayout>
   );

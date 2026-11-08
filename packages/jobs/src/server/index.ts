@@ -6,5 +6,6 @@ export * from "./queue";
 export * from "./queries";
 export * from "./worker";
 export * from "./tick";
+export * from "./transitions";
 export * from "./logger";
 export { jobRoutes } from "./routes";

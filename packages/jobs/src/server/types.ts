@@ -41,6 +41,8 @@ export interface ScheduleJobOptions {
 export interface GetJobsOptions {
   state?: string;
   name?: string;
+  /** Substring of the job's name or id, case-insensitive. */
+  search?: string;
   limit?: number;
   offset?: number;
   startDate?: string;

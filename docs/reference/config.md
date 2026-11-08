@@ -41,15 +41,16 @@ gives you type checking and completion for `DeepPartial<AppConfig>`.
 | `app.name`                  | `"Groot"`                                           | app override                             |
 | `app.port`                  | `3000`                                              | `PORT`                                   |
 | `cors.origins`              | `[]` (reflect the requesting origin)                | `CORS_ALLOWED_ORIGINS` (comma-separated) |
+| `trustedProxies`            | loopback and private ranges                         | `TRUSTED_PROXIES` (`none` trusts none)   |
 | `auth.jwtExpiresIn`         | `"30d"`                                             |                                          |
 | `jobs.enabled`              | `true` (`false` when `NODE_ENV=test`)               |                                          |
 | `jobs.pollIntervalSeconds`  | `5` — Node poller interval                          |                                          |
 | `jobs.batchSize`            | `10` — max jobs claimed per tick                    |                                          |
 | `jobs.retryLimit`           | `3`                                                 |                                          |
 | `jobs.retryDelaySeconds`    | `60` — base delay, doubles per attempt (max 24 h)   |                                          |
-| `jobs.activeTimeoutSeconds` | `300` — an `active` job older than this is retried  |                                          |
+| `jobs.activeTimeoutSeconds` | `300` — an `active` job older than this times out   |                                          |
 | `jobs.keepCompletedDays`    | `7` — completed/cancelled jobs + logs deleted after |                                          |
-| `jobs.runInline`            | `true` — `addJob()` and retry run a tick right away |                                          |
+| `jobs.runInline`            | `true` — a job queued due runs a tick right away    |                                          |
 | `logging.level`             | `debug` dev / `info` prod / `silent` test           | `LOG_LEVEL`                              |
 | `passkey.rpName`            | `"Groot"`                                           | `RP_NAME`                                |
 | `passkey.rpId`              | `"localhost"`                                       | `RP_ID`                                  |
@@ -57,8 +58,13 @@ gives you type checking and completion for `DeepPartial<AppConfig>`.
 | `rateLimits.auth`           | 20 requests / 15 min per IP                         |                                          |
 | `rateLimits.storage`        | 100 requests / 15 min per IP                        |                                          |
 | `rateLimits.upload`         | 50 requests / 15 min per IP                         |                                          |
-| `sentry.dsn`                | `""` — both entries start Sentry only when set      | `SENTRY_DSN`                             |
-| `sentry.release`            | unset                                               | `SENTRY_RELEASE`                         |
+
+The rate limits count in the app's `RateLimitStore`: in memory on Node, in
+Cloudflare's Rate Limiting bindings on Workers when they are bound, whose own
+limit and period (in `wrangler.jsonc`) then apply instead. See
+[Rate limits and client addresses](../guides/architecture.md#rate-limits-and-client-addresses).
+| `sentry.dsn` | `""` — both entries start Sentry only when set | `SENTRY_DSN` |
+| `sentry.release` | unset | `SENTRY_RELEASE` |
 
 ## Env vs config
 
@@ -82,8 +88,9 @@ not at module top level (module-level reads see the development defaults).
 ## Boot order
 
 ```
-startWebApp({ env, db, storage, reportError })   apps/web/src/server/app.ts
-  bootstrap({ ...runtime, config: appConfig })
+startWebApp({ env, db, storage, reportError, clientAddress, rateLimitStore })
+                                                 apps/web/src/server/app.ts
+  bootstrap({ ...adapters, config: appConfig })
     loadEnv(source)          parse + validate, dev defaults outside production
     setConfig(overrides)     defaultConfig(env) ⊕ defineConfig(...)
     configureLogger()        level from config.logging.level, pretty outside production
@@ -91,7 +98,7 @@ startWebApp({ env, db, storage, reportError })   apps/web/src/server/app.ts
     setStorageAdapter(...)   StorageAdapter (local, R2 or memory), if given
     setErrorReporter(...)    Sentry or anything else, if given
   registerJobHandlers()
-  createWebApp()           the Hono app
+  createWebApp({ clientAddress, rateLimitStore })   the Hono app; its own rate-limit counters
 ```
 
 Called once per process on Node (`entry.node.ts`, `scripts/seed.ts`), once per

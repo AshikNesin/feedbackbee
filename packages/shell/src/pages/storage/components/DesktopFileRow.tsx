@@ -1,38 +1,32 @@
 import { Button } from "@groot/ui/button";
 import { Checkbox } from "@groot/ui/checkbox";
 import { TableCell, TableRow } from "@groot/ui/table";
-import { handleDownload, handleView } from "@groot/shell/pages/storage/hooks/useStorageActions";
 import type { StorageFile } from "@groot/shell/pages/storage/hooks/useStorage";
-import { Download, Edit3, File as FileIcon, Folder, Trash2 } from "lucide-react";
+import type { FileAction } from "@groot/shell/pages/storage/hooks/useStorageBrowser";
+import { File as FileIcon, Folder } from "lucide-react";
 import { formatBytes, formatDate } from "@groot/shell/lib/utils";
 
 type Props = {
   file: StorageFile;
   selected: boolean;
   onToggle: (key: string) => void;
+  /** Open a folder. */
   onNavigate: (key: string) => void;
-  onDeleteFolder: (key: string) => void;
-  onDeleteFile: (key: string) => void;
-  onRename: (key: string, name: string) => void;
-  onView?: (file: StorageFile) => void;
+  /** The row's actions, from `useStorageBrowser().fileActions(file)`. */
+  actions: FileAction[];
 };
 
-/** Desktop table row for a single file/folder. */
-export function DesktopFileRow({
-  file,
-  selected,
-  onToggle,
-  onNavigate,
-  onDeleteFolder,
-  onDeleteFile,
-  onRename,
-  onView,
-}: Props) {
+/** Desktop table row for a single file/folder: one cell of buttons for `actions`. */
+export function DesktopFileRow({ file, selected, onToggle, onNavigate, actions }: Props) {
   return (
     <TableRow data-state={selected ? "selected" : undefined}>
       <TableCell>
         {!file.isDirectory && (
-          <Checkbox checked={selected} onCheckedChange={() => onToggle(file.key)} />
+          <Checkbox
+            checked={selected}
+            onCheckedChange={() => onToggle(file.key)}
+            aria-label={`Select ${file.name}`}
+          />
         )}
       </TableCell>
       <TableCell>
@@ -51,38 +45,34 @@ export function DesktopFileRow({
           ) : (
             <FileIcon className="size-4 text-muted-foreground" />
           )}
-          <span className={file.isDirectory ? "font-medium text-info" : ""}>{file.name}</span>
+          <span
+            className={
+              file.isDirectory
+                ? "font-medium text-[color-mix(in_oklch,var(--info)_65%,var(--foreground))]"
+                : ""
+            }
+          >
+            {file.name}
+          </span>
         </button>
       </TableCell>
       <TableCell>{file.isDirectory ? "-" : formatBytes(file.size)}</TableCell>
-      <TableCell>{formatDate(file.lastModified)}</TableCell>
+      {/* Folders show "-" like Size: the service derives them from key
+          prefixes, which carry no mtime, so lastModified is an epoch sentinel. */}
+      <TableCell>{file.isDirectory ? "-" : formatDate(file.lastModified)}</TableCell>
       <TableCell className="text-right">
-        {file.isDirectory ? (
-          <div className="flex justify-end gap-2">
-            <Button variant="ghost" size="sm" onClick={() => onDeleteFolder(file.key)}>
-              <Trash2 className="size-4 text-destructive" />
+        <div className="flex justify-end gap-2">
+          {actions.map(({ id, label, ariaLabel, icon: Icon, destructive, run }) => (
+            <Button key={id} variant="ghost" size="sm" onClick={run} aria-label={ariaLabel}>
+              {/* "View" reads better as a word; the rest are icons. */}
+              {id === "view" ? (
+                label
+              ) : (
+                <Icon className={destructive ? "size-4 text-destructive" : "size-4"} />
+              )}
             </Button>
-          </div>
-        ) : (
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => (onView ? onView(file) : handleView(file.key))}
-            >
-              View
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => handleDownload(file.key, file.name)}>
-              <Download className="size-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onRename(file.key, file.name)}>
-              <Edit3 className="size-4" />
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onDeleteFile(file.key)}>
-              <Trash2 className="size-4 text-destructive" />
-            </Button>
-          </div>
-        )}
+          ))}
+        </div>
       </TableCell>
     </TableRow>
   );

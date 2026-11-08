@@ -229,16 +229,22 @@ with the pi coding agent. Clean 3-way merges no longer require manual review.
 
 ## Writing Changesets (for AI Agents)
 
-When modifying groot's syncable code, create a changeset file:
+When modifying groot's syncable code, create a changeset file naming each
+package the branch changed:
 
 ```bash
 # File: .changeset/<random-name>.md
 ---
-"groot": patch
+"@groot/core": patch
 ---
 
 fix(core): handle null values in Boom error handler
 ```
+
+Changes under `apps/web/drizzle/` or `.groot/` name the root package: the
+`name` in the root `package.json` (`groot` in groot itself, your project's
+name in a child project). A package that isn't in the workspace fails
+`pnpm check:changesets`, so a child project never names `"groot"`.
 
 Use `patch` for fixes, `minor` for new features, `major` for breaking changes.
 

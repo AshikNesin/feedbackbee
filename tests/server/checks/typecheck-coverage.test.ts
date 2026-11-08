@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
-import { writeFileSync, rmSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vite-plus/test";
+import { withRepoCopy } from "./repo-copy";
 
 /**
  * Typecheck coverage guard (scripts/check-typecheck-coverage.ts).
@@ -18,8 +19,12 @@ const repoRoot = process.cwd();
 const SCRIPT = path.join("scripts", "check-typecheck-coverage.ts");
 const TIMEOUT = 120_000;
 
-function runCoverageScript(): { status: number | null; stdout: string; stderr: string } {
-  const result = spawnSync("pnpm", ["exec", "tsx", SCRIPT], {
+function runCoverageScript(checkedRepo = repoRoot): {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+} {
+  const result = spawnSync("pnpm", ["exec", "tsx", path.join(checkedRepo, SCRIPT)], {
     cwd: repoRoot,
     encoding: "utf8",
     timeout: TIMEOUT,
@@ -43,36 +48,33 @@ describe("typecheck coverage", () => {
 
   it(
     "typechecks repo-owned declarations",
-    () => {
-      const broken = path.join(repoRoot, "packages/ai/src/audit-broken.d.ts");
-      writeFileSync(
-        broken,
-        'declare module "__audit_broken__" {\n  export const broken: numbr;\n}\n',
-      );
-      try {
-        const run = runCoverageScript();
+    () =>
+      withRepoCopy((root) => {
+        writeFileSync(
+          path.join(root, "packages/core/src/audit-broken.d.ts"),
+          'declare module "__audit_broken__" {\n  export const broken: numbr;\n}\n',
+        );
+        const run = runCoverageScript(root);
         expect(run.status).toBe(1);
-        expect(run.stderr).toContain("packages/ai/src/audit-broken.d.ts");
-      } finally {
-        rmSync(broken, { force: true });
-      }
-    },
+        expect(run.stderr).toContain("packages/core/src/audit-broken.d.ts");
+      }),
     TIMEOUT,
   );
 
   it(
-    "names an unowned source file",
-    () => {
-      const orphan = path.join(repoRoot, "packages/ui/src/orphan-coverage-probe.tsx");
-      writeFileSync(orphan, "export function Orphan() {\n  return null;\n}\n");
-      try {
-        const run = runCoverageScript();
+    "names an unowned source file and nothing else in the copy",
+    () =>
+      withRepoCopy((root) => {
+        writeFileSync(
+          path.join(root, "packages/ui/src/orphan-coverage-probe.tsx"),
+          "export function Orphan() {\n  return null;\n}\n",
+        );
+        const run = runCoverageScript(root);
         expect(run.status).toBe(1);
-        expect(run.stderr).toContain("packages/ui/src/orphan-coverage-probe.tsx");
-      } finally {
-        rmSync(orphan, { force: true });
-      }
-    },
+        expect(run.stderr.match(/not covered by any checked typecheck project: .*/g)).toEqual([
+          "not covered by any checked typecheck project: packages/ui/src/orphan-coverage-probe.tsx",
+        ]);
+      }),
     TIMEOUT,
   );
 });

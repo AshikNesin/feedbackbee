@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { createApp } from "@groot/core/app";
-import { setConfig } from "@groot/core/config";
+import { setAppConfig } from "../helpers";
 
 function buildApp() {
   return createApp({
@@ -25,7 +25,7 @@ const preflight = (path: string, origin: string) =>
 
 describe("createApp openCorsPaths", () => {
   it("answers any origin without credentials on open paths, even with an allow-list", async () => {
-    setConfig({ cors: { origins: ["https://app.example.com"] } });
+    setAppConfig({ cors: { origins: ["https://app.example.com"] } });
     try {
       const app = buildApp();
       for (const path of ["/api/track", "/widget/a.js"]) {
@@ -43,12 +43,12 @@ describe("createApp openCorsPaths", () => {
       expect(post.status).toBe(200);
       expect(post.headers.get("access-control-allow-origin")).toBe("*");
     } finally {
-      setConfig();
+      setAppConfig();
     }
   });
 
   it("keeps the credentialed allow-list everywhere else", async () => {
-    setConfig({ cors: { origins: ["https://app.example.com"] } });
+    setAppConfig({ cors: { origins: ["https://app.example.com"] } });
     try {
       const app = buildApp();
       const blocked = await app.fetch(preflight("/api/v1/private", "https://customer.example"));
@@ -60,7 +60,7 @@ describe("createApp openCorsPaths", () => {
       const track = await app.fetch(preflight("/api/trackx", "https://customer.example"));
       expect(track.headers.get("access-control-allow-origin")).toBeNull();
     } finally {
-      setConfig();
+      setAppConfig();
     }
   });
 });

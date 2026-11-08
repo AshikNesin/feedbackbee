@@ -3,8 +3,9 @@
 A JSON key-value API over the `kv` table (`packages/core/src/kv/index.ts`). It
 runs wherever the database runs (better-sqlite3 on Node, D1 on Workers) and
 needs no extra service. The boilerplate uses it for app settings
-(`APP_SETTING:` namespace) and passkey challenges (`passkey:challenge:`
-namespace, five-minute TTL, consumed on first use).
+(`APP_SETTING:` namespace), passkey challenges (`passkey:challenge:`
+namespace, five-minute TTL, consumed on first use with `take`) and the job
+tick's housekeeping slot (`claim`).
 
 ## API
 
@@ -16,6 +17,8 @@ await kv.set("otp:123", "482913", 5 * 60 * 1000); // third argument: ttlMs (0 or
 const flags = await kv.get<{ beta: boolean }>("feature:flags");
 await kv.has("otp:123");
 await kv.delete("otp:123"); // → true when a row was removed
+await kv.take("otp:123"); // → the value, removed in the same statement; undefined if missing or expired
+await kv.claim("digest:daily", 24 * 60 * 60 * 1000); // → true for at most one caller per interval
 await kv.list("feature:"); // → [{ key, value }]
 await kv.clear("feature:"); // → number of rows deleted
 
@@ -23,14 +26,24 @@ const cache = createNamespaceKv("cache"); // keys stored as "cache:<key>", retur
 await cache.set("users", [...], 60_000);
 ```
 
-| Method                    | Behaviour                                                               |
-| ------------------------- | ----------------------------------------------------------------------- |
-| `get(key)`                | `undefined` when missing or expired (an expired row is deleted on read) |
-| `set(key, value, ttlMs?)` | Upsert; the value is `JSON.stringify`-ed                                |
-| `has(key)`                | `get(key) !== undefined`                                                |
-| `delete(key)`             | `true` when a row existed                                               |
-| `list(prefix?)`           | Live entries whose key starts with `prefix` (`_`/`%` are escaped)       |
-| `clear(prefix?)`          | Delete every key with the prefix, expired or not; returns the count     |
+| Method                    | Behaviour                                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `get(key)`                | `undefined` when missing or expired (an expired row is deleted on read)                                              |
+| `set(key, value, ttlMs?)` | Upsert; the value is `JSON.stringify`-ed                                                                             |
+| `add(key, value, ttlMs?)` | Insert only, in one statement: `false` (nothing written) when a live entry holds the key; an expired one is replaced |
+| `has(key)`                | `get(key) !== undefined`                                                                                             |
+| `delete(key)`             | `true` when a row existed                                                                                            |
+| `take(key)`               | Delete a live entry and return its value in one `DELETE … RETURNING`                                                 |
+| `claim(key, intervalMs)`  | One compare-and-set upsert: `true` at most once per interval                                                         |
+| `list(prefix?)`           | Live entries whose key starts with `prefix` (`_`/`%` are escaped)                                                    |
+| `clear(prefix?)`          | Delete every key with the prefix, expired or not; returns the count                                                  |
+
+`take` is how a single-use value is consumed: of any number of concurrent
+`take`s of one key, exactly one gets the value, so a challenge or one-time code
+cannot be replayed between a read and a delete. `claim` stores the claim time
+(epoch ms, readable with `get`) and only overwrites one at least `intervalMs`
+old, so a periodic task runs once per interval across every process and
+Workers isolate; the row expires with the claim.
 
 A namespaced store applies its prefix to every method, so `cache.clear()` only
 removes `cache:` keys. On the root `kv`, `clear()` with no prefix empties the
@@ -41,7 +54,7 @@ whole table, app settings and passkey challenges included.
 `expiresAt` is enforced on read and swept by `purgeExpiredKv()` (through the
 `kv_expires_at_idx` index), which the job tick's
 [housekeeping](./jobs.md#the-tick-packagesjobssrcservertickts) runs at most
-every ten minutes (Node poller or Workers cron). Housekeeping keeps its own
+every ten minutes (Node poller or Workers cron). Housekeeping claims its own
 last-run time in the `jobs:housekeeping:lastRunAt` key, so a root
 `kv.clear()` only makes the next sweep run early. On Node with
 `config.jobs.enabled` off there is no poller, so expired rows stay in the table

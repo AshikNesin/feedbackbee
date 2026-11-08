@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
 /**
- * Typecheck coverage guard over the enumerated roots (apps/web/src and
- * packages/<name>/src).
+ * Typecheck coverage guard over the enumerated roots (apps/web/src,
+ * packages/<name>/src and tests).
  *
  * A source file with no importers and no tsconfig include escapes every
  * checked project silently. This repo shipped that defect: 9e5602a claimed
@@ -11,13 +11,14 @@
  *
  * What this guard owns: every .ts and .tsx file under the enumerated roots
  * must be a member of at least one program that CI typechecks (the root
- * tsconfig.json, apps/web/tsconfig.json and the kit-consumer fixture), and every repo-owned .d.ts
- * under those roots must pass a dedicated declarations pass. Membership is
+ * tsconfig.json, apps/web/tsconfig.json, tests/e2e/tsconfig.json and the
+ * kit-consumer fixture), and every repo-owned .d.ts under those roots must
+ * pass a dedicated declarations pass. Membership is
  * what tsc actually compiles: include globs plus the import closure. A file
  * matched by a package tsconfig that no script or CI step runs does not
  * count.
  *
- * What this guard does not own: tests/, scripts/, apps/web/drizzle/, and any
+ * What this guard does not own: scripts/, apps/web/drizzle/, and any
  * package directory without a src/ are outside the roots. Files there are
  * invisible to every gate. Adopting them is a follow-up, not a silent
  * default.
@@ -26,7 +27,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import ts from "typescript";
+// TypeScript 7 (the native compiler) ships no classic JS API; the TS 6 package
+// keeps it for AST scripts like this one.
+import ts from "@typescript/typescript6";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 // The kit-consumer fixture (`pnpm typecheck:kit`) imports every public kit
@@ -35,6 +38,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const CHECKED_PROJECTS = [
   "tsconfig.json",
   "apps/web/tsconfig.json",
+  "tests/e2e/tsconfig.json",
   "tests/kit-consumers/tsconfig.json",
 ];
 const SOURCE_EXTENSION = /\.(ts|tsx)$/;
@@ -75,7 +79,7 @@ function sourceRoots(): string[] {
     .filter((entry) => entry.isDirectory())
     .map((entry) => `packages/${entry.name}/src`)
     .filter((root) => fs.existsSync(path.join(repoRoot, root)));
-  return ["apps/web/src", ...packages];
+  return ["apps/web/src", ...packages, "tests"];
 }
 
 function listSourceFiles(): { sources: string[]; declarations: string[] } {
@@ -152,6 +156,9 @@ if (unowned.length > 0) {
   for (const file of unowned) {
     console.error(`not covered by any checked typecheck project: ${file}`);
   }
+  console.error(
+    `Import each file from checked code, or add its directory to the "include" of one of: ${CHECKED_PROJECTS.join(", ")}.`,
+  );
   process.exit(1);
 }
 if (brokenDeclarations.length > 0) {

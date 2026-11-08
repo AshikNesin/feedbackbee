@@ -7,7 +7,7 @@
  * (fast-forwarding to the default branch); otherwise we fall back to a fresh
  * clone into a temp dir.
  */
-import { access, mkdir, rm } from "node:fs/promises";
+import { access, mkdtemp, rm } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import { exec, hasCommit } from "./git";
@@ -166,8 +166,9 @@ export async function acquireBoilerplate(opts: AcquireOptions): Promise<Acquired
   }
 
   // 2. Fall back: fresh clone into a temp directory we own
-  const tempDir = join(tmpdir(), `groot-${purpose.replace(/\W+/g, "-")}-${Date.now()}`);
-  await mkdir(tempDir, { recursive: true });
+  // mkdtemp, not a timestamp: two clones in the same millisecond (or under a
+  // frozen test clock) must not share a directory.
+  const tempDir = await mkdtemp(join(tmpdir(), `groot-${purpose.replace(/\W+/g, "-")}-`));
 
   console.log(`Cloning ${repoUrl} (branch: ${defaultBranch})...`);
   await exec("git", [

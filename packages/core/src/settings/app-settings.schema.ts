@@ -11,6 +11,13 @@ export const upsertAppSettingSchema = z.object({
 
 export type UpsertAppSettingDTO = z.infer<typeof upsertAppSettingSchema>;
 
+/** `POST /settings`: create a setting; refused (409) when the key exists. */
+export const createAppSettingSchema = upsertAppSettingSchema.extend({
+  key: z.string().trim().min(1, "Key is required"),
+});
+
+export type CreateAppSettingDTO = z.infer<typeof createAppSettingSchema>;
+
 export interface AppSettingMetadata {
   description?: string;
   updatedAt: string;

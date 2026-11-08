@@ -36,7 +36,8 @@ entry is `apps/web/src/server/entry.worker.ts`.
    `pnpm exec wrangler secret put ADMIN_AUTH_KEY`; optionally `SENTRY_DSN`.
    The Worker refuses to boot in production without them.
 7. **Deploy**: `pnpm deploy:worker` (builds the client, then `wrangler deploy`).
-8. **First user** — there is no seed script on Workers; use the admin API:
+8. **First user** — there is no seed script on Workers. Open the app and
+   create it at `/setup` (open only while no user exists), or use the admin API:
 
    ```bash
    curl -X POST https://groot.example.workers.dev/api/v1/auth/users \
@@ -90,7 +91,11 @@ cron handler locally, run `pnpm exec wrangler dev --test-scheduled` and request
 - **Rate limiting** is per isolate in memory. For exact limits add
   `ratelimits` bindings named `AUTH_RATE_LIMITER`, `STORAGE_RATE_LIMITER` and
   `UPLOAD_RATE_LIMITER` (`wrangler.jsonc` has a commented example for the
-  first); the middleware uses each one when present.
+  first); the entry's `cloudflareRateLimitStore(bindings)` uses each one when
+  present. A binding applies its own limit and period, not
+  `config.rateLimits`, and reports no counts, so its responses carry no
+  `RateLimit-*` headers. The client is `cf-connecting-ip`
+  (`cloudflareClientAddress`).
 - **Jobs run inside the request or the cron invocation** and share its CPU
   budget. Long work should be split into several jobs.
 - **Workspace packages** resolve through the `exports` map in each

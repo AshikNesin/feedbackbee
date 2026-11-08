@@ -63,7 +63,7 @@ describe("TEST_AREA_OWNERSHIP — declared source exists", () => {
     const roots = [...new Set(Object.values(TEST_AREA_OWNERSHIP).flat())];
     expect(roots.length).toBeGreaterThan(0);
     for (const root of roots) {
-      expect(root).toMatch(/^(\.groot|packages|apps)\//);
+      expect(root).toMatch(/^(\.groot|packages|apps|scripts)\//);
     }
   });
 });

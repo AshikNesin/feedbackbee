@@ -1,13 +1,6 @@
 import { Button } from "@groot/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@groot/ui/card";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@groot/ui/breadcrumb";
+import { Breadcrumbs } from "@groot/ui/breadcrumb";
 import { ErrorState } from "@groot/ui/empty-state";
 import { Skeleton } from "@groot/ui/loading-skeleton";
 import { DataField, DataFields } from "@groot/ui/display";
@@ -62,19 +55,9 @@ export function JobDetail() {
   const actions = <JobActions job={job} onDeleted={() => navigate("/jobs")} />;
 
   const breadcrumb = (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink asChild>
-            <Link to="/jobs">Jobs</Link>
-          </BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbItem>
-          <BreadcrumbSeparator />
-          <BreadcrumbPage>{job.name}</BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
+    <Breadcrumbs page={job.name}>
+      <Link to="/jobs">Jobs</Link>
+    </Breadcrumbs>
   );
 
   return (

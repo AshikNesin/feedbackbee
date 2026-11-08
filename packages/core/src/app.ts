@@ -1,10 +1,13 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { bodyLimit } from "hono/body-limit";
 import { config } from "./config";
+import { defaultBodyLimit } from "./middlewares/body-limit.middleware";
 import { requestLoggerMiddleware } from "./middlewares/request-logger.middleware";
 import { errorHandler, notFoundHandler } from "./middlewares/error-handler.middleware";
+import { cloudflareRateLimitStore } from "./rate-limit/cloudflare";
+import { memoryRateLimitStore, type RateLimitStore } from "./rate-limit/store";
 import type { AppEnv } from "./types";
+import type { ClientAddressResolver } from "./utils/client-ip";
 
 export interface CreateAppOptions {
   /** Mount feature routers: `app.route("/api/v1/todos", todoRoutes)`. */
@@ -14,14 +17,34 @@ export interface CreateAppOptions {
    * the app is not ready and `undefined` once it is.
    */
   readiness?: () => string | undefined;
-  /** Max JSON body size for API routes. Upload endpoints (`uploadPaths`) set their own limit. */
+  /**
+   * Max body size for API routes. A route that takes bigger bodies declares
+   * its own limit with `routeBodyLimit()` from
+   * `@groot/core/middlewares/body-limit.middleware`, and this one skips it.
+   */
   bodyLimitBytes?: number;
   /**
-   * Multipart endpoints that enforce their own size caps, so the JSON body
-   * limit skips them (groot's storage upload is always one). Exact paths, or a
-   * prefix ending in `*`.
+   * Paths the body limit skips. Exact paths, or a prefix ending in `*`.
+   *
+   * @deprecated Declare the limit on the route with `routeBodyLimit()`, which
+   * holds wherever the router is mounted; a path here breaks when it moves.
    */
   uploadPaths?: string[];
+  /**
+   * Who sent a request, for rate limits and request logs (`clientIp(c)`).
+   * The Node entry passes the socket peer behind trusted proxies
+   * (`peerClientAddress`), Workers `cloudflareClientAddress`; both are in
+   * `@groot/core/utils/client-ip`. Default: the @hono/node-server socket when
+   * the request has one, else `cf-connecting-ip`.
+   */
+  clientAddress?: ClientAddressResolver;
+  /**
+   * Where rate-limit counters live: `memoryRateLimitStore()` or
+   * `cloudflareRateLimitStore(bindings)`. Default: a Workers Rate Limiting
+   * binding on `c.env` when the limiter names one that exists, else memory.
+   * Either way each app gets counters of its own.
+   */
+  rateLimitStore?: RateLimitStore;
   /**
    * Public endpoints any website may call without credentials (embeddable
    * widgets, tracking pixels): they answer `Access-Control-Allow-Origin: *`
@@ -31,7 +54,7 @@ export interface CreateAppOptions {
   openCorsPaths?: string[];
 }
 
-/** True when `path` is one of the `openCorsPaths` (exact, or `prefix*`). */
+/** True when `path` is one of `paths` (exact, or `prefix*`). */
 function matchesPath(paths: readonly string[], path: string): boolean {
   return paths.some((p) => (p.endsWith("*") ? path.startsWith(p.slice(0, -1)) : path === p));
 }
@@ -50,7 +73,7 @@ export function markShuttingDown(): void {
  */
 export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
   const app = new Hono<AppEnv>();
-  const limit = bodyLimit({ maxSize: options.bodyLimitBytes ?? 1024 * 1024 });
+  const rateLimitMemory = memoryRateLimitStore();
 
   const openPaths = options.openCorsPaths ?? [];
   const openCors = cors({ origin: "*" });
@@ -60,11 +83,25 @@ export function createApp(options: CreateAppOptions = {}): Hono<AppEnv> {
     credentials: true,
   });
 
+  // The runtime's pieces first: the request logger already reads clientIp(c).
+  app.use((c, next) => {
+    if (options.clientAddress) c.set("clientAddress", options.clientAddress);
+    c.set(
+      "rateLimitStore",
+      options.rateLimitStore ?? cloudflareRateLimitStore(c.env ?? {}, rateLimitMemory),
+    );
+    return next();
+  });
   app.use(requestLoggerMiddleware);
   app.use((c, next) => (matchesPath(openPaths, c.req.path) ? openCors(c, next) : appCors(c, next)));
-  // Upload endpoints set their own (larger) limits; everything else under /api is JSON.
-  const uploadPaths = ["/api/v1/storage/files/upload", ...(options.uploadPaths ?? [])];
-  app.use("/api/*", (c, next) => (matchesPath(uploadPaths, c.req.path) ? next() : limit(c, next)));
+  // Routes that take bigger bodies (storage uploads) declare their own limit.
+  const skipPaths = options.uploadPaths ?? [];
+  app.use(
+    "/api/*",
+    defaultBodyLimit(options.bodyLimitBytes ?? 1024 * 1024, (c) =>
+      matchesPath(skipPaths, c.req.path),
+    ),
+  );
 
   const probe = () => {
     if (shuttingDown) return { status: 503 as const, body: { status: "shutting_down" } };

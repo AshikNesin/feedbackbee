@@ -1,5 +1,316 @@
 # @groot/core
 
+## 2.2.0
+
+### Minor Changes
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`b3039be`](https://github.com/AshikNesin/groot/commit/b3039befd01979bcdc9f655fcf41e55a47a8e879) Thanks [@AshikNesin](https://github.com/AshikNesin)! - fix(settings): adding an existing setting no longer wipes its value; drafts survive refetches
+  
+  "Add setting" saved `{}` through the `PUT` upsert, so adding a key that
+  already existed replaced its value. The settings page also replaced unsaved
+  edits whenever a refetch brought a new server value, and switching settings
+  dropped a dirty draft without a word.
+  
+  - `@groot/core`: `POST /api/v1/settings` (`{ key, value, metadata? }`)
+    creates a setting and answers 409 for a key that exists; `PUT` keeps its
+    upsert semantics for saving. It writes through the new `KvStore.add(key,
+    value, ttlMs?)`, an insert-only write in one statement that resolves false
+    when a live entry holds the key.
+  - `@groot/shell`: `useAppSettingsData()` is the data (settings, `get`, `save`,
+    `create`, `remove`); `create` refuses a key the list holds without a
+    request. `useSettingDraft(setting)` is one editor draft with `isDirty`,
+    `serverChanged`, `discard()` and `parse()`: a refetch leaves a dirty draft
+    alone, and `AppSettings` asks before leaving one. `useAppSettings()` keeps
+    its shape on top of the two and is deprecated.
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`f44c850`](https://github.com/AshikNesin/groot/commit/f44c850f3f632ca54c01f6e265c643020ccfe4f8) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(core): `KvStore.take` and `KvStore.claim`, single-statement consume and claim
+  
+  - **`take(key)`** deletes a live entry and returns its value in one
+    `DELETE … RETURNING` (`undefined` when missing or expired). Of any number of
+    concurrent `take`s of one key, exactly one gets the value.
+  - **`claim(key, intervalMs)`** is one compare-and-set upsert that returns
+    `true` for at most one caller per interval, across processes and Workers
+    isolates. The value is the claim time in epoch ms; the row expires with the
+    claim.
+  - **Fix: passkey challenge replay.** Verification consumed a challenge with
+    `has()` then `delete()`, so two concurrent verifications of one challenge
+    could both pass. It now uses `take`.
+  - `@groot/jobs`: the tick's housekeeping slot is claimed with `kv.claim`
+    instead of a hand-written upsert on the `kv` table. The key and value format
+    (`jobs:housekeeping:lastRunAt`, epoch ms) are unchanged, so existing rows
+    keep working.
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`1abd148`](https://github.com/AshikNesin/groot/commit/1abd148fc59353dbc4b3f629af9449ec1eb25896) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(core): one session module, `@groot/core/session`
+  
+  Starting a session (mint the JWT, shape the user, set the cookie) was spread
+  over three services and two routers, and the user shape had drifted: passkey
+  login returned the whole account row minus the password, `createdAt` and
+  `updatedAt` included. Now:
+  
+  - **`startSession(c, account)`** mints the token, sets the `token` cookie and
+    returns the body every sign-in route sends, `{ token, user }`, typed
+    `SignInResponse` in `@groot/core/auth/auth.schema` (the wire type, next to
+    `SessionUser`). `user` is exactly `{ id, email, name }` whatever record is
+    passed. Password login and first-run setup answer as before; **passkey login
+    now returns the same `user` shape** (no `createdAt`/`updatedAt`).
+  - **`endSession(c)`** clears the cookie; **`requireSession`** is the session
+    guard (cookie, else bearer; the account must still exist; sets
+    `c.get("user")`). `sessionInvalid()` is private to the module, so only the
+    guard can answer 401 `SESSION_INVALID`. `verifySessionToken(token)` checks a
+    token outside HTTP.
+  - The services return the account and the routes sign it in:
+    `authService.authenticate()` and `authService.setupFirstUser()` return the
+    user, and `passkeyService.authenticatePasskey()` replaces
+    `verifyAuthentication()`. `authService.toPublicUser()` is new.
+  - **Deprecated** (still working, removed in the next major):
+    `jwtAuthMiddleware` (use `requireSession`); `generateToken`, `verifyToken`
+    and `jwtExpiresInMs` in `utils/jwt.utils` (now `signSessionToken`,
+    `verifySessionToken`, `sessionLifetimeMs`); `setAuthCookie`,
+    `clearAuthCookie` and `extractAuthToken` in `utils/auth-cookie.utils`;
+    `authService.login()`, `authService.createFirstUser()` and
+    `passkeyService.verifyAuthentication()`, which still return
+    `{ token, user }` without setting the cookie.
+  - **Removed:** `sessionInvalid` from `utils/jwt.utils`. Lint rule R9 already
+    allowed it only in the session guard, so no conforming caller used it.
+  - Fix: the login comment no longer claims bcrypt hashes are upgraded;
+    `verifyPassword` accepts only PBKDF2-SHA256.
+  
+  Apps: `apps/web/src/server/app.ts` guards the protected sub-app with
+  `requireSession` from `@groot/core/session`.
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`f4022b4`](https://github.com/AshikNesin/groot/commit/f4022b454292fa768d71aea5efd1a496501dfc57) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Rate limits count in a `RateLimitStore` the runtime supplies, and the runtime says who the client is.
+  
+  - **Stores.** `rateLimit()` asks the app's store (`hit(key, rule)` → `{ allowed, limit?, remaining?, resetAt? }`). Two adapters ship: `memoryRateLimitStore()` in `@groot/core/rate-limit/store` and `cloudflareRateLimitStore(bindings)` in `@groot/core/rate-limit/cloudflare`, which uses each limiter's Workers Rate Limiting binding and memory for one that is not bound. Responses carry `RateLimit-Limit`, `RateLimit-Remaining` and `RateLimit-Reset` whenever the store reports them, and a 429 also `Retry-After`; the Cloudflare binding reports only allowed or not, so its responses carry none.
+  - **Per app.** Each `createApp()` call gets counters of its own, so test apps no longer share one bucket per test file. `createApp({ rateLimitStore })` picks the store; without one, a binding on `c.env` wins as before, else memory.
+  - **Client address.** `createApp({ clientAddress })` takes a `ClientAddressResolver` (`@groot/core/utils/client-ip`): `peerClientAddress(peer)` for Node (the socket peer, or the hop a `TRUSTED_PROXIES` proxy vouches for, as before) and `cloudflareClientAddress` for Workers. `clientIp(c)` reads it. Without one, core still reads @hono/node-server's socket, else `cf-connecting-ip`.
+  - `AppEnv` variables gain `clientAddress` and `rateLimitStore`; `RateLimitOptions` gains `name`. The exported limiters (`authRateLimiter`, `storageRateLimiter`, `uploadRateLimiter`) are unchanged.
+  
+  To adopt in an app: pass `clientAddress: peerClientAddress((c) => getConnInfo(c).remote.address)` and `rateLimitStore: memoryRateLimitStore()` from `entry.node.ts`, and `clientAddress: cloudflareClientAddress` and `rateLimitStore: cloudflareRateLimitStore(bindings)` from `entry.worker.ts`, through `startWebApp()` (`WebRuntime` now picks both from `CreateAppOptions`).
+
+- [#165](https://github.com/AshikNesin/groot/pull/165) [`494007f`](https://github.com/AshikNesin/groot/commit/494007f804a7ad3c83c2413b2222b1bc9d0b59ac) Thanks [@AshikNesin](https://github.com/AshikNesin)! - A route declares its own body limit with `routeBodyLimit(bytes)` (`@groot/core/middlewares/body-limit.middleware`), and the app's 1 MB `/api/*` limit skips every request such a route matches, so the limit holds wherever the router is mounted. Storage uploads use it for their 100 MB limit, so `createApp()` no longer hard-codes `/api/v1/storage/files/upload`, and mounting the storage router elsewhere keeps large uploads working. Streamed bodies are still counted as they arrive. `CreateAppOptions.uploadPaths` still works but is deprecated: declare the limit on the route instead.
+
+## 2.1.1
+
+### Patch Changes
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): take the latest compatible releases
+  
+  Vite+ 1.5 with Vitest 5.1, hono 4.13, jose 6.2.15, motion 14.10, Tailwind
+  4.3.5, wrangler 4.158 and jsdom 31. `@earendil-works/pi-ai` stays at 1.4.0:
+  1.5.0 drops `Type`, `TSchema` and `Static` from its `compat` entry, which
+  `@groot/ai` imports.
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): upgrade dependencies to the versions tiny-agents runs
+  
+  Every dependency groot shares with tiny-agents now matches its version, so a
+  sync no longer conflicts on version ranges.
+  
+  - **Majors.** Vite+ 1.4 with Vitest 5, Sentry 11 (`@sentry/node`,
+    `@sentry/cloudflare` and the build plugins), SimpleWebAuthn 14,
+    better-sqlite3 13, jsdom 30, `@testing-library/jest-dom` 7,
+    `@hookform/resolvers` 6, `@types/node` 26, changesets 3 (with
+    `@changesets/changelog-github` 1) and `openai` 7.
+  - **Minors and patches.** React 19.3, radix-ui 1.8, lucide-react 1.61, zod 4.6,
+    TanStack Query 5.104, the CodeMirror pins, pi-ai 1.4 and the rest.
+  - **Call sites.** Sentry 11 dropped `sendDefaultPii`; its `dataCollection`
+    defaults already attach user info, cookies and headers, so both entries just
+    drop the option. SimpleWebAuthn 14 renamed `AuthenticatorTransportFuture` to
+    `AuthenticatorTransport`.
+  - **Changesets 3** skips private packages unless asked, so
+    `.changeset/config.json` sets `privatePackages: { version: true, tag: false }`
+    to keep versioning the private kit packages (tags still come from the
+    release workflow).
+
+- [#154](https://github.com/AshikNesin/groot/pull/154) [`4acfa49`](https://github.com/AshikNesin/groot/commit/4acfa49e504c19534ade389a857f843f3b8ea5c9) Thanks [@AshikNesin](https://github.com/AshikNesin)! - feat(kit): upstream the kit fixes and features made first in tiny-agents
+  
+  - **`@groot/ui`: Fluid motion in the primitives.** New `@groot/ui/motion`
+    entry (`spring` tiers, `useModalPresence`, `FluidHighlight`). `Dialog` and
+    `AlertDialog` spring in and stay mounted through their exit; `DialogContent`
+    gains `size` (`sm` 400px default, `md`, `lg`, `xl`) and `position`
+    (`center` / `top`). `TabsList` slides its selected pill (or `line`
+    underline) and shows a hover pill; `Tooltip` is an inverted chip that springs
+    in and fades out, with a 200ms provider delay; `Select`, `DropdownMenu` and
+    `Command` share one gliding row highlight; `CommandDialog` opens top-anchored
+    at `lg`, and `Command` gains a `CommandFooter` of keyboard hints. Existing
+    props are unchanged. Client tests should set
+    `MotionGlobalConfig.skipAnimations = true` (see `tests/client/setup.ts`).
+  - **`@groot/ui`: `Breadcrumbs`.** `<Breadcrumbs page={job.name}><Link to="/jobs">Jobs</Link></Breadcrumbs>`
+    places the list items and separators, so a separator can't land inside an
+    item. Storage (`@groot/shell`) and JobDetail (`@groot/jobs`) use it.
+  - **`@groot/shell`: login returns to the page that asked for it.**
+    `ProtectedRoute` passes the location to `/login`, and a successful password
+    or passkey sign-in goes back there (in-app paths only) instead of `/`.
+  - **`@groot/shell`: Inter is no longer imported by `index.css`.** Tailwind
+    inlined that `@import` before Vite saw it, so the font files were never
+    emitted and production served `index.html` in their place. Import it from
+    your client entry instead: `import "@fontsource-variable/inter";` before
+    `import "@groot/shell/index.css";`.
+  - **`@groot/shell`: fixes.** Auth pages use `min-h-dvh`; the dev demo
+    credentials have a space after the label; the page scrollbar follows the
+    theme; Storage's icon buttons have accessible names, its select column has a
+    screen-reader header, folders show `-` for Modified instead of the epoch,
+    folder names have readable contrast, and viewing a UTF-8 text file no longer
+    shows mojibake. The row buttons' names include the file name, so an e2e
+    locator like `getByRole("cell", { name })` needs `exact: true`. The passkey card title is a level-2 heading.
+  - **`@groot/jobs`: accessible state filter.** The overflow state menu sits
+    beside the tab list (a tablist may only hold tabs) and has a label.
+  - **`@groot/core`: fixes.** Storage downloads of `text/*` with no charset are
+    served as `charset=utf-8`. Login re-hashes a password stored with an older
+    PBKDF2 iteration count (`needsRehash`).
+  - **App: missing build files 404.** The Node SPA fallback answers a request for
+    a missing asset (`/assets/*`, common static extensions) with a 404 instead of
+    `index.html`, and the client reloads once when a lazy chunk fails to load
+    after a deploy.
+
+- [#155](https://github.com/AshikNesin/groot/pull/155) [`bd42693`](https://github.com/AshikNesin/groot/commit/bd426933e3274957888307f580b9949aa9ca6ffb) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): `@types/better-sqlite3` 9
+  
+  The type definitions for better-sqlite3 13 (the runtime moved in the previous
+  upgrade); no source change was needed.
+
+- [#156](https://github.com/AshikNesin/groot/pull/156) [`6e83765`](https://github.com/AshikNesin/groot/commit/6e83765462d2d7cab627c572fc20092f073859ba) Thanks [@AshikNesin](https://github.com/AshikNesin)! - chore(deps): `@cloudflare/workers-types` 5
+  
+  The v5 typings declare R2's `list({ include })`, so the R2 adapter types its
+  list options as `R2ListOptions` instead of relying on an untyped object.
+
+## 2.1.0
+
+### Minor Changes
+
+- [#149](https://github.com/AshikNesin/groot/pull/149) [`0bbf92f`](https://github.com/AshikNesin/groot/commit/0bbf92f21c56d4f7c8a0a874782a6787b8b83f53) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Add first-run setup: create the first user from the browser at `/setup`.
+
+  `@groot/core` adds `GET /api/v1/auth/setup` (`{ needsSetup }`) and
+  `POST /api/v1/auth/setup`, which creates the first account and signs it in
+  (cookie + token, like login). It answers 403 once any user exists and is
+  rate-limited like login. The service gains `hasAnyUser()` and
+  `createFirstUser()`; the schema exports `SetupStatus`.
+
+  `@groot/shell` adds the `Setup` page (`@groot/shell/pages/auth/Setup`), the
+  `useSetupStatus()` hook and the store's `setup()` action. `Login` redirects to
+  `/setup` while no user exists, and `Setup` redirects to `/login` once one
+  does. Apps mount it with `<Route path="/setup" element={<Setup />} />`.
+
+- [#151](https://github.com/AshikNesin/groot/pull/151) [`1faa763`](https://github.com/AshikNesin/groot/commit/1faa7639c5a63dbb75f53b7006b9d551d78f845c) Thanks [@exe-dev-github-integration](https://github.com/apps/exe-dev-github-integration)! - Upstreamed from tiny-agents: the session guard and client-address fixes.
+
+  - **Session guard.** `jwtAuthMiddleware` now looks up the account behind a valid token. A token for a deleted account gets a 401 coded `SESSION_INVALID` (`sessionInvalid()` in `@groot/core/utils/jwt.utils`, `ErrorCode.SESSION_INVALID`). Before, a removed user's token kept working until it expired. The shell's `apiClient.onUnauthorized` now fires only on that code, so a wrong password or another 401 no longer signs the user out. `ApiError` gains `fromServer`.
+  - **Client address.** `clientIp()` now keys on the socket peer. It trusts `X-Forwarded-For` only when the peer is in the new `TRUSTED_PROXIES` (IPv4 and IPv6 addresses or CIDR ranges; unset means loopback and the private ranges, including `fc00::/7`; `none` means no proxy). Before, any client could rotate `X-Forwarded-For` to get past the login rate limit. On Workers, `cf-connecting-ip` is still the client. The rate limiter keys an IPv6 client by its /64. An entry with host bits set (`10.0.0.1/8`) fails at boot.
+
+## 2.0.0
+
+### Major Changes
+
+- [`df27e7b`](https://github.com/AshikNesin/groot/commit/df27e7b99478ad44ee400f69ebd523d23a1ff404) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Dead surface removed.
+
+  - **Breaking:** the `@groot/core/auth`, `@groot/core/passkey` and `@groot/core/settings` entrypoints (barrel re-exports) are removed; nothing imported them. Import the modules directly: `@groot/core/auth/auth.routes`, `@groot/core/passkey/passkey.service`, `@groot/core/settings/app-settings.schema`, etc.
+  - **Breaking:** `created()` is removed from `@groot/core/utils/api-response.utils`; use `ok(c, data, 201)`.
+  - **Breaking:** the `NewUser`, `NewPasskey` and `KvRow` type aliases are removed from `@groot/core/database/schema` (no readers); use `typeof users.$inferInsert` and friends where needed.
+  - `parseParams` and the `Middleware` type stay: the storage routes validate folder params with `parseParams`, and downstream apps type middleware with `Middleware`.
+
+- [`e0a63a9`](https://github.com/AshikNesin/groot/commit/e0a63a9b46d73c1eaadee94280c12fc5f2c5b014) Thanks [@AshikNesin](https://github.com/AshikNesin)! - The env schema holds only what is read through the validated `env`.
+
+  - **Breaking:** `OPENAI_API_KEY` and `SOURCE_COMMIT` are removed from `envSchema` and the `Env` type. Nothing read them through `env`: the OpenAI and pi-ai SDKs read provider keys from `process.env` themselves, and `SOURCE_COMMIT` is a build-time input of `scripts/build.mjs` and `vite.config.ts`. Migration: read `process.env.OPENAI_API_KEY` directly, or pass `apiKey` to the `@groot/ai` client.
+  - `config.sentry` gains `release` (from `SENTRY_RELEASE`). Groot's Node and Worker entries now start Sentry from `config.sentry` instead of raw `process.env` / bindings, so a `defineConfig({ sentry: { dsn } })` override applies to both.
+  - `CLOUDFLARE_API_KEY`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_GATEWAY_ID` and `DEFAULT_MODEL` stay in the schema for app code that configures `@groot/ai`; their doc comments say so.
+  - `docs/reference/config.md` states the rule: env is secrets and runtime facts, validated once; config is tunables with defaults set by `defaultConfig()` and overridden with `defineConfig()`.
+
+- [`28e8bd3`](https://github.com/AshikNesin/groot/commit/28e8bd3a8a45f12ce9474f6dd76b3396603cdcaa) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One HTTP-error module: `packages/core/src/errors` collapsed from six files into one `index.ts` holding `HttpError`, the `Boom` factories, the SQLite constraint mapping, the thrown-value normalisation and the error-reporting seam.
+
+  - **Breaking:** unused `Boom` factories removed (`paymentRequired`, `methodNotAllowed`, `notAcceptable`, `clientTimeout`, `gone`, `teapot`, `locked`, `illegal`, `internal`, `notImplemented`, `gatewayTimeout`). `Boom.boomify(err, { statusCode })` covers arbitrary statuses.
+  - **Breaking:** the object-form `BoomOptions` overload is gone; factories take `(message?, data?, code?)` and `code` is now any string, not just `ErrorCodeValue`.
+  - **Breaking:** `HttpError.isServer` removed (no readers); use `statusCode >= 500`.
+  - **Breaking:** `ErrorCode` keeps only the codes core itself uses (`VALIDATION_ERROR`, `NOT_FOUND`, `RATE_LIMIT_EXCEEDED`, `UPLOAD_RATE_LIMIT_EXCEEDED`, `INTERNAL_ERROR`); the `ErrorCodeEnum`/`ErrorCodeKey` aliases and `isDbConstraintError` are removed. The job-domain codes (`JOB_NOT_FOUND`, `JOB_NAME_INVALID`, `JOB_SCHEDULE_VALIDATION_ERROR`) moved from core into `@groot/jobs` as plain string codes.
+  - `toHttpError` is now the single normaliser the error handler uses: `HttpError` passes through, SQLite constraints map to 409/400, Hono's `HTTPException` keeps its status, anything else becomes a 500. `reportError`/`setErrorReporter` are unchanged.
+
+  Migration: replace removed factories with the nearest kept one or `boomify`; pass domain codes as string literals.
+
+- [`2861fa1`](https://github.com/AshikNesin/groot/commit/2861fa1b43fc745c4a83117d75587ecfcfb5df47) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One logger module: `packages/core/src/logger` collapsed from five files into one `index.ts` holding the logger, levels, breadcrumbs, the performance helper and two seams — a per-child **record sink** (`child(bindings, { sink })`, inherited by grandchildren) and the process-wide **scrubber** (`setScrubber`/`scrubValue`/`scrubText`) that runs every field and message through the app's secret redaction before anything is written.
+
+  - **Breaking:** `createRequestLogger`, `logBusinessEvent`, `clearBreadcrumbs`, `sanitizeRequestBody` and the `RequestDescriptor`/`LogBusinessEventOptions` types are removed. The request-logger middleware builds its child logger inline (`reqId`, `method`, `url`, `userAgent`, `ip` bindings unchanged); a failed request now logs one error line plus the request line instead of three.
+  - The jobs logger is now a core child logger with a persistence sink: `createJobLogger({ jobId, jobName, additionalContext })` and `flushJobLogs()` keep their signatures, argument handling and scrubbing come from core. Sinks fire regardless of the global console level (a `silent` console still leaves a job trail); rows are filtered by the sink, not the level.
+
+- [`9613dad`](https://github.com/AshikNesin/groot/commit/9613dad11d403526d08492a74b3b0546bda1c34e) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One boot sequence for the entries, the scripts and the tests.
+
+  - **Breaking:** the `prettyLogs` bootstrap option is removed (it had no effect worth keeping: pretty is now simply on outside production). `hasDb()` is removed from `@groot/core/database` (no callers).
+  - The app owns the boot sequence: `startWebApp(runtime)` in `apps/web/src/server/app.ts` runs `bootstrap()` with the app config, registers job handlers and returns the HTTP app. Both entries shrink to building their adapters, and `scripts/seed.ts` and `tests/e2e/global-setup.ts` share one `seed()`.
+  - **Breaking (app-level, not kit):** `GROOT_MIGRATIONS_DIR` is gone; `openDatabase(url)` in `apps/web/src/server/db/node.ts` is the one place that knows the migrations folder (`apps/web/drizzle` in the repo, `dist/server/drizzle` next to the bundle), used by the Node entry, `scripts/db-migrate.ts`, `scripts/seed.ts` and the test setup.
+  - `registerJobHandlers()` is no longer exported from `apps/web/src/server/app.ts`; `startWebApp()` runs it.
+
+- [`a17ed96`](https://github.com/AshikNesin/groot/commit/a17ed960618f9e4bc38a57d4e8dd3f14bd16e0d7) Thanks [@AshikNesin](https://github.com/AshikNesin)! - The server owns passkey policy; the client renders it.
+
+  - **`@groot/core`**: `GET /api/v1/passkey/list`, `POST /register/verify` and `PATCH /:id` return `PasskeySummary` = `{ id, credentialName, kind, label, backedUp, canDelete, lastUsedAt, createdAt }`. `kind` (`"security-key" | "synced" | "device"`) and `label` come from the new `describePasskey()` in `passkey/webauthn.utils`; `canDelete` is `false` for a user's last passkey, which the server already refused to delete. The raw `userId`, `counter`, `transports`, `deviceType` and `updatedAt` fields are no longer returned; read the `passkeys` table if you need them. No schema change.
+  - **`@groot/core`**: `POST /login/verify` no longer accepts `email` (nothing read it; extra keys are ignored), and `verifyAuthentication()` drops the parameter. `POST /login/options` keeps its optional `email`. Removed the unused `VerifyRegistrationDTO`, `VerifyAuthenticationDTO`, `GenerateAuthenticationOptionsDTO` and `UpdatePasskeyNameDTO` types from `passkey/passkey.schema`; use `z.infer<typeof …Schema>`.
+  - **`@groot/shell`**: the `Passkey` type in `services/passkey` is the summary above. `PasskeyManager` picks the icon from `kind`, shows `label`, and disables Delete when `canDelete` is false (it used to check a `deviceType === "platform"` value the server never stores, and warned as if the last passkey could be deleted). Removed `passkeyService.isPasskeySupported()` and `passkeyService.isPlatformAuthenticatorAvailable()`; call `window.PublicKeyCredential` directly or use `browserSupportsWebAuthn()` from `@simplewebauthn/browser`.
+
+- [`f6a363f`](https://github.com/AshikNesin/groot/commit/f6a363f2d968f893756c723aa7abc4a172d4791f) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One contract for every storage adapter. The semantics (keys, `put`/`head` agreement, missing keys, `list` order, `limit` and `cursor`, `copy`, content types) are written down in `@groot/core/storage/adapter`, and one contract suite runs against the memory, local and R2 adapters.
+
+  - **Breaking:** `StorageAdapter.delete(keys)` resolves to `void` instead of a count. The R2 adapter no longer heads every key before deleting it. Custom adapters: return nothing from `delete`.
+  - **Breaking:** `storageService.deleteFiles()` resolves to `void`, and `DELETE /api/v1/storage/files` answers `204` with no body instead of `{ deletedCount }`. `deleteFolder()` and `DELETE /folders/:folderPath` still return `{ deletedCount }`, the number of objects listed under the prefix.
+  - **Breaking:** the `groupByDelimiter` helper in `@groot/core/storage/adapter` is replaced by `listKeys(keys, options)`, which also applies `limit` and `cursor`. The memory and local adapters now page like R2 (at most `limit` entries, default and maximum 1000, with a `cursor` when more exist).
+  - Fixed: R2 listings carried no content type (the adapter now asks for `httpMetadata`); the local adapter's `head`/`get` now reject a key that escapes the root instead of returning `null`; the local adapter's `put` reports the extension-derived content type it will serve; `memoryStorage().get()` returns a copy of the bytes.
+
+- [`becdce4`](https://github.com/AshikNesin/groot/commit/becdce4363122d09dd588cbb8eea3806be8c8ea7) Thanks [@AshikNesin](https://github.com/AshikNesin)! - The storage HTTP interface is narrowed to what the Storage page uses, and paths are validated once, at the edge.
+
+  - **Breaking:** `POST /api/v1/storage/files/upload` takes one or many files (field `file`, repeated, up to 50) plus an optional `folder`, stores each at `<folder><file name>`, and returns `{ uploadedFiles, failedFiles }`. The `filePath` and `contentType` form fields are gone (the content type comes from the file). Migration: send `folder` instead of a full `filePath`; to store under another name, call `storageService.uploadFile()` from server code.
+  - **Breaking:** `POST /files/bulk-upload` is removed (it ignored the folder); use `POST /files/upload`. `storageService.bulkUpload()` is renamed `uploadFiles()`.
+  - **Breaking:** `GET /files/metadata` and `storageService.getFileMetadata()` are removed; use `storage.head(key)`.
+  - **Breaking:** `GET /files` takes `folder` instead of `prefix` and `delimiter`, and always lists one folder level; the empty-delimiter mode is removed. `storageService.listFiles()` takes `{ folder }`.
+  - **Breaking:** file paths with a leading, trailing or doubled `/`, or a `.` / `..` segment, are rejected with `400`, as are upload file names containing `/`. Folder paths are normalised to `a/b/` (a trailing `/` is no longer required on `POST /folders` and `DELETE /folders/:folderPath`), and the schemas are now the only place that checks them: `createFolder()` and `deleteFolder()` no longer reject a path without a trailing `/`, so pass one when calling them directly. The schema module exports `filePathSchema`, `folderPathSchema`, `uploadFilesSchema`, `deleteFolderSchema` and `MAX_UPLOAD_FILES`; `getFileMetadataSchema` is removed.
+  - New `parseForm(c, schema)` in `@groot/core/utils/controller.utils` validates a multipart or urlencoded body like `parseBody` does JSON.
+  - **Breaking (`@groot/shell`):** `useUploadFile()` is replaced by `useUploadFiles()`, which takes `{ files, folder }` and uploads in one request; `useStorageFiles(folder)` sends `folder`. Multi-file uploads on the Storage page now land in the open folder through the single upload route.
+
+### Minor Changes
+
+- [`869db96`](https://github.com/AshikNesin/groot/commit/869db96397cac115b16c05c4a4e4bf2cbfd5a1cc) Thanks [@AshikNesin](https://github.com/AshikNesin)! - `createApp({ openCorsPaths })` serves public endpoints to any website without credentials (`Access-Control-Allow-Origin: *`), bypassing the app's credentialed CORS allow-list for just those paths. Use it for embeddable widgets and tracking endpoints that customer sites call from their own origin; previously the global middleware answered their preflights first, so setting `CORS_ALLOWED_ORIGINS` silently broke them.
+
+  Exact paths or a `prefix*` (`openCorsPaths: ["/api/track", "/widget/*"]`). Unset, nothing changes.
+
+- [#145](https://github.com/AshikNesin/groot/pull/145) [`29c96e1`](https://github.com/AshikNesin/groot/commit/29c96e120320efe5da8d04bfa75caaeb97a9409a) Thanks [@AshikNesin](https://github.com/AshikNesin)! - `createApp({ uploadPaths })` lets multipart endpoints that enforce their own size caps skip the JSON body limit (1 MB by default) on `/api/*`. Previously only groot's storage upload was exempt, so an app's own upload endpoint (a feedback form with screenshots and recordings, say) was cut off at 1 MB.
+
+  Exact paths or a `prefix*` (`uploadPaths: ["/api/v1/feedback"]`). The storage upload stays exempt; unset, nothing changes.
+
+- [`b3a2a21`](https://github.com/AshikNesin/groot/commit/b3a2a210251e7557517804feda498a711591eeb8) Thanks [@AshikNesin](https://github.com/AshikNesin)! - One wire-type source per slice: the server publishes its JSON response types once, and clients import them type-only (erased at build) instead of hand-copying shapes that drift.
+
+  - **`@groot/jobs`**: new `@groot/jobs/server/wire-types` — `Job`, `JobSchedule`, `JobLog`, `JobStats`, `BulkRerunResult`, derived from the schema rows with every timestamp as an ISO string. `@groot/jobs/client/types` re-exports them under the same names, so existing imports keep working.
+  - **`@groot/core`**: `SessionUser` (`auth.schema`), `PasskeySummary` with string dates (`passkey.schema`), `FileInfo` with a string `lastModified` plus `UploadFilesResult` (`storage.schema`) and `AppSetting` (`app-settings.schema`) are the single sources, each declared in a zod-only leaf so the client's type graph never pulls in server modules. The passkey service now serialises dates itself, matching what JSON always sent; the service modules re-export their wire types for server-side importers.
+  - **`@groot/shell`**: local copies removed — `useStorage`'s `StorageFile`/`UploadResult`, `store/auth`'s `SessionUser`, `services/passkey`'s `Passkey` and `useAppSettings`' `AppSetting` are now aliases of the core types. `@groot/shell` gains a (type-only) `@groot/core` dependency.
+
+  `AGENTS.md` documents the rule: type-only imports across the client/server boundary are allowed for wire types; each slice publishes them once, in a web-neutral leaf module, with dates as ISO strings.
+
+### Patch Changes
+
+- [`1f33ccc`](https://github.com/AshikNesin/groot/commit/1f33cccf00d1074e350194cdb03350fc4544b011) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Job housekeeping costs what it deletes, not what the tables hold.
+
+  - **Once per interval across isolates:** the 10-minute housekeeping gate was an
+    in-memory timestamp, so every fresh Workers isolate swept again, up to once
+    per cron fire. The last run time now lives in the `jobs:housekeeping:lastRunAt`
+    kv row, claimed with one compare-and-set upsert; the in-memory check stays as
+    a fast path for the Node poller.
+  - **No more orphan-log scan:** `housekeeping()`, `deleteJob()` and
+    `purgeJobsByState()` delete the logs of the jobs they remove through the new
+    `deleteJobLogs(ids)` (`@groot/jobs/server/logger`, chunked under D1's
+    100-parameter limit) instead of `DELETE … WHERE job_id NOT IN (SELECT id FROM
+jobs)`, which read every `job_logs` row. A job deleted while its handler runs
+    has its late log rows removed when the tick finishes it.
+  - **Indexes:** `kv_expires_at_idx` (`@groot/core`) and
+    `jobs_state_completed_at_idx` (`@groot/jobs`), in migration
+    `0001_housekeeping_indexes.sql`. The Worker applies it on its next first
+    request; Node on boot.
+
+  Logs orphaned before this release are no longer swept. To remove them once:
+  `DELETE FROM job_logs WHERE job_id NOT IN (SELECT id FROM jobs);`
+
+- [`1f59d1b`](https://github.com/AshikNesin/groot/commit/1f59d1b2190274f9a9cc362049e3ea4b29f26977) Thanks [@AshikNesin](https://github.com/AshikNesin)! - Fixes from the 404less onboarding review:
+
+  - `renameFile` onto its own path no longer deletes the file (it 404s for a missing source, otherwise no-ops).
+  - Only the multipart upload route skips the global JSON body limit; the other storage routes keep it.
+  - Downloads of HTML/SVG/XML/JS are served as attachments, and every download sends `X-Content-Type-Options: nosniff`, so an uploaded file cannot run script on the app origin.
+  - Uploaded file names containing `/` are rejected.
+  - `getContentType` no longer resolves `Object.prototype` members (`report.constructor`).
+  - `listKeys` rejects limits below 1 instead of returning a silently truncated page.
+  - The kv store's prefix match is case-sensitive (`clear("user:")` no longer deletes `User:1`).
+  - `parseForm` answers a malformed form body with 400 instead of 500; `verifyPassword` returns `false` for malformed stored hashes instead of throwing.
+  - Passkey names are trimmed, so whitespace-only names are rejected.
+  - Local (Node) storage writes through a temp file and renames it over the target, so an interrupted overwrite keeps the previous object.
+
 ## 1.0.0
 
 ### Major Changes

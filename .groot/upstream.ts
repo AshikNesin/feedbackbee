@@ -13,7 +13,7 @@
  *   pnpm groot:upstream --dry-run - Show what would be upstreamed (no changes)
  *   pnpm groot:upstream --all     - Upstream every file that merges cleanly
  */
-import { readFile, writeFile, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { readFile, writeFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
@@ -190,8 +190,7 @@ async function createUpstreamPR(
   childAppName: string,
   defaultBranch: string,
 ): Promise<string> {
-  const tempDir = join(tmpdir(), `groot-upstream-pr-${Date.now()}`);
-  await mkdir(tempDir, { recursive: true });
+  const tempDir = await mkdtemp(join(tmpdir(), "groot-upstream-pr-"));
 
   try {
     // Clone boilerplate fresh to its default branch

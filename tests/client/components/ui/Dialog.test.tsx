@@ -29,7 +29,7 @@ describe("DialogContent", () => {
     const user = userEvent.setup();
     render(<Example />);
     await user.click(screen.getByRole("button", { name: "Open" }));
-    expect(screen.getByText("Dialog body")).toBeVisible();
+    await waitFor(() => expect(screen.getByText("Dialog body")).toBeVisible());
 
     await clickOutside(user);
 
@@ -40,6 +40,8 @@ describe("DialogContent", () => {
     const user = userEvent.setup();
     render(<Example dismissOnOutsideClick={false} />);
     await user.click(screen.getByRole("button", { name: "Open" }));
+    // Fully open (its entrance applied) before the stray click.
+    await waitFor(() => expect(screen.getByText("Dialog body")).toBeVisible());
 
     await clickOutside(user);
 

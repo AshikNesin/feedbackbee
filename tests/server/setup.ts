@@ -7,6 +7,11 @@
 import { memoryStorage } from "@groot/core/storage/memory";
 import { startWebApp } from "../../apps/web/src/server/app";
 import { openDatabase } from "../../apps/web/src/server/db/node";
+import { pinClockWhileLoadingAndBeforeEachTest } from "../test-clock";
+import { boundWaitsByTestTimeout } from "./fixtures/until";
+
+pinClockWhileLoadingAndBeforeEachTest();
+boundWaitsByTestTimeout();
 
 process.env.NODE_ENV = "test";
 

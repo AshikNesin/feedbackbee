@@ -2,29 +2,23 @@ import { Button } from "@groot/ui/button";
 import { Card } from "@groot/ui/card";
 import { Checkbox } from "@groot/ui/checkbox";
 import { cn } from "@groot/ui/lib/utils";
-import { handleDownload, handleView } from "@groot/shell/pages/storage/hooks/useStorageActions";
 import type { StorageFile } from "@groot/shell/pages/storage/hooks/useStorage";
-import { Download, File as FileIcon, Folder, Trash2 } from "lucide-react";
+import type { FileAction } from "@groot/shell/pages/storage/hooks/useStorageBrowser";
+import { File as FileIcon, Folder } from "lucide-react";
 import { formatBytes, formatDate } from "@groot/shell/lib/utils";
 
 type Props = {
   file: StorageFile;
   selected: boolean;
   onToggle: (key: string) => void;
+  /** Open a folder. */
   onNavigate: (key: string) => void;
-  onDeleteFolder: (key: string) => void;
-  onView?: (file: StorageFile) => void;
+  /** The card's actions, from `useStorageBrowser().fileActions(file)`. */
+  actions: FileAction[];
 };
 
-/** Mobile card view for a single file/folder. */
-export function MobileFileCard({
-  file,
-  selected,
-  onToggle,
-  onNavigate,
-  onDeleteFolder,
-  onView,
-}: Props) {
+/** Mobile card view for a single file/folder: a row of labelled buttons for `actions`. */
+export function MobileFileCard({ file, selected, onToggle, onNavigate, actions }: Props) {
   return (
     <Card className={cn("gap-3 p-4", selected && "bg-muted")}>
       <div className="flex items-start justify-between">
@@ -34,6 +28,7 @@ export function MobileFileCard({
               checked={selected}
               onCheckedChange={() => onToggle(file.key)}
               onClick={(e) => e.stopPropagation()}
+              aria-label={`Select ${file.name}`}
             />
           )}
           {file.isDirectory ? (
@@ -63,41 +58,29 @@ export function MobileFileCard({
         </div>
         <div>
           <span className="block">Modified</span>
-          <span className="font-medium text-foreground">{formatDate(file.lastModified)}</span>
+          <span className="font-medium text-foreground">
+            {/* Folders: "-" — the epoch sentinel isn't a date (see
+                DesktopFileRow). */}
+            {file.isDirectory ? "-" : formatDate(file.lastModified)}
+          </span>
         </div>
       </div>
 
-      {file.isDirectory ? (
-        <Button
-          variant="destructive"
-          size="sm"
-          onClick={() => onDeleteFolder(file.key)}
-          className="w-full"
-        >
-          <Trash2 className="size-4" />
-          Delete Folder
-        </Button>
-      ) : (
-        <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        {actions.map(({ id, label, ariaLabel, icon: Icon, destructive, run }) => (
           <Button
-            variant="outline"
+            key={id}
+            variant={destructive ? "destructive" : "outline"}
             size="sm"
-            onClick={() => (onView ? onView(file) : handleView(file.key))}
+            onClick={run}
+            aria-label={ariaLabel}
             className="flex-1"
           >
-            View
+            <Icon className="size-4" />
+            {label}
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => handleDownload(file.key, file.name)}
-            className="flex-1"
-          >
-            <Download className="size-4" />
-            Download
-          </Button>
-        </div>
-      )}
+        ))}
+      </div>
     </Card>
   );
 }

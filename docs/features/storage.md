@@ -102,9 +102,11 @@ packages/core/src/storage/
 
 ## HTTP API
 
-All under `/api/v1/storage`, behind the JWT middleware of the protected sub-app
+All under `/api/v1/storage`, behind the session guard (`requireSession`) of the protected sub-app
 in `app.ts`, and rate-limited per IP by `storageRateLimiter`. Uploads also pass
-`uploadRateLimiter` (so they count against both) and a 100 MB body limit. The
+`uploadRateLimiter` (so they count against both) and a 100 MB body limit that
+the route declares itself (`routeBodyLimit`), so it holds wherever the router
+is mounted. The
 limits come from `config.rateLimits.storage` and `.upload`; defaults are in
 [Config](../reference/config.md#settings).
 
@@ -149,12 +151,53 @@ graph reaches server middleware that the client tsconfig cannot type.
 ## Frontend
 
 `packages/shell/src/pages/storage/` renders the `/storage` page (breadcrumbs,
-multi-file upload into the open folder, folder dialog, rename, delete). The
-React Query hooks are in `pages/storage/hooks/useStorage.ts`:
-`useStorageFiles(folder)`, `useUploadFiles()` (takes `{ files, folder }` and
-sends one request), `useDeleteFiles()`, `useCreateFolder()`,
-`useDeleteFolder()` and `useRenameFile()`. Every mutation invalidates the
-`["storage"]` queries.
+multi-file upload into the open folder, folder dialog, rename, delete). Two
+modules sit under it:
+
+- **Data**, `pages/storage/hooks/useStorage.ts`: `storageKeys`, `storageApi`
+  (the HTTP calls, no React, no toasts), `downloadFile(filePath, name)` and
+  `viewFile(filePath)` (blob URLs; both reject on failure), and the React
+  Query hooks `useStorageFiles(folder)`, `useUploadFiles()` (takes
+  `{ files, folder }` and sends one request), `useDeleteFiles()`,
+  `useCreateFolder()`, `useDeleteFolder()` and `useRenameFile()`. Every write
+  invalidates the `["storage"]` queries.
+- **Browser**, `pages/storage/hooks/useStorageBrowser.ts`:
+  `useStorageBrowser({ onView? })` is everything the page does.
+
+```ts
+const { files, isLoading, path, crumbs, selection, dialog, actions, fileActions, pending } =
+  useStorageBrowser();
+```
+
+| Member        | What it is                                                                                                                                                                          |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `path`        | The open folder, from `?path=` (`""` or `a/b/`); `crumbs` are its `{ name, path }` steps                                                                                            |
+| `selection`   | `{ keys, has, toggle, selectAll, clear, fileCount }`, derived from the listing on screen                                                                                            |
+| `dialog`      | `{ kind: "createFolder" }`, `{ kind: "rename", file }` or `null`                                                                                                                    |
+| `actions`     | `open`, `refresh`, `openDialog`, `closeDialog`, `upload(files)`, `createFolder(name)`, `rename(file, newName)`, `removeFile`, `removeFolder`, `removeSelection`, `view`, `download` |
+| `fileActions` | `(file) => FileAction[]`: View, Download, Rename, Delete for a file; Delete for a folder                                                                                            |
+| `pending`     | `{ upload, createFolder, rename, remove }`                                                                                                                                          |
+
+Every operation runs through `useAction` (see
+[Mutation feedback](./client.md#mutation-feedback)), so it owns its
+confirmation, toasts and invalidation. Every delete confirms, a single file
+included.
+
+The selection only ever counts files of the folder on screen: picks are
+dropped when the folder changes (by a breadcrumb, a folder row, or a link that
+resets `?path` while the page stays mounted), and a key that leaves the
+listing (deleted, renamed) no longer counts. So "Delete N files?" can never
+reach a file you cannot see.
+
+`DesktopFileRow` and `MobileFileCard` are two renderings of the same
+`fileActions(file)` list, so both offer the same actions with the same
+accessible names (`Download a.txt`, `Delete folder docs`). `Storage` takes an
+`onView(file)` prop to show files in-app instead of in a new tab.
+
+`useStorageActions()` and `handleDownload` / `handleView` (in
+`hooks/useStorageActions.ts`) are deprecated wrappers over the browser and the
+data module. `tests/client/pages/storage.test.tsx` runs the page against an
+in-memory fake of the API.
 
 ## Troubleshooting
 
@@ -162,6 +205,8 @@ sends one request), `useDeleteFiles()`, `useCreateFolder()`,
   Workers with the `STORAGE_RATE_LIMITER` / `UPLOAD_RATE_LIMITER` bindings, the
   binding's own limit applies instead.
 - **413 on upload** — larger than 100 MB (`MAX_UPLOAD_BYTES` in `storage.routes.ts`).
+  A route of your own that takes big bodies declares its limit the same way,
+  with `routeBodyLimit()`; otherwise the app's 1 MB API limit applies.
 - **"Storage is not configured"** — the entry did not pass `storage` to
   `bootstrap()`; on Workers that means the `STORAGE` binding is missing.
 - **Download prints binary** — it streams raw bytes; use `curl -o file`.

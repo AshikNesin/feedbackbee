@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PRIVATE_NETWORKS, proxyEntryProblem } from "./utils/client-address";
 
 /**
  * Environment variables, validated once at boot.
@@ -47,6 +48,29 @@ export const envSchema = z.object({
   ORIGIN: z.url().default("http://localhost:3000"),
   /** Comma-separated list. Empty allows the requesting origin. */
   CORS_ALLOWED_ORIGINS: z.string().default(""),
+  /**
+   * Comma-separated proxies whose `X-Forwarded-For` names the client: IPv4
+   * or IPv6 addresses or ranges (`10.0.0.0/8`, `fd00::/8`). Unset trusts
+   * `PRIVATE_NETWORKS` (loopback and private ranges); `none` trusts no proxy,
+   * so the client is always the socket peer.
+   */
+  TRUSTED_PROXIES: z
+    .string()
+    .optional()
+    .transform((list): string[] => {
+      if (list === undefined) return [...PRIVATE_NETWORKS];
+      if (list.trim().toLowerCase() === "none") return [];
+      return list
+        .split(",")
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+    })
+    .superRefine((entries, ctx) => {
+      for (const entry of entries) {
+        const message = proxyEntryProblem(entry);
+        if (message !== undefined) ctx.addIssue({ code: "custom", message });
+      }
+    }),
   LOG_LEVEL: z.enum(LOG_LEVELS).optional(),
   /** Error reporting; surfaced as `config.sentry`, which both entries read. */
   SENTRY_DSN: z.string().optional(),

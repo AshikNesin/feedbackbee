@@ -97,3 +97,26 @@ export function maxReasoningEffort(modelId: string): ReasoningEffort | undefined
   }
   return "high";
 }
+
+const EFFORT_ORDER: readonly ReasoningEffort[] = [
+  "minimal",
+  "low",
+  "medium",
+  "high",
+  "xhigh",
+  "max",
+];
+
+/**
+ * The reasoning level to send to `modelId` for a requested one: the request
+ * capped at `maxReasoningEffort(modelId)`, or undefined when the model takes
+ * no effort control and the parameter must be left out.
+ */
+export function clampReasoningEffort(
+  modelId: string,
+  requested: ReasoningEffort,
+): ReasoningEffort | undefined {
+  const max = maxReasoningEffort(modelId);
+  if (max === undefined) return undefined;
+  return EFFORT_ORDER.indexOf(requested) > EFFORT_ORDER.indexOf(max) ? max : requested;
+}

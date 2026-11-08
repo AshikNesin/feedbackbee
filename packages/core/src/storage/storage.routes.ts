@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
+import { routeBodyLimit } from "../middlewares/body-limit.middleware";
 import { storageRateLimiter, uploadRateLimiter } from "../middlewares/rate-limit.middleware";
 import { parseBody, parseForm, parseParams, parseQuery } from "../utils/controller.utils";
 import { noContent, ok } from "../utils/api-response.utils";
@@ -29,7 +29,8 @@ router.get("/files", async (c) => {
 router.post(
   "/files/upload",
   uploadRateLimiter,
-  bodyLimit({ maxSize: MAX_UPLOAD_BYTES }),
+  // Replaces the app's 1 MB API limit, wherever this router is mounted.
+  routeBodyLimit(MAX_UPLOAD_BYTES),
   async (c) => {
     const form = await parseForm(c, uploadFilesSchema);
     return ok(
@@ -45,13 +46,23 @@ router.post(
   },
 );
 
+/**
+ * Text without a declared charset is decoded by browsers as windows-1252, so a
+ * UTF-8 file viewed inline shows mojibake ("✓" as "âœ“"). Uploads are UTF-8 in
+ * practice: say so when the stored type names no charset.
+ */
+function withTextCharset(contentType: string): string {
+  if (!/^text\//i.test(contentType) || /;\s*charset=/i.test(contentType)) return contentType;
+  return `${contentType}; charset=utf-8`;
+}
+
 router.get("/files/download", async (c) => {
   const query = parseQuery(c, downloadFileSchema);
   const file = await storageService.downloadFile({ filePath: query.filePath });
   // Uploaded HTML/SVG/XML/JS would run script on the app's origin if rendered inline.
   const active = /html|svg|xml|javascript/i.test(file.contentType);
   return c.body(file.bytes, 200, {
-    "Content-Type": file.contentType,
+    "Content-Type": withTextCharset(file.contentType),
     "Content-Disposition": `${active ? "attachment" : "inline"}; ${sanitizeFileName(file.fileName)}`,
     "X-Content-Type-Options": "nosniff",
   });

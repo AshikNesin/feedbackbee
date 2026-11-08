@@ -1,8 +1,7 @@
 import { Hono } from "hono";
-import { jwtAuthMiddleware } from "../middlewares/jwt-auth.middleware";
+import { requireSession, startSession } from "../session";
 import { authRateLimiter } from "../middlewares/rate-limit.middleware";
 import { parseBody, parseId, requireUser } from "../utils/controller.utils";
-import { setAuthCookie } from "../utils/auth-cookie.utils";
 import { ok, noContent } from "../utils/api-response.utils";
 import * as passkeyService from "./passkey.service";
 import {
@@ -16,12 +15,12 @@ import type { AppEnv } from "../types";
 const router = new Hono<AppEnv>();
 
 // Registration (signed in)
-router.post("/register/options", jwtAuthMiddleware, async (c) => {
+router.post("/register/options", requireSession, async (c) => {
   const { userId } = requireUser(c);
   return ok(c, await passkeyService.generateRegistrationOptions({ userId }));
 });
 
-router.post("/register/verify", jwtAuthMiddleware, async (c) => {
+router.post("/register/verify", requireSession, async (c) => {
   const { userId } = requireUser(c);
   const payload = await parseBody(c, verifyRegistrationSchema);
   return ok(
@@ -42,24 +41,23 @@ router.post("/login/options", authRateLimiter, async (c) => {
 
 router.post("/login/verify", authRateLimiter, async (c) => {
   const body = await parseBody(c, verifyAuthenticationSchema);
-  const result = await passkeyService.verifyAuthentication({ response: body.response });
-  setAuthCookie(c, result.token);
-  return ok(c, result);
+  const user = await passkeyService.authenticatePasskey({ response: body.response });
+  return ok(c, await startSession(c, user));
 });
 
 // Management (signed in)
-router.get("/list", jwtAuthMiddleware, async (c) => {
+router.get("/list", requireSession, async (c) => {
   const { userId } = requireUser(c);
   return ok(c, await passkeyService.listPasskeys({ userId }));
 });
 
-router.delete("/:id", jwtAuthMiddleware, async (c) => {
+router.delete("/:id", requireSession, async (c) => {
   const { userId } = requireUser(c);
   await passkeyService.deletePasskey({ userId, passkeyId: parseId(c.req.param("id")) });
   return noContent(c);
 });
 
-router.patch("/:id", jwtAuthMiddleware, async (c) => {
+router.patch("/:id", requireSession, async (c) => {
   const { userId } = requireUser(c);
   const payload = await parseBody(c, updatePasskeyNameSchema);
   return ok(

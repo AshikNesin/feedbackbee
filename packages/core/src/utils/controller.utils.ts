@@ -1,6 +1,7 @@
 import { type ZodType, z } from "zod";
 import { Boom, ErrorCode } from "../errors";
 import type { AppContext, AuthUser } from "../types";
+import { defaultClientAddress } from "./client-ip";
 
 /**
  * Request parsing helpers. Each validates with a Zod schema and throws a
@@ -70,19 +71,20 @@ export function parseStringParam(value: string | undefined, paramName = "param")
   return value;
 }
 
-/** The authenticated user set by `jwtAuthMiddleware`. Throws 401 if absent. */
+/** The authenticated user set by `requireSession`. Throws 401 if absent. */
 export function requireUser(c: AppContext): AuthUser {
   const user = c.get("user");
   if (!user) throw Boom.unauthorized("Authentication required");
   return user;
 }
 
-/** Client IP: Cloudflare header, then proxy header, then unknown. */
+/**
+ * The client's address, as the runtime's `ClientAddressResolver` reports it
+ * (`createApp({ clientAddress })`; see `./client-ip`). Node passes the socket
+ * peer, or the hop a trusted proxy vouches for in `X-Forwarded-For`; Workers
+ * pass `cf-connecting-ip`. `unknown` when the resolver cannot tell.
+ */
 export function clientIp(c: AppContext): string {
-  return (
-    c.req.header("cf-connecting-ip") ??
-    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-    c.req.header("x-real-ip") ??
-    "unknown"
-  );
+  const resolve = c.get("clientAddress") ?? defaultClientAddress;
+  return resolve(c) ?? "unknown";
 }

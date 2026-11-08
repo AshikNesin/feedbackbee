@@ -6,6 +6,7 @@ import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { boundaryOverrides } from "./scripts/lint/boundaries";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
 const clientSrc = path.resolve(rootDir, "apps/web/src/client");
@@ -128,6 +129,9 @@ export default defineConfig({
   // Linting configuration
   lint: {
     ignorePatterns: ["dist/**", "node_modules/**"],
+    rules: { "no-unused-vars": "error" },
+    // R1-R9 of the AGENTS.md rule table; scripts/lint/boundaries.ts builds them.
+    overrides: boundaryOverrides("./scripts/lint/repo-plugin.mjs"),
   },
 
   // Formatting configuration

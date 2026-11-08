@@ -21,13 +21,15 @@ remove that line to let users register hardware security keys.
 `allowCredentials` to that user's passkeys; the shell sends none, so the
 browser offers any passkey it holds for the site) → the browser signs the
 challenge → `POST /login/verify` verifies the signature and counter, updates
-`lastUsedAt`, sets the `token` cookie and returns `{ token, user }` like
-password login.
+`lastUsedAt`, and signs in through `startSession` like password login: the
+`token` cookie and `{ token, user }`, with `user` the same `SessionUser`
+(`{ id, email, name }`).
 
 Challenges live in the `kv` table (`passkey:challenge:` namespace) with a
-five-minute TTL and are consumed on first use, so they survive restarts and
-work across Workers isolates. A user can register any number of passkeys; the
-last one cannot be deleted.
+five-minute TTL and are consumed on first use with `kv.take` (one
+`DELETE … RETURNING`, so two concurrent verifications of one challenge cannot
+both pass). They survive restarts and work across Workers isolates. A user can
+register any number of passkeys; the last one cannot be deleted.
 
 ## Configuration
 

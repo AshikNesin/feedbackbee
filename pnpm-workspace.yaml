@@ -23,9 +23,9 @@ packages:
   - "packages/*"
 
 catalog:
-  vite: npm:@voidzero-dev/vite-plus-core@0.2.2
-  vite-plus: 0.2.2
-  vitest: 4.1.9
+  vite: npm:@voidzero-dev/vite-plus-core@1.5.0
+  vite-plus: 1.5.0
+  vitest: 5.1.0
 
 onlyBuiltDependencies:
   - "@biomejs/biome"
@@ -40,15 +40,15 @@ overrides:
   # @uiw/react-codemirror) throws "Unrecognized extension value in extension
   # set" when the editor mounts. Keep exactly one copy of each core package;
   # bump these together with the root package.json pins.
-  "@codemirror/autocomplete": "6.20.3"
-  "@codemirror/commands": "6.10.4"
-  "@codemirror/language": "6.12.4"
+  "@codemirror/autocomplete": "6.20.4"
+  "@codemirror/commands": "6.11.1"
+  "@codemirror/language": "6.13.1"
   "@codemirror/lint": "6.9.7"
-  "@codemirror/search": "6.7.1"
-  "@codemirror/state": "6.7.1"
-  "@codemirror/view": "6.43.4"
-  vite: "catalog:"
-  vitest: "catalog:"
+  "@codemirror/search": "6.7.2"
+  "@codemirror/state": "6.7.6"
+  "@codemirror/view": "6.43.15"
+  vite@*: "catalog:"
+  vitest@*: "catalog:"
 
 peerDependencyRules:
   allowAny:

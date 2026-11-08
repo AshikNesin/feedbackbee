@@ -1,11 +1,13 @@
 import { Card } from "@groot/ui/card";
 import { StatTile } from "@groot/ui/stat-tile";
 import { useJobStats } from "@groot/jobs/client/queries";
+import type { StateTab } from "@groot/jobs/client/constants";
+import type { JobsFilter } from "@groot/jobs/client/useJobsFilter";
 import { Activity, CheckCircle, Clock, X, XCircle } from "lucide-react";
 import { JobsStatsSkeleton } from "./skeletons";
 
 type StatItem = {
-  key: string;
+  key: StateTab;
   label: string;
   value: number;
   colorClass: string;
@@ -13,12 +15,12 @@ type StatItem = {
 };
 
 type Props = {
-  activeState: string;
-  onSelectState: (state: string) => void;
+  /** The jobs list filter (`useJobsFilter()`): a tile selects its state. */
+  filter: Pick<JobsFilter, "state" | "setState">;
 };
 
 /** Compact, clickable stat row that filters the jobs list by state. */
-export function JobsStats({ activeState, onSelectState }: Props) {
+export function JobsStats({ filter }: Props) {
   const { data: stats } = useJobStats();
   if (!stats) {
     return <JobsStatsSkeleton />;
@@ -78,8 +80,8 @@ export function JobsStats({ activeState, onSelectState }: Props) {
           value={item.value.toLocaleString()}
           icon={item.icon}
           valueClassName={item.colorClass}
-          active={activeState === item.key}
-          onClick={() => onSelectState(item.key)}
+          active={filter.state === item.key}
+          onClick={() => filter.setState(item.key)}
           className={idx !== 0 ? "border-l border-border/60" : undefined}
         />
       ))}

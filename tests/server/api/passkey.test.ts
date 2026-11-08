@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
+import { eq } from "drizzle-orm";
 import { api, createTestApp, signIn } from "../helpers";
-import { createNamespaceKv } from "@groot/core/kv";
+import { createSoftPasskey } from "../fixtures/passkey";
 import { db, passkeys } from "@groot/core/database";
 
 const app = createTestApp();
@@ -33,7 +34,7 @@ function clientData(challenge: string): string {
 }
 
 describe("passkey API", () => {
-  it("issues registration and login options and stores single-use challenges", async () => {
+  it("issues registration and login options", async () => {
     const { token } = await signIn(app);
     const reg = await api<{ challenge: string; rp: { id: string; name: string } }>(
       app,
@@ -46,7 +47,6 @@ describe("passkey API", () => {
     expect(reg.status).toBe(200);
     expect(reg.body.data?.rp).toEqual({ id: "localhost", name: "Groot" });
     expect(reg.body.data?.challenge).toBeTruthy();
-    expect(await createNamespaceKv("passkey:challenge").has(reg.body.data!.challenge)).toBe(true);
 
     const login = await api<{ challenge: string; allowCredentials: unknown[] }>(
       app,
@@ -114,6 +114,36 @@ describe("passkey API", () => {
       },
     });
     expect(malformed.status).toBe(400);
+  });
+
+  it("signs in with a passkey, once per challenge", async () => {
+    const { user } = await signIn(app);
+    const passkey = await createSoftPasskey(user.id);
+    const options = await api<{ challenge: string }>(app, "/api/v1/passkey/login/options", {
+      method: "POST",
+      json: {},
+    });
+    const response = passkey.assert(options.body.data!.challenge);
+    const verify = () =>
+      api<{ token: string; user: { id: number } }>(app, "/api/v1/passkey/login/verify", {
+        method: "POST",
+        json: { response },
+      });
+
+    // Two concurrent verifications of one challenge: exactly one signs in.
+    const results = await Promise.all([verify(), verify()]);
+    expect(results.map((r) => r.status).toSorted()).toEqual([200, 400]);
+    const signedIn = results.find((r) => r.status === 200)!;
+    expect(signedIn.body.data?.user.id).toBe(user.id);
+    expect(signedIn.headers.get("set-cookie")).toMatch(/^token=/);
+    const replayed = results.find((r) => r.status === 400)!;
+    expect(replayed.body.error?.message).toMatch(/Challenge not found or expired/);
+
+    const [row] = await db
+      .select()
+      .from(passkeys)
+      .where(eq(passkeys.credentialId, passkey.credentialId));
+    expect(row).toMatchObject({ counter: 1, lastUsedAt: new Date(Date.now()) });
   });
 
   it("says how to show each passkey and whether it can be deleted", async () => {
