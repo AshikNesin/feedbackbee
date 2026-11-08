@@ -2,10 +2,10 @@ import type { ReactNode } from "react";
 
 /**
  * A small syntax highlighter for the setup snippets: HTML (with inline
- * script), JavaScript and Kotlin / Gradle Kotlin DSL. Enough to read, no
+ * script), JavaScript / TypeScript, Kotlin / Gradle Kotlin DSL and Swift. Enough to read, no
  * dependency. Tokens get `tok-*` classes, coloured in styles.css.
  */
-export type CodeLang = "html" | "js" | "kotlin" | "text";
+export type CodeLang = "html" | "js" | "ts" | "kotlin" | "swift" | "text";
 
 type Rule = [RegExp, string | ((match: RegExpExecArray) => ReactNode[])];
 
@@ -13,16 +13,19 @@ const KEYWORDS = {
   js: "var|let|const|function|return|new|if|else|for|while|typeof|this|true|false|null|undefined",
   kotlin:
     "class|object|fun|val|var|override|super|this|return|import|package|true|false|null|if|else|when",
+  swift:
+    "import|try|let|var|func|class|struct|enum|if|else|return|true|false|nil|self|init|guard|in|for|while",
 };
 
-function codeRules(lang: "js" | "kotlin"): Rule[] {
+function codeRules(lang: "js" | "kotlin" | "swift"): Rule[] {
   return [
     [/\/\/[^\n]*/y, "com"],
     [/"(?:[^"\\\n]|\\.)*"|'(?:[^'\\\n]|\\.)*'/y, "str"],
     [new RegExp(`\\b(?:${KEYWORDS[lang]})\\b`, "y"), "kw"],
     [/\b\d+(?:\.\d+)?\b/y, "num"],
-    // a named argument (Kotlin) or object key before = / :
+    // a named argument (Kotlin) before =, or an argument label (Swift) before :
     [/\b[A-Za-z_]\w*(?=\s*=(?!=))/y, lang === "kotlin" ? "attr" : "plain"],
+    ...(lang === "swift" ? ([[/\b[A-Za-z_]\w*(?=:)/y, "attr"]] as Rule[]) : []),
     // a call: name followed by (
     [/\b[A-Za-z_]\w*(?=\s*\()/y, "fn"],
     // a type or object (capitalised identifier)
@@ -70,7 +73,7 @@ function span(kind: string, text: string): ReactNode {
 
 export function tokenize(code: string, lang: CodeLang): ReactNode[] {
   if (lang === "text") return [code];
-  const rules = lang === "html" ? htmlRules() : codeRules(lang);
+  const rules = lang === "html" ? htmlRules() : codeRules(lang === "ts" ? "js" : lang);
   const out: ReactNode[] = [];
   let i = 0;
   outer: while (i < code.length) {

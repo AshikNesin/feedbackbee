@@ -2,7 +2,7 @@
 {
   "path": "/",
   "title": "FeedbackBee: user feedback that lands in GitHub issues",
-  "description": "Open-source feedback widget for web and Android. One-click screenshots, annotations and session replays, filed as GitHub issues. Self-hosted on the Cloudflare free tier.",
+  "description": "Open-source feedback widget for web, Android, iOS, macOS and React Native. One-click screenshots, annotations and session replays, filed as GitHub issues. Self-hosted on the Cloudflare free tier.",
   "ogDescription": "Screenshots, annotations and session replays from your users, filed as GitHub issues. Open source, self-hosted on Cloudflare's free tier.",
   "og": "/og/og.png"
 }
@@ -12,8 +12,8 @@
     <h1>User feedback that lands in GitHub issues</h1>
     <div class="hero-side">
       <p class="lead">
-        A tiny widget for your web and Android apps. Users mark up a screenshot or record the bug,
-        and you get a labeled issue.
+        A tiny widget for your web, Android, iOS, macOS and React Native apps. Users mark up a
+        screenshot or record the bug, and you get a labeled issue.
       </p>
       <div class="ctas">
         <a
@@ -48,7 +48,7 @@
         <li>Cloudflare free tier</li>
         <li>One secret</li>
         <li><a href="https://github.com/AshikNesin/feedbackbee">MIT licensed</a></li>
-        <li>Web and Android</li>
+        <li>Web and native apps</li>
       </ul>
     </div>
   </div>
@@ -346,8 +346,11 @@
           </div>
           <span class="shake">shake to report</span>
         </div>
-        <h3>Android SDK</h3>
-        <p>Kotlin, no heavy dependencies. Users shake or tap your button from any screen.</p>
+        <h3>Native SDKs</h3>
+        <p>
+          Android, iOS, macOS and React Native, no heavy dependencies. Users shake or tap your
+          button from any screen.
+        </p>
       </li>
     </ul>
   </div>
@@ -372,7 +375,8 @@
         <li>
           <h3>Add the widget</h3>
           <p>
-            One script tag on the web, one call on Android. Extras load only when someone uses them.
+            One script tag on the web, one call in a native app. Extras load only when someone uses
+            them.
           </p>
         </li>
         <li>
@@ -413,6 +417,26 @@
           tabindex="-1"
         >
           Android
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-apple"
+          aria-controls="panel-apple"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          iOS &amp; macOS
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="tab-react-native"
+          aria-controls="panel-react-native"
+          aria-selected="false"
+          tabindex="-1"
+        >
+          React Native
         </button>
       </div>
       <div class="panel" role="tabpanel" id="panel-deploy" aria-labelledby="tab-deploy">
@@ -503,6 +527,90 @@
     <span class="tok-attr">endpoint</span> <span class="tok-punc">=</span> <span class="tok-str">"https://your-bee.workers.dev"</span><span class="tok-punc">,</span>
 <span class="tok-punc">)</span>
 <span class="tok-type">FeedbackBee</span><span class="tok-punc">.</span><span class="tok-fn">open</span><span class="tok-punc">()</span> <span class="tok-com">// or shake</span></pre>
+          <button class="icon-btn copy needs-js" type="button" aria-label="Copy">
+            <svg
+              class="cp"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg
+            ><svg
+              class="ok"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 12.5 4.5 4.5L19 7.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="panel" role="tabpanel" id="panel-apple" aria-labelledby="tab-apple">
+        <p class="panel-label">iOS &amp; macOS</p>
+        <div class="code">
+          <pre><span class="tok-kw">import</span> FeedbackBee
+
+<span class="tok-kw">try</span> <span class="tok-type">FeedbackBee</span><span class="tok-punc">.</span><span class="tok-fn">configure</span><span class="tok-punc">(</span>
+    <span class="tok-attr">projectId</span><span class="tok-punc">:</span> <span class="tok-str">"myapp"</span><span class="tok-punc">,</span>
+    <span class="tok-attr">endpoint</span><span class="tok-punc">:</span> <span class="tok-str">"https://your-bee.workers.dev"</span>
+<span class="tok-punc">)</span>
+<span class="tok-type">FeedbackBee</span><span class="tok-punc">.</span><span class="tok-fn">open</span><span class="tok-punc">()</span> <span class="tok-com">// or shake on iOS</span></pre>
+          <button class="icon-btn copy needs-js" type="button" aria-label="Copy">
+            <svg
+              class="cp"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="12" height="12" rx="2" />
+              <path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" /></svg
+            ><svg
+              class="ok"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="m5 12.5 4.5 4.5L19 7.5" />
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="panel" role="tabpanel" id="panel-react-native" aria-labelledby="tab-react-native">
+        <p class="panel-label">React Native</p>
+        <div class="code">
+          <pre><span class="tok-kw">import</span> FeedbackBee <span class="tok-kw">from</span> <span class="tok-str">"react-native-feedbackbee"</span><span class="tok-punc">;</span>
+
+<span class="tok-type">FeedbackBee</span><span class="tok-punc">.</span><span class="tok-fn">init</span><span class="tok-punc">({</span>
+  projectId<span class="tok-punc">:</span> <span class="tok-str">"myapp"</span><span class="tok-punc">,</span>
+  endpoint<span class="tok-punc">:</span> <span class="tok-str">"https://your-bee.workers.dev"</span><span class="tok-punc">,</span>
+<span class="tok-punc">});</span>
+<span class="tok-type">FeedbackBee</span><span class="tok-punc">.</span><span class="tok-fn">open</span><span class="tok-punc">();</span> <span class="tok-com">// or shake</span></pre>
           <button class="icon-btn copy needs-js" type="button" aria-label="Copy">
             <svg
               class="cp"
