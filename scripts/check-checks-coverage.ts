@@ -14,9 +14,14 @@
  * Usage:  tsx scripts/check-checks-coverage.ts
  * Exit:   0 = covered, 1 = stale ownership entry.
  */
-import { readdirSync, existsSync, statSync } from "node:fs";
+import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { ownedSourceRootsForTests, TEST_AREA_OWNERSHIP } from "../.groot/lib/patterns";
+import { CONFIG_RELATIVE_PATH } from "../.groot/lib/config";
+import {
+  categorizeFile,
+  ownedSourceRootsForTests,
+  TEST_AREA_OWNERSHIP,
+} from "../.groot/lib/patterns";
 
 const ROOT = new URL("..", import.meta.url).pathname;
 
@@ -39,6 +44,18 @@ interface Failure {
 }
 
 const failures: Failure[] = [];
+
+// A project may opt out of a test area through `additional_exclusions` (e.g. a
+// child that runs without the job queue drops `tests/server/jobs/**`). Sync never
+// brings those suites in, so their absence is intended, not a renamed area. Ask
+// the sync engine itself so "excluded" means exactly what it means in sync.
+const syncConfigPath = join(ROOT, CONFIG_RELATIVE_PATH);
+const projectExclusions: string[] = existsSync(syncConfigPath)
+  ? (JSON.parse(readFileSync(syncConfigPath, "utf8")).additional_exclusions ?? [])
+  : [];
+const excludedAreas = Object.keys(TEST_AREA_OWNERSHIP).filter(
+  (area) => categorizeFile(`${area}/probe.test.ts`, projectExclusions).action === "skip-app",
+);
 
 // --- 1. Owned source roots (what the synced test areas own) exist. --------
 const ownedRoots = ownedSourceRootsForTests();
@@ -68,6 +85,7 @@ function countTestFiles(dir: string): number {
 }
 
 for (const area of Object.keys(TEST_AREA_OWNERSHIP)) {
+  if (excludedAreas.includes(area)) continue;
   if (!existsSync(join(ROOT, area))) {
     failures.push({
       kind: "area-missing",
@@ -96,7 +114,10 @@ if (failures.length > 0) {
 }
 
 console.log(
-  `✓ Checks covered: ${Object.keys(TEST_AREA_OWNERSHIP).length} declared test areas ` +
-    `owning ${ownedRoots.length} source roots, all present on disk.`,
+  `✓ Checks covered: ${Object.keys(TEST_AREA_OWNERSHIP).length - excludedAreas.length} declared test areas ` +
+    `owning ${ownedRoots.length} source roots, all present on disk.` +
+    (excludedAreas.length > 0
+      ? ` Skipped (additional_exclusions): ${excludedAreas.join(", ")}.`
+      : ""),
 );
 process.exit(0);
