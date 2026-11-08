@@ -27,9 +27,12 @@ Use **pnpm** for everything. Don't call `vp` directly (use `pnpm check`,
   Android SDK (`android/sdk/.../upload/`) together; a breaking change needs a new
   version path. It answers CORS `*` (`openCorsPaths`) and sets its own size
   caps (`uploadPaths`) in `app.ts`.
-- **GitHub auth is one PAT**, the `GITHUB_TOKEN` Worker secret, read once at boot
-  into `runtime.ts`. It only travels to api.github.com: never into D1, a log, or
-  an API response. Projects store only `owner/repo`.
+- **GitHub auth uses one GitHub App per deployment**, registered from the
+  Dashboard Settings manifest. `FEEDBACKBEE_APP_KEY` is a required random
+  base64-encoded 32-byte Worker secret used to encrypt the App private key in
+  D1; keep it outside D1 and backups. Never accept manually pasted GitHub
+  credentials. App installation tokens stay in memory and are refreshed as
+  needed. Projects store only `owner/repo`.
 - **Reporter data never reaches GitHub.** `email`, `reporter_name`,
   `reporter_id`, `metadata` and `url` stay in D1 and the dashboard
   (`lib/github.ts` `issueBody`, pinned by tests).
@@ -53,10 +56,13 @@ Use **pnpm** for everything. Don't call `vp` directly (use `pnpm check`,
 ## Runtime
 
 Production is Cloudflare Workers (`apps/web/src/server/entry.worker.ts`): D1,
-the `MEDIA` R2 bucket, Static Assets for the dashboard SPA. Zero-config: the one
-required secret is `GITHUB_TOKEN`; `worker/boot.ts` fills groot's
-`JWT_SECRET_KEY` / `ADMIN_AUTH_KEY` from core's `kv` table and `ORIGIN` / `RP_ID`
-from the first request when unset.
+the `MEDIA` R2 bucket, Static Assets for the dashboard SPA. Configure the
+required `FEEDBACKBEE_APP_KEY` secret before registering or using the GitHub
+App. `worker/boot.ts` fills groot's `JWT_SECRET_KEY` / `ADMIN_AUTH_KEY` from
+core's `kv` table and `ORIGIN` / `RP_ID` from the first request when unset;
+production should set `ORIGIN` explicitly to its canonical HTTPS URL for GitHub
+App registration callbacks. Local registration also needs an HTTPS tunnel and
+an explicit tunnel `ORIGIN`.
 
 Services never read Workers bindings. Database access is Drizzle's query
 builder on groot's `db` (`import { db, batch, … } from "../../db"`); media goes
