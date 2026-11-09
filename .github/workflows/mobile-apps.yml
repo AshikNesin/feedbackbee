@@ -34,6 +34,23 @@ jobs:
       # Caches the Gradle distribution and dependencies between runs, so a slow or
       # flaky download (services.gradle.org, Maven Central) rarely fails the job.
       - uses: gradle/actions/setup-gradle@v4
+      # Resolve Maven Central artifacts through Google's mirror first: Central
+      # redirects some Kotlin jars to GitHub release downloads, which can 504.
+      - name: Maven Central mirror
+        run: |
+          mkdir -p "$HOME/.gradle/init.d"
+          cat > "$HOME/.gradle/init.d/central-mirror.gradle.kts" <<'KTS'
+          beforeSettings {
+              val mirror = "https://maven-central.storage-download.googleapis.com/maven2/"
+              pluginManagement.repositories { maven(mirror) }
+              dependencyResolutionManagement.repositories { maven(mirror) }
+          }
+          allprojects {
+              tasks.withType<Test>().configureEach {
+                  systemProperty("robolectric.dependency.repo.url", "https://maven-central.storage-download.googleapis.com/maven2/")
+              }
+          }
+          KTS
       - name: Unit and screen tests (writes screenshots), release build (R8) and lint
         run: ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:lintRelease
         env:
