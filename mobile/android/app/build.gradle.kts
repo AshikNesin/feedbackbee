@@ -19,11 +19,13 @@ android {
 
     // Signing key comes from release-hub (HUB_KEYSTORE / HUB_STORE_PW /
     // HUB_KEY_ALIAS / HUB_KEY_PW), falling back to the local debug keystore so
-    // IDE and CI builds still produce an installable release APK.
+    // IDE and CI builds still produce an installable release APK. A fresh
+    // machine (CI) has no debug keystore yet: the release build then uses the
+    // debug signing config, which AGP creates on demand.
     val debugKeystore = file("${System.getProperty("user.home")}/.android/debug.keystore")
+    val hubKs = providers.environmentVariable("HUB_KEYSTORE").orNull
     signingConfigs {
         create("release") {
-            val hubKs = providers.environmentVariable("HUB_KEYSTORE").orNull
             if (hubKs != null) {
                 storeFile = file(hubKs)
                 storePassword = providers.environmentVariable("HUB_STORE_PW").get()
@@ -40,7 +42,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = signingConfigs.getByName(if (hubKs != null || debugKeystore.exists()) "release" else "debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
