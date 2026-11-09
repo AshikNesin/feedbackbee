@@ -31,6 +31,9 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
+      # Caches the Gradle distribution and dependencies between runs, so a slow or
+      # flaky download (services.gradle.org, Maven Central) rarely fails the job.
+      - uses: gradle/actions/setup-gradle@v4
       - name: Unit and screen tests (writes screenshots), release build (R8) and lint
         run: ./gradlew :app:testDebugUnitTest :app:assembleRelease :app:lintRelease
         env:
