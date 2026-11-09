@@ -5,7 +5,7 @@ the Cloudflare free tier. FeedbackBee is a child of the
 [groot](https://github.com/AshikNesin/groot) boilerplate: `packages/*`, root
 configs, `scripts/`, `docs/` and `.groot/` are synced from groot
 (`pnpm groot:sync`); FeedbackBee's own code lives in `apps/web/`, `tests/worker/`,
-`android/`, `apple/`, `react-native/` and `site/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
+`android/`, `apple/`, `react-native/`, `mobile/` and `site/`. Groot's guides start at [`docs/README.md`](./docs/README.md);
 the product docs are [`docs/PRD.md`](./docs/PRD.md) and the upload contract
 [`docs/CONTRACT.md`](./docs/CONTRACT.md).
 
@@ -126,7 +126,8 @@ one with its credentials. The dashboard API (`/api/v1/projects…`) sits behind
   `/app/login`); the old unprefixed paths 301 here
 - `/api/v1/feedback`: public multipart submit (docs/CONTRACT.md)
 - `/api/v1/auth/*`, `/api/v1/passkey/*`: groot auth
-- `/api/v1/projects/*`, `/api/v1/settings`: dashboard API
+- `/api/v1/projects/*`, `/api/v1/settings`: dashboard API (also used by the
+  owner's mobile apps in `mobile/`, with `Authorization: Bearer`)
 - `/embed.js`: the widget (reads `data-project`, `data-endpoint`, `data-position`)
 - `/embed-capture.js`, `/embed-record.js`: libraries the widget lazy-loads
 - `/f/<key>`: public media · `/replay/<key>`: session replay viewer (`/replay-player.js`)
@@ -151,6 +152,9 @@ one with its credentials. The dashboard API (`/api/v1/projects…`) sits behind
 - iOS + macOS: `cd apple && swift test` (core on Linux; on a Mac it also builds the AppKit layer);
   the UIKit layer builds with
   `xcodebuild build -scheme FeedbackBee -destination "generic/platform=iOS Simulator"`
+- Mobile apps (`mobile/README.md`): `cd mobile/android && ./gradlew :app:testDebugUnitTest :app:assembleRelease`;
+  `cd mobile/ios/Core && swift test` (Linux too); the iOS app builds in Xcode 16+
+  (`mobile/ios/FeedbackBee.xcodeproj`), `mobile/ios/screenshots.sh` on a Mac
 - React Native: `cd react-native && pnpm install --ignore-workspace && pnpm typecheck && pnpm codegen`.
   It vendors `apple/` and `android/` sources (`pnpm vendor`); a native SDK API change
   may need its bridge (`react-native/ios`, `react-native/android`) updated too

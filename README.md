@@ -42,6 +42,7 @@ One click provisions D1 + R2, builds, and deploys; migrations apply on the first
 | Android SDK     | [android/README.md](android/README.md)           | Kotlin setup, API, shake, permissions, light/dark mode, demo app                                         |
 | iOS + macOS SDK | [apple/README.md](apple/README.md)               | Swift package setup, API, shake (iOS), Help menu (macOS), entitlements, light/dark mode, troubleshooting |
 | React Native    | [react-native/README.md](react-native/README.md) | Install, API, light/dark mode, permissions, troubleshooting                                              |
+| Mobile apps     | [mobile/README.md](mobile/README.md)             | The owner's iOS and Android apps: triage reports, edit or delete them, file issues from a sheet          |
 | Upload contract | [docs/CONTRACT.md](docs/CONTRACT.md)             | `POST /api/v1/feedback` fields, responses, limits, privacy (what reaches GitHub)                         |
 | Deploy          | [docs/DEPLOY.md](docs/DEPLOY.md)                 | Cloudflare deploy, secrets, GitHub App, operations                                                       |
 | Product         | [docs/PRD.md](docs/PRD.md)                       | Goals, scope, milestones                                                                                 |

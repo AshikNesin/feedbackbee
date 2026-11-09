@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_new"
+        android:shortcutId="new_issue"
+        android:shortcutLongLabel="@string/shortcut_new_issue_long"
+        android:shortcutShortLabel="@string/shortcut_new_issue_short">
+        <intent
+            android:action="io.nesin.feedbackbee.NEW_ISSUE"
+            android:targetClass="io.nesin.feedbackbee.app.MainActivity"
+            android:targetPackage="io.nesin.feedbackbee" />
+    </shortcut>
+</shortcuts>

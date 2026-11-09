@@ -38,8 +38,11 @@ function stubIssues() {
       async ({ request, params }) => {
         const body = await record(request);
         const issue = issues.get(Number(params.n))!;
-        issue.state = body.state === "open" ? "OPEN" : "CLOSED";
-        issue.stateReason = body.state_reason?.toUpperCase() ?? null;
+        // A content-only PATCH (title/body) leaves the state alone, as on GitHub.
+        if (body.state !== undefined) {
+          issue.state = body.state === "open" ? "OPEN" : "CLOSED";
+          issue.stateReason = body.state_reason?.toUpperCase() ?? null;
+        }
         return HttpResponse.json({ number: Number(params.n) });
       },
     ),
@@ -162,7 +165,10 @@ test("dashboard status changes update the GitHub issue", async () => {
   const set = (status: string) =>
     api(cookie, `/projects/${p.id}/feedback/${item.id}`, { method: "PATCH", body: { status } });
 
-  expect((await set("in_progress")).body.data).toEqual({ id: item.id, status: "in_progress" });
+  expect((await set("in_progress")).body.data).toMatchObject({
+    id: item.id,
+    status: "in_progress",
+  });
   expect(issues.get(n)).toMatchObject({ state: "OPEN", labels: ["bug", "in progress"] });
 
   await set("wont_fix");
@@ -273,4 +279,118 @@ test("the issues webhook refreshes status from GitHub, signed requests only", as
   const other = { ...payload, issue: { number: 99999 } };
   expect((await webhook(other)).status).toBe(204);
   expect(calls).toEqual([]);
+});
+
+test("editing text and kind rewrites the issue and swaps the kind label", async () => {
+  const cookie = await login();
+  const p = await createProject(cookie, "edit");
+  const item = await report(cookie, p.slug, p.id, "the buton is broken");
+  const n = item.issueNumber;
+  calls.length = 0;
+
+  const res = await api(cookie, `/projects/${p.id}/feedback/${item.id}`, {
+    method: "PATCH",
+    body: { text: "  The button is broken  ", kind: "feature_request" },
+  });
+  expect(res.status).toBe(200);
+  expect(res.body.data).toMatchObject({
+    id: item.id,
+    text: "The button is broken",
+    kind: "feature_request",
+    status: "open",
+    images: [],
+  });
+
+  const patch = calls.find((c) => c.method === "PATCH")!;
+  expect(patch.path).toBe(`/repos/ashik/myapp/issues/${n}`);
+  expect(patch.body.title).toBe("Feature request: The button is broken");
+  expect(patch.body.body).toMatch(/^The button is broken\n/);
+  expect(patch.body.body).toContain(`/app/projects/${p.slug}?feedback=${item.id}`);
+  expect(patch.body).not.toHaveProperty("state");
+  expect(issues.get(n)!.labels).toEqual(["enhancement"]);
+  expect(issues.get(n)!.state, "editing text leaves the issue open").toBe("OPEN");
+
+  const one = await api(cookie, `/projects/${p.id}/feedback/${item.id}`);
+  expect(one.status).toBe(200);
+  expect(one.body.data).toMatchObject({ text: "The button is broken", kind: "feature_request" });
+
+  calls.length = 0;
+  const same = await api(cookie, `/projects/${p.id}/feedback/${item.id}`, {
+    method: "PATCH",
+    body: { text: "The button is broken" },
+  });
+  expect(same.status).toBe(200);
+  expect(calls, "an unchanged edit makes no GitHub call").toEqual([]);
+});
+
+test("edits are validated, and a GitHub failure leaves the text unchanged", async () => {
+  const cookie = await login();
+  const p = await createProject(cookie, "editbad");
+  const item = await report(cookie, p.slug, p.id, "original");
+  const patch = (body: unknown) =>
+    api(cookie, `/projects/${p.id}/feedback/${item.id}`, { method: "PATCH", body });
+
+  expect((await patch({})).status).toBe(400);
+  expect((await patch({ text: "   " })).status).toBe(400);
+  expect((await patch({ kind: "rant" })).status).toBe(400);
+  expect((await patch({ text: "x".repeat(5001) })).status).toBe(400);
+
+  network.use(
+    http.patch("https://api.github.com/repos/:owner/:repo/issues/:n", () =>
+      HttpResponse.json({}, { status: 500 }),
+    ),
+  );
+  expect((await patch({ text: "changed" })).status).toBe(503);
+  const after = await api(cookie, `/projects/${p.id}/feedback/${item.id}`);
+  expect(after.body.data.text).toBe("original");
+});
+
+test("a report deletes from FeedbackBee only; its issue stays", async () => {
+  const cookie = await login();
+  const p = await createProject(cookie, "del");
+  const other = await createProject(cookie, "delother");
+  const item = await report(cookie, p.slug, p.id, "delete me");
+  calls.length = 0;
+
+  const wrongProject = await api(cookie, `/projects/${other.id}/feedback/${item.id}`, {
+    method: "DELETE",
+  });
+  expect(wrongProject.status).toBe(404);
+
+  const res = await api(cookie, `/projects/${p.id}/feedback/${item.id}`, { method: "DELETE" });
+  expect(res.status).toBe(200);
+  expect(res.body.data).toEqual({ id: item.id });
+  expect(calls, "deleting never touches GitHub").toEqual([]);
+  expect(issues.get(item.issueNumber)!.state).toBe("OPEN");
+
+  expect((await api(cookie, `/projects/${p.id}/feedback/${item.id}`)).status).toBe(404);
+  const list = await api(cookie, `/projects/${p.id}/feedback`);
+  expect(list.body.data.items).toEqual([]);
+  const images = await env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM feedback_images WHERE feedback_id = ?",
+  )
+    .bind(item.id)
+    .first<{ n: number }>();
+  expect(images?.n).toBe(0);
+});
+
+test("an edit with text and status keeps the text when only the status update fails", async () => {
+  const cookie = await login();
+  const p = await createProject(cookie, "partial");
+  const item = await report(cookie, p.slug, p.id, "before");
+  network.use(
+    http.patch("https://api.github.com/repos/:owner/:repo/issues/:n", async ({ request }) => {
+      const body = await request.json();
+      return (body as { state?: string }).state
+        ? HttpResponse.json({}, { status: 500 })
+        : HttpResponse.json({ number: item.issueNumber });
+    }),
+  );
+  const res = await api(cookie, `/projects/${p.id}/feedback/${item.id}`, {
+    method: "PATCH",
+    body: { text: "after", status: "done" },
+  });
+  expect(res.status).toBe(503);
+  const after = await api(cookie, `/projects/${p.id}/feedback/${item.id}`);
+  expect(after.body.data).toMatchObject({ text: "after", status: "open" });
 });

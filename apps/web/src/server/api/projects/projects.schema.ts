@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { FEEDBACK_STATUSES } from "../../db/schema";
+import { FEEDBACK_KINDS, FEEDBACK_STATUSES } from "../../db/schema";
+import { LIMITS } from "../feedback/feedback.schema";
 import { normalizeOrigin } from "../../lib/origins";
 
 /** Project id used in embed snippets: 3-40 chars, a-z 0-9 and inner hyphens. */
@@ -63,7 +64,25 @@ export const feedbackPageQuerySchema = z.object({
   status: z.enum(FEEDBACK_STATUSES).optional(),
 });
 
-export const updateFeedbackSchema = z.object({ status: z.enum(FEEDBACK_STATUSES) });
+/**
+ * Edit a report: its triage status, its kind, its text, or any mix. A filed
+ * report's GitHub issue follows (title, body and kind label for kind/text).
+ */
+export const updateFeedbackSchema = z
+  .object({
+    status: z.enum(FEEDBACK_STATUSES).optional(),
+    kind: z.enum(FEEDBACK_KINDS).optional(),
+    text: z
+      .string()
+      .trim()
+      .min(1, "Text is required")
+      .max(LIMITS.text, `Text must be at most ${LIMITS.text} characters`)
+      .optional(),
+  })
+  .refine((input) => Object.values(input).some((value) => value !== undefined), {
+    message: "Nothing to update: send status, kind or text",
+  });
 
 export type CreateProjectInput = z.output<typeof createProjectSchema>;
 export type UpdateProjectInput = z.output<typeof updateProjectSchema>;
+export type UpdateFeedbackInput = z.output<typeof updateFeedbackSchema>;

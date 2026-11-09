@@ -3,7 +3,9 @@
 The web widget and the Android and Apple (iOS, macOS) SDKs (React Native apps use the native ones) post
 `multipart/form-data` to this one endpoint.
 It is public (no auth), answers CORS `*` without credentials, and is rate-limited
-to 20 reports per hour per project and IP. A project may limit which websites
+to 20 reports per hour per project and IP. A request carrying the owner's valid
+session as `Authorization: Bearer <token>` (the FeedbackBee mobile apps in
+`mobile/`) is not rate-limited; an invalid token is ignored, not refused. A project may limit which websites
 can post to it (see [Allowed origins](#allowed-origins)). Implemented in
 `apps/web/src/server/api/feedback/` (`feedback.schema.ts` holds the field rules).
 
@@ -62,7 +64,7 @@ refused with `403` before anything is stored or filed.
 A request without an `Origin` header passes: native apps (the Android and Apple SDKs)
 send none. The check is a browser control: it stops other websites from
 using your widget's project id, not scripts, which can send any header. The
-rate limit applies to everyone.
+rate limit applies to everyone but the signed-in owner.
 
 ## Media serving
 

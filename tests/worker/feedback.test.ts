@@ -374,6 +374,14 @@ test("the 21st report within an hour is rate limited with Retry-After", async ()
   }
   expect(last!.status).toBe(429);
   expect(Number(last!.headers.get("retry-after"))).toBeGreaterThan(0);
+
+  // The signed-in owner (the mobile apps) files past the cap; a forged bearer does not.
+  const form = { project: p.slug, kind: "issue", text: "filed from the owner app" };
+  const forged = await submit(form, { authorization: "Bearer not-a-session" });
+  expect(forged.status).toBe(429);
+  const token = (await login()).slice("token=".length);
+  const owner = await submit(form, { authorization: `Bearer ${token}` });
+  expect(owner.status).toBe(201);
 });
 
 test("the demo page provisions the demo project on a fresh install", async () => {
