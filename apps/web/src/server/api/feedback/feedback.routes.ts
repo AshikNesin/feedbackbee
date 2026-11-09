@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { Boom, ErrorCode } from "@groot/core/errors";
 import { ok } from "@groot/core/utils/api-response.utils";
 import { clientIp } from "@groot/core/utils/controller.utils";
+import { findUserById } from "@groot/core/auth/auth.service";
 import { verifySessionToken } from "@groot/core/session";
 import type { AppContext, AppEnv } from "@groot/core/types";
 import { checkRate } from "../../lib/rate-limit";
@@ -17,14 +18,20 @@ import { submitFeedback } from "./feedback.service";
  */
 const router = new Hono<AppEnv>();
 
-/** A valid owner session in `Authorization: Bearer`. Anything else is an anonymous reporter. */
+/**
+ * A valid session in `Authorization: Bearer` for an account that still
+ * exists (the same check as the dashboard's session guard). Anything else is
+ * an anonymous reporter.
+ */
 async function fromOwner(c: AppContext): Promise<boolean> {
   const header = c.req.header("authorization");
   if (!header?.startsWith("Bearer ")) return false;
-  return verifySessionToken(header.slice("Bearer ".length)).then(
-    () => true,
-    () => false,
-  );
+  try {
+    const { userId } = await verifySessionToken(header.slice("Bearer ".length));
+    return (await findUserById(userId)) !== null;
+  } catch {
+    return false;
+  }
 }
 
 router.post("/", async (c) => {

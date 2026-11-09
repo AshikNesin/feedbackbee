@@ -43,6 +43,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -61,6 +62,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
@@ -109,9 +112,15 @@ fun InboxScreen(
     val uri = LocalUriHandler.current
     val scope = rememberCoroutineScope()
 
-    if (openCompose && !composeConsumed) {
-        composeConsumed = true
-        composing = true
+    LaunchedEffect(openCompose) {
+        if (openCompose && !composeConsumed) {
+            composeConsumed = true
+            composing = true
+        }
+    }
+    // The remembered project was deleted elsewhere: back to the list instead of an empty inbox.
+    LaunchedEffect(projects.fromServer, project) {
+        if (projects.fromServer && project == null) onProjectDeleted()
     }
 
     LaunchedEffect(store) { store.messages.collect { snackbar.showSnackbar(it) } }
@@ -136,7 +145,10 @@ fun InboxScreen(
         }
     }
     LaunchedEffect(listState, store) {
-        snapshotFlow { nearEnd }.distinctUntilChanged().collect { if (it) store.loadMore() }
+        // Keyed on the row count too: a page that still leaves the end in view loads the next one.
+        snapshotFlow { nearEnd to listState.layoutInfo.totalItemsCount }
+            .distinctUntilChanged()
+            .collect { (near, _) -> if (near) store.loadMore() }
     }
 
     Scaffold(
@@ -214,10 +226,27 @@ fun InboxScreen(
                     !state.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = Bee.ink)
                     }
-                    shown.isEmpty() -> EmptyState(
-                        if (query.isNotBlank()) "No matches" else "Nothing here yet",
-                        if (query.isNotBlank()) "Search covers the reports loaded so far." else "Reports from your widget and SDKs land here. Tap New issue to file one.",
-                    )
+                    shown.isEmpty() -> Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        EmptyState(
+                            when {
+                                state.error != null && state.items.isEmpty() -> "Couldn't load reports"
+                                query.isNotBlank() || kindFilter != null -> "No matches"
+                                else -> "Nothing here yet"
+                            },
+                            when {
+                                state.error != null && state.items.isEmpty() -> "${state.error} Pull to retry."
+                                query.isNotBlank() || kindFilter != null -> "Filters and search cover the reports loaded so far."
+                                else -> "Reports from your widget and SDKs land here. Tap New issue to file one."
+                            },
+                            Modifier.weight(1f, fill = false),
+                        )
+                        // Kind and search filter loaded pages only: keep older reports reachable.
+                        if (state.hasMore) {
+                            TextButton(onClick = store::loadMore, enabled = !state.loadingMore) {
+                                Text(if (state.loadingMore) "Loading…" else "Load older reports", color = Bee.ink)
+                            }
+                        }
+                    }
                     else -> LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
@@ -344,7 +373,7 @@ private fun FeedbackRow(item: FeedbackItem, onClick: () -> Unit, onStatus: (Stat
                 .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(Modifier.padding(top = 6.dp)) { Dot(Bee.kind(item.kind)) }
+            Box(Modifier.padding(top = 6.dp).semantics { contentDescription = item.kind.label }) { Dot(Bee.kind(item.kind)) }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(

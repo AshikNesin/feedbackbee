@@ -270,29 +270,40 @@ export async function updateFeedback(
   const statusChanged = next.status !== current.status;
   if (!contentChanged && !statusChanged) return current;
 
-  if (current.issueNumber) {
-    try {
-      if (contentChanged) {
-        const before = issueLabels(current.kind, project.labels)[0];
-        const after = issueLabels(next.kind, project.labels)[0];
+  const failed = (error: unknown) =>
+    Boom.unavailable(`Couldn't update the GitHub issue: ${safeGithubError(error)}`);
+  // Content, then status: each part is stored as soon as GitHub has it, so a
+  // failure in the second leaves FeedbackBee matching GitHub, not half-applied.
+  if (contentChanged) {
+    if (current.issueNumber) {
+      const before = issueLabels(current.kind, project.labels)[0];
+      const after = issueLabels(next.kind, project.labels)[0];
+      try {
         await editGithubIssue(project.githubRepo, current.issueNumber, {
           title: issueTitle(next),
           body: issueBody(next, issueLinks(project, next, current.images, origin)),
           addLabel: after !== before ? after : undefined,
           removeLabel: after !== before ? before : undefined,
         });
+      } catch (error) {
+        throw failed(error);
       }
-      if (statusChanged) {
-        await updateGithubIssue(project.githubRepo, current.issueNumber, next.status);
-      }
-    } catch (error) {
-      throw Boom.unavailable(`Couldn't update the GitHub issue: ${safeGithubError(error)}`);
     }
+    await db
+      .update(feedback)
+      .set({ kind: next.kind, text: next.text })
+      .where(eq(feedback.id, current.id));
   }
-  await db
-    .update(feedback)
-    .set({ status: next.status, kind: next.kind, text: next.text })
-    .where(eq(feedback.id, current.id));
+  if (statusChanged) {
+    if (current.issueNumber) {
+      try {
+        await updateGithubIssue(project.githubRepo, current.issueNumber, next.status);
+      } catch (error) {
+        throw failed(error);
+      }
+    }
+    await db.update(feedback).set({ status: next.status }).where(eq(feedback.id, current.id));
+  }
   return { ...next, images: current.images };
 }
 

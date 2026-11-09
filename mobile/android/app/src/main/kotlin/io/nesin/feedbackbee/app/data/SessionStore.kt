@@ -45,7 +45,15 @@ class SessionStore(context: Context, private val cipher: TokenCipher = KeystoreC
         get() = prefs.getString(KEY_LAST_PROJECT, null)
         set(value) = prefs.edit().putString(KEY_LAST_PROJECT, value).apply()
 
-    private fun writeToken(token: String) = tokenFile.writeBytes(cipher.encrypt(token.toByteArray(Charsets.UTF_8)))
+    /** Written beside the old token and renamed over it, so a crash never leaves a torn file. */
+    private fun writeToken(token: String) {
+        val tmp = File(tokenFile.parentFile, "${tokenFile.name}.tmp")
+        tmp.writeBytes(cipher.encrypt(token.toByteArray(Charsets.UTF_8)))
+        if (!tmp.renameTo(tokenFile)) {
+            tokenFile.delete()
+            tmp.renameTo(tokenFile)
+        }
+    }
 
     private fun readToken(): String? {
         if (!tokenFile.exists()) return null

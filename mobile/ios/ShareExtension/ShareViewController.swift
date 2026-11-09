@@ -17,8 +17,13 @@ final class ShareViewController: UIViewController {
                 model: AppModel.shared(),
                 attachments: shared.attachments,
                 text: shared.text
-            ) { [weak self] _ in
-                self?.extensionContext?.completeRequest(returningItems: nil)
+            ) { [weak self] filedIn in
+                if filedIn == nil {
+                    // Cancelled: tell the host app nothing was shared.
+                    self?.extensionContext?.cancelRequest(withError: NSError(domain: NSCocoaErrorDomain, code: NSUserCancelledError))
+                } else {
+                    self?.extensionContext?.completeRequest(returningItems: nil)
+                }
             })
             addChild(host)
             host.view.translatesAutoresizingMaskIntoConstraints = false
@@ -62,7 +67,7 @@ struct SharedContent {
                 }
             }
         }
-        out.text = String(texts.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }.joined(separator: "\n\n").prefix(5000))
+        out.text = clampToServerLimit(texts.reduce(into: [String]()) { if !$0.contains($1) { $0.append($1) } }.joined(separator: "\n\n"))
         return out
     }
 

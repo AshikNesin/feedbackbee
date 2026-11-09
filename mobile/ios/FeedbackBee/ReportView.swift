@@ -147,7 +147,9 @@ struct ReportView: View {
             let details = contextRows(report)
             if !details.isEmpty {
                 Section("Context") {
-                    ForEach(details, id: \.0) { label, value in
+                    ForEach(Array(details.enumerated()), id: \.offset) { _, row in
+                        let label = row.0
+                        let value = row.1
                         if label == "Page", let page = report.url.flatMap(URL.init(string:)) {
                             linkRow(label, value, icon: nil) { openURL(page) }
                         } else {

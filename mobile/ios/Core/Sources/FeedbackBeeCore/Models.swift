@@ -165,8 +165,9 @@ public struct FeedbackItem: Codable, Identifiable, Hashable, Sendable {
         metadata = try c.decodeIfPresent([String: Scalar].self, forKey: .metadata)
         url = try c.decodeIfPresent(String.self, forKey: .url)
         userAgent = try c.decodeIfPresent(String.self, forKey: .userAgent)
-        screenW = try c.decodeIfPresent(Int.self, forKey: .screenW)
-        screenH = try c.decodeIfPresent(Int.self, forKey: .screenH)
+        // Numbers on the wire (the web widget may send fractional CSS pixels).
+        screenW = try c.decodeIfPresent(Double.self, forKey: .screenW).map { Int($0.rounded()) }
+        screenH = try c.decodeIfPresent(Double.self, forKey: .screenH).map { Int($0.rounded()) }
         appVersion = try c.decodeIfPresent(String.self, forKey: .appVersion)
         osName = try c.decodeIfPresent(String.self, forKey: .osName)
         osVersion = try c.decodeIfPresent(String.self, forKey: .osVersion)

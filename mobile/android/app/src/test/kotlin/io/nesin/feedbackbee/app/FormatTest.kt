@@ -42,12 +42,13 @@ class FormatTest {
     @Test fun `relative time steps from now to dates`() {
         val now = 1_760_000_000_000L // 2025-10-09T08:53:20Z
         val utc = ZoneOffset.UTC
+        val en = java.util.Locale.US
         assertEquals("now", relativeTime(now - 30_000, now, utc))
         assertEquals("5m", relativeTime(now - 5 * 60_000, now, utc))
         assertEquals("3h", relativeTime(now - 3 * 3_600_000, now, utc))
         assertEquals("2d", relativeTime(now - 2 * 86_400_000, now, utc))
-        assertTrue(relativeTime(now - 20L * 86_400_000, now, utc).startsWith("Sep"))
-        assertTrue(relativeTime(now - 400L * 86_400_000, now, utc).endsWith("2024"))
+        assertTrue(relativeTime(now - 20L * 86_400_000, now, utc, en).startsWith("Sep"))
+        assertTrue(relativeTime(now - 400L * 86_400_000, now, utc, en).endsWith("2024"))
     }
 
     @Test fun `clock and page path format like the web`() {
@@ -55,6 +56,7 @@ class FormatTest {
         assertEquals("1:05", clock(65.4))
         assertEquals("example.com/checkout", pagePath("https://example.com/checkout?x=1"))
         assertEquals("example.com", pagePath("https://example.com/"))
+        assertEquals("localhost:8787/demo", pagePath("http://localhost:8787/demo"))
         assertNull(pagePath(null))
     }
 }

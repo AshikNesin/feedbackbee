@@ -41,12 +41,29 @@ public func relativeTime(_ date: Date, now: Date = Date(), calendar: Calendar = 
     case ..<86_400: return "\(seconds / 3600)h"
     case ..<(7 * 86_400): return "\(seconds / 86_400)d"
     default:
-        let formatter = DateFormatter()
-        formatter.locale = locale
-        formatter.timeZone = calendar.timeZone
         let sameYear = calendar.component(.year, from: date) == calendar.component(.year, from: now)
-        formatter.setLocalizedDateFormatFromTemplate(sameYear ? "MMMd" : "MMMdyyyy")
-        return formatter.string(from: date)
+        return DateFormatters.shared.formatter(sameYear ? "MMMd" : "MMMdyyyy", locale: locale, timeZone: calendar.timeZone)
+            .string(from: date)
+    }
+}
+
+/// DateFormatters are costly to make; inbox rows reuse one per template, locale and zone.
+final class DateFormatters: @unchecked Sendable {
+    static let shared = DateFormatters()
+    private var cache: [String: DateFormatter] = [:]
+    private let lock = NSLock()
+
+    func formatter(_ template: String, locale: Locale, timeZone: TimeZone) -> DateFormatter {
+        let key = "\(template)|\(locale.identifier)|\(timeZone.identifier)"
+        return lock.withLock {
+            if let hit = cache[key] { return hit }
+            let made = DateFormatter()
+            made.locale = locale
+            made.timeZone = timeZone
+            made.setLocalizedDateFormatFromTemplate(template)
+            cache[key] = made
+            return made
+        }
     }
 }
 
@@ -60,5 +77,5 @@ public func clock(_ seconds: Double?) -> String {
 public func pagePath(_ url: String?) -> String? {
     guard let url else { return nil }
     guard let parts = URLComponents(string: url), let host = parts.host else { return url }
-    return host + (parts.path == "/" ? "" : parts.path)
+    return host + (parts.port.map { ":\($0)" } ?? "") + (parts.path == "/" ? "" : parts.path)
 }

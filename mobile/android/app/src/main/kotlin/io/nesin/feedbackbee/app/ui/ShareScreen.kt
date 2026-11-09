@@ -74,7 +74,7 @@ fun ShareScreen(
                     color = Bee.danger,
                 )
                 else -> LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), contentPadding = PaddingValues(end = 8.dp)) {
-                    items(state.projects, key = { it.id }) { p ->
+                    items(state.projects.sortedByDescending { it.id == project?.id }, key = { it.id }) { p ->
                         FilterChip(
                             selected = p.id == project?.id,
                             onClick = { projectId = p.id },

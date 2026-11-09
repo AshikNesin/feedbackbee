@@ -80,8 +80,8 @@ API client, session storage, the disk cache and the observable stores live in
 the local `Core` package, which builds and tests anywhere Swift runs:
 
 ```bash
-cd mobile/ios/Core && swift test              # macOS or Linux
-cd mobile/ios && ./screenshots.sh /tmp/shots  # simulator screenshots, light and dark
+(cd mobile/ios/Core && swift test)              # macOS or Linux
+(cd mobile/ios && ./screenshots.sh /tmp/shots)  # simulator screenshots, light and dark
 ```
 
 Debug builds accept `-demoScreen <signIn|projects|inbox|compose|report|edit|newProject|settings|share>`
@@ -96,7 +96,7 @@ automatic signing.
   first page are cached on disk, shown at once, then refreshed.
 - JSON is decoded off the main thread (OkHttp's threads; URLSession's
   executors), lists are lazy with stable ids.
-- Media at `/f/<key>` is immutable: cached on disk for good and decoded at the
+- Media at `/f/<key>` is immutable: cached on disk without revalidation (bounded, least recently used evicted) and decoded at the
   size it's shown (Coil; ImageIO thumbnails on iOS), full size only in the
   viewer.
 - Status changes and deletes are optimistic and roll back on failure.

@@ -16,15 +16,19 @@ public final class AppModel {
     public private(set) var projects: ProjectsStore!
 
     @ObservationIgnored private let store: SessionStore
-    @ObservationIgnored let cache: DiskCache
+    /// This session's cache; replaced (and the old one retired) on every session change.
+    @ObservationIgnored private(set) var cache: DiskCache
+    @ObservationIgnored private let makeCache: () -> DiskCache
     @ObservationIgnored let urlSession: URLSession
     @ObservationIgnored let device: DeviceContext
     @ObservationIgnored private var inboxes: [String: InboxStore] = [:]
     @ObservationIgnored private var client: APIClient?
 
-    public init(store: SessionStore, cache: DiskCache, urlSession: URLSession = .shared, device: DeviceContext) {
+    /// `cache` makes the cache for each session (all in the same place).
+    public init(store: SessionStore, cache: @escaping @autoclosure () -> DiskCache, urlSession: URLSession = .shared, device: DeviceContext) {
         self.store = store
-        self.cache = cache
+        self.makeCache = cache
+        self.cache = cache()
         self.urlSession = urlSession
         self.device = device
         self.session = store.load()
@@ -38,12 +42,16 @@ public final class AppModel {
         set { store.lastProjectId = newValue }
     }
 
-    /// The API for the signed-in server. Only called while signed in.
+    /// The API for the signed-in server. Signed out (e.g. a store still
+    /// finishing after expiry), every call fails fast instead of crashing.
     public var api: APIClient {
         if let client { return client }
-        guard let session else { preconditionFailure("Not signed in") }
-        let made = APIClient(host: session.host, token: session.token, session: urlSession) { [weak self] in
-            Task { @MainActor in self?.expire() }
+        guard let session else {
+            return APIClient(host: URL(string: "https://signed-out.invalid")!, token: nil, session: urlSession)
+        }
+        let token = session.token
+        let made = APIClient(host: session.host, token: token, session: urlSession) { [weak self] in
+            Task { @MainActor in self?.expire(token) }
         }
         client = made
         return made
@@ -64,9 +72,10 @@ public final class AppModel {
         let result = try await APIClient(host: host, token: nil, session: urlSession)
             .signIn(email: email.trimmingCharacters(in: .whitespaces), password: password)
         let next = Session(host: host, email: result.user.email, token: result.token)
-        if lastHost != host.absoluteString || lastEmail != next.email { await cache.clear() }
+        let accountChanged = lastHost != host.absoluteString || lastEmail != next.email
         store.save(next)
         reset()
+        if accountChanged { await cache.clear() }
         session = next
     }
 
@@ -74,18 +83,21 @@ public final class AppModel {
         store.clear()
         reset()
         session = nil
-        let cache = cache
-        Task { await cache.clear() }
     }
 
-    /// The server refused the token (expired, or the account is gone): back to sign-in.
-    private func expire() {
-        if session != nil { signOut() }
+    /// The server refused `token` (expired, or the account is gone): back to
+    /// sign-in. A late 401 from an earlier session's request is ignored.
+    private func expire(_ token: String) {
+        if session?.token == token { signOut() }
     }
 
+    /// Drop the session's stores and retire its cache (pending writes discarded, files wiped).
     private func reset() {
         client = nil
         inboxes = [:]
+        let old = cache
+        Task { await old.retireAndClear() }
+        cache = makeCache()
         projects = ProjectsStore(app: self)
     }
 }
@@ -97,25 +109,39 @@ public final class ProjectsStore {
     public private(set) var projects: [Project] = []
     /// True once anything (cache or network) has filled the list.
     public private(set) var loaded = false
+    /// True once the server (not just the cache) has answered.
+    public private(set) var fromServer = false
     public private(set) var refreshing = false
     public var error: String?
 
     @ObservationIgnored private let app: AppModel
+    @ObservationIgnored private let cache: DiskCache
     @ObservationIgnored private var started = false
 
-    init(app: AppModel) { self.app = app }
+    init(app: AppModel) {
+        self.app = app
+        self.cache = app.cache
+    }
 
+    /// Load once per session. Runs in its own task, so a view that disappears
+    /// mid-load (launching straight into an inbox) doesn't leave it unloaded.
     public func start() async {
         guard !started else { return }
         started = true
-        if let cached = await app.cache.projects(), !loaded {
-            projects = cached
-            loaded = true
-        }
-        await refresh()
+        await Task {
+            if let cached = await cache.projects(), !loaded {
+                projects = cached
+                loaded = true
+            }
+            await load()
+        }.value
     }
 
     public func refresh() async {
+        await Task { await load() }.value
+    }
+
+    private func load() async {
         guard !refreshing else { return }
         refreshing = true
         error = nil
@@ -124,7 +150,8 @@ public final class ProjectsStore {
             let fresh = try await app.api.projects()
             projects = fresh
             loaded = true
-            await app.cache.saveProjects(fresh)
+            fromServer = true
+            await cache.saveProjects(fresh)
         } catch is CancellationError {
         } catch {
             loaded = true
@@ -137,14 +164,14 @@ public final class ProjectsStore {
     public func create(name: String, slug: String, repo: String) async throws -> Project {
         let project = try await app.api.createProject(name: name, slug: slug, githubRepo: repo)
         projects.insert(project, at: 0)
-        await app.cache.saveProjects(projects)
+        await cache.saveProjects(projects)
         return project
     }
 
     public func delete(_ project: Project) async throws {
         try await app.api.deleteProject(project.id)
         projects.removeAll { $0.id == project.id }
-        await app.cache.saveProjects(projects)
+        await cache.saveProjects(projects)
     }
 }
 
@@ -166,18 +193,22 @@ public final class InboxStore {
     public var message: String?
 
     @ObservationIgnored private let app: AppModel
+    @ObservationIgnored private let cache: DiskCache
     @ObservationIgnored private var started = false
     @ObservationIgnored private var pageTask: Task<Void, Never>?
+    /// Bumped by every refresh: an older page that lands later is dropped.
+    @ObservationIgnored private var generation = 0
 
     init(app: AppModel, projectId: String) {
         self.app = app
+        self.cache = app.cache
         self.projectId = projectId
     }
 
     public func start() async {
         guard !started else { return }
         started = true
-        if let cached = await app.cache.inbox(projectId), !loaded {
+        if let cached = await cache.inbox(projectId), !loaded {
             items = cached.items
             hasMore = cached.hasMore
             loaded = true
@@ -187,6 +218,8 @@ public final class InboxStore {
 
     public func refresh() async {
         pageTask?.cancel()
+        generation += 1
+        loadingMore = false
         let status = status
         refreshing = true
         error = nil
@@ -199,7 +232,7 @@ public final class InboxStore {
                 hasMore = page.hasMore
                 loaded = true
                 refreshing = false
-                if status == nil { await app.cache.saveInbox(projectId, page) }
+                if status == nil { await cache.saveInbox(projectId, page) }
             } catch is CancellationError {
             } catch {
                 guard !Task.isCancelled else { return }
@@ -223,16 +256,18 @@ public final class InboxStore {
 
     public func loadMore() async {
         guard hasMore, !loadingMore, !refreshing, let cursor = items.last?.createdAtMs else { return }
+        let started = generation
         loadingMore = true
-        defer { loadingMore = false }
+        defer { if generation == started { loadingMore = false } }
         do {
             let page = try await app.api.feedback(projectId: projectId, before: cursor, status: status)
+            guard generation == started else { return } // a refresh or filter change replaced the list
             let known = Set(items.map(\.id))
             items += page.items.filter { !known.contains($0.id) }
             hasMore = page.hasMore
         } catch is CancellationError {
         } catch {
-            message = userMessage(error)
+            if generation == started { message = userMessage(error) }
         }
     }
 

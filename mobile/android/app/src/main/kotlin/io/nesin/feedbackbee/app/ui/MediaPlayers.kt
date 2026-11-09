@@ -1,6 +1,9 @@
 package io.nesin.feedbackbee.app.ui
 
 import android.annotation.SuppressLint
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.annotation.OptIn
@@ -45,6 +48,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -67,6 +71,7 @@ fun AudioPlayerRow(url: String, durationSeconds: Double?) {
     var positionMs by remember(url) { mutableLongStateOf(0L) }
     var durationMs by remember(url) { mutableLongStateOf(((durationSeconds ?: 0.0) * 1000).toLong()) }
     var scrub by remember(url) { mutableFloatStateOf(-1f) }
+    var failed by remember(url) { mutableStateOf(false) }
 
     DisposableEffect(url) { onDispose { player?.release(); player = null } }
 
@@ -81,10 +86,19 @@ fun AudioPlayerRow(url: String, durationSeconds: Double?) {
     }
 
     fun toggle() {
+        failed = false
         val p = player ?: ExoPlayer.Builder(context).build().also { created ->
             created.setMediaItem(MediaItem.fromUri(url))
             created.addListener(object : Player.Listener {
                 override fun onIsPlayingChanged(isPlaying: Boolean) { playing = isPlaying }
+                override fun onPlayerError(error: PlaybackException) {
+                    // A failed player can't resume: drop it, so the next tap starts over.
+                    failed = true
+                    playing = false
+                    buffering = false
+                    created.release()
+                    if (player === created) player = null
+                }
                 override fun onPlaybackStateChanged(state: Int) {
                     buffering = state == Player.STATE_BUFFERING
                     if (state == Player.STATE_ENDED) {
@@ -117,7 +131,11 @@ fun AudioPlayerRow(url: String, durationSeconds: Double?) {
             }
         }
         Column(Modifier.weight(1f)) {
-            Text("Voice note", style = MaterialTheme.typography.bodyMedium, color = Bee.inkMuted)
+            Text(
+                if (failed) "Couldn't play the voice note. Tap to retry." else "Voice note",
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (failed) Bee.danger else Bee.inkMuted,
+            )
             Slider(
                 value = if (scrub >= 0) scrub else if (durationMs > 0) positionMs.toFloat() / durationMs else 0f,
                 onValueChange = { scrub = it },
@@ -175,6 +193,7 @@ fun VideoViewer(url: String, onClose: () -> Unit) {
 fun ReplayViewer(url: String, onClose: () -> Unit) {
     val uri = LocalUriHandler.current
     var loading by remember(url) { mutableStateOf(true) }
+    var loadError by remember(url) { mutableStateOf<String?>(null) }
     FullScreen(
         onClose = onClose,
         dark = false,
@@ -194,6 +213,18 @@ fun ReplayViewer(url: String, onClose: () -> Unit) {
                         settings.mediaPlaybackRequiresUserGesture = false
                         webViewClient = object : WebViewClient() {
                             override fun onPageFinished(view: WebView?, url: String?) { loading = false }
+                            override fun onReceivedError(view: WebView?, request: WebResourceRequest?, error: WebResourceError?) {
+                                if (request?.isForMainFrame == true) {
+                                    loading = false
+                                    loadError = "Couldn't load the replay (${error?.description ?: "network error"})."
+                                }
+                            }
+                            override fun onReceivedHttpError(view: WebView?, request: WebResourceRequest?, response: WebResourceResponse?) {
+                                if (request?.isForMainFrame == true) {
+                                    loading = false
+                                    loadError = "Couldn't load the replay (HTTP ${response?.statusCode})."
+                                }
+                            }
                         }
                         loadUrl(url)
                     }
@@ -202,6 +233,14 @@ fun ReplayViewer(url: String, onClose: () -> Unit) {
                 modifier = Modifier.fillMaxSize(),
             )
             if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center), color = Bee.ink)
+            loadError?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Bee.inkMuted,
+                    modifier = Modifier.align(Alignment.Center).background(Bee.paper).padding(24.dp),
+                )
+            }
         }
     }
 }

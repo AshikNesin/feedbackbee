@@ -17,7 +17,7 @@ struct SettingsView: View {
     var body: some View {
         List {
             Section("Account") {
-                LabeledContent("Server", value: model.session?.host.host() ?? "")
+                LabeledContent("Server", value: model.session.map { pagePath($0.host.absoluteString) ?? $0.host.absoluteString } ?? "")
                 LabeledContent("Signed in as", value: model.session?.email ?? "")
                 Button("Open web dashboard") { openURL(model.api.dashboardURL()) }
             }

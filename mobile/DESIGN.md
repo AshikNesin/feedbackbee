@@ -69,7 +69,8 @@ own corner radius.
    to the GitHub issue, replay/recording and voice note, reporter (mail
    link), page URL, device context, metadata, issue error. Toolbar: Edit
    (sheet), Share issue link, Delete.
-5. **Quick file sheet.** A bottom sheet at medium height: kind chips
+5. **Quick file sheet.** A bottom sheet (medium height on iOS, full height on
+   Android so the keyboard and attachments fit): kind chips
    (Issue / Idea / Other), the note focused, optional images from the photo
    picker (up to 5), Send. Enter-to-send is off; Send stays disabled until
    there is text. The same sheet edits a report (kind + text, no images).
@@ -85,7 +86,8 @@ on the last project.
    Closes when filed ("Filed in Acme Web"); signed out, a card says to sign in
    in the app first.
 8. **Playback.** Voice notes play inline in the report (play/pause, scrubber,
-   `0:05 / 0:14`). Recordings open full screen on black; replays open the
+   `0:05 / 0:14`); on iOS, WebM and Ogg notes open a small web player sheet
+   instead, since AVFoundation can't decode them. Recordings open full screen on black; replays open the
    server's replay page full screen on paper, with Open in browser.
 
 ## 5. Performance rules
@@ -93,9 +95,10 @@ on the last project.
 - First paint never waits for the network: the last inbox page per project
   and the project list are cached on disk and shown at once, then refreshed.
 - Lists are lazy with stable ids (`LazyColumn` keys, SwiftUI `List` ids).
-- Images: `/f/<key>` is immutable, so it is cached on disk forever and
-  decoded at thumbnail size into a memory cache; full size only on the viewer.
+- Images: `/f/<key>` is immutable, so it is cached on disk without
+  revalidation (bounded at 256 MB, least recently used evicted) and decoded at
+  thumbnail size into a memory cache; full size only in the viewer.
 - One HTTP client per app (connection reuse, HTTP/2), JSON decoded off the
   main thread, no reflection on Android (kotlinx.serialization), R8 in release.
-- Status changes and edits update the row optimistically and roll back on
-  failure.
+- Status changes and deletes update the row optimistically and roll back on
+  failure. Edits wait for the server, which rewrites the GitHub issue.

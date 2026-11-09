@@ -115,7 +115,8 @@ struct Toast: ViewModifier {
                     .padding(.bottom, 88)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .task(id: message) {
-                        try? await Task.sleep(for: .seconds(3))
+                        // Cancelled when a newer message replaces this one: then leave it be.
+                        guard (try? await Task.sleep(for: .seconds(3))) != nil else { return }
                         withAnimation { self.message = nil }
                     }
             }

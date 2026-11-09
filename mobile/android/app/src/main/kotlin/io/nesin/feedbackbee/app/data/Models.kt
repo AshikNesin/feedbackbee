@@ -65,8 +65,9 @@ data class FeedbackItem(
     val metadata: Map<String, JsonPrimitive>? = null,
     val url: String? = null,
     val userAgent: String? = null,
-    val screenW: Int? = null,
-    val screenH: Int? = null,
+    /** Numbers on the wire; the web widget may send fractional CSS pixels. */
+    val screenW: Double? = null,
+    val screenH: Double? = null,
     val appVersion: String? = null,
     val osName: String? = null,
     val osVersion: String? = null,

@@ -6,6 +6,21 @@ import UIKit
 /// Reports carry at most 5 images (docs/CONTRACT.md).
 let maxImages = 5
 
+/// The server's 5,000-character limit counts UTF-16 code units (JavaScript
+/// string length), so emoji count double; trim whole characters to fit.
+func clampToServerLimit(_ text: String, limit: Int = 5000) -> String {
+    guard text.utf16.count > limit else { return text }
+    var out = ""
+    var used = 0
+    for character in text {
+        let size = character.utf16.count
+        if used + size > limit { break }
+        out.append(character)
+        used += size
+    }
+    return out
+}
+
 /// An image attached to a new report: the original bytes (encoded at send
 /// time) and a small thumbnail for the sheet.
 struct ComposeAttachment: Identifiable {
@@ -90,13 +105,18 @@ struct ComposeSheet: View {
                         .focused($focused)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 120)
-                        .onChange(of: text) { _, new in if new.count > 5000 { text = String(new.prefix(5000)) } }
+                        .onChange(of: text) { _, new in
+                            let clamped = clampToServerLimit(new)
+                            if clamped != new { text = clamped }
+                        }
                 }
                 .padding(8)
                 .background(Bee.card, in: RoundedRectangle(cornerRadius: 12))
                 .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(focused ? Bee.ink : Bee.rule))
 
                 if allowImages {
+                    // Scrolls sideways: five thumbnails and the add button don't fit a narrow iPhone.
+                    ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
                         if attachments.count < maxImages {
                             PhotosPicker(selection: $picks, maxSelectionCount: maxImages - attachments.count, matching: .images) {
@@ -121,6 +141,8 @@ struct ComposeSheet: View {
                                 }
                         }
                     }
+                    }
+                    .scrollClipDisabled()
                 }
                 if let error { Text(error).font(.subheadline).foregroundStyle(Bee.danger) }
                 Spacer(minLength: 0)

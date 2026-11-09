@@ -91,6 +91,7 @@ fun ProjectsScreen(graph: AppGraph, onOpen: (Project) -> Unit, onSettings: () ->
         ) {
             when {
                 !state.loaded -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Bee.ink) }
+                state.projects.isEmpty() && state.error != null -> EmptyState("Couldn't load projects", "${state.error} Pull to retry.")
                 state.projects.isEmpty() -> EmptyState(
                     "No projects yet",
                     "A project files its reports as issues in one GitHub repository. Tap + to add one.",
@@ -184,7 +185,8 @@ private fun NewProjectSheet(graph: AppGraph, onDismiss: () -> Unit, onCreated: (
             when {
                 list == null -> CircularProgressIndicator(Modifier.size(24.dp), color = Bee.ink)
                 list.isEmpty() -> Text(
-                    "No repositories yet. Connect GitHub in the web dashboard (Settings → GitHub) and install the app on a repository.",
+                    if (loadError != null) "Couldn't load repositories. Close this sheet and open it again to retry."
+                    else "No repositories yet. Connect GitHub in the web dashboard (Settings → GitHub) and install the app on a repository.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Bee.inkMuted,
                 )

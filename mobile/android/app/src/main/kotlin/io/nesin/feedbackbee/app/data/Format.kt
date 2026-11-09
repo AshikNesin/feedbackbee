@@ -24,6 +24,10 @@ fun normalizeHost(input: String): String? {
     return "$scheme://$host$port"
 }
 
+/** Hosts a debug build may reach over plain HTTP (res/xml in src/debug): a local dev server. */
+fun isLocalDevHost(base: String): Boolean =
+    runCatching { URI(base).host }.getOrNull() in setOf("localhost", "127.0.0.1", "10.0.2.2")
+
 /** Project id from a name, like the web's New project dialog: a-z, 0-9, inner hyphens, 3-40 chars. */
 fun slugify(name: String): String =
     name.lowercase(Locale.ROOT)
@@ -38,7 +42,14 @@ private val shortDate = DateTimeFormatter.ofPattern("MMM d", Locale.getDefault()
 private val longDate = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
 
 /** "now", "5m", "3h", "2d", then "Mar 4" (this year) or "Mar 4, 2025". */
-fun relativeTime(epochMs: Long, nowMs: Long = System.currentTimeMillis(), zone: ZoneId = ZoneId.systemDefault()): String {
+fun relativeTime(
+    epochMs: Long,
+    nowMs: Long = System.currentTimeMillis(),
+    zone: ZoneId = ZoneId.systemDefault(),
+    locale: Locale? = null,
+): String {
+    val (short, long) = if (locale == null) shortDate to longDate
+    else DateTimeFormatter.ofPattern("MMM d", locale) to DateTimeFormatter.ofPattern("MMM d, yyyy", locale)
     val seconds = (nowMs - epochMs) / 1000
     return when {
         seconds < 60 -> "now"
@@ -48,7 +59,7 @@ fun relativeTime(epochMs: Long, nowMs: Long = System.currentTimeMillis(), zone: 
         else -> {
             val date = Instant.ofEpochMilli(epochMs).atZone(zone)
             val now = Instant.ofEpochMilli(nowMs).atZone(zone)
-            (if (date.year == now.year) shortDate else longDate).format(date)
+            (if (date.year == now.year) short else long).format(date)
         }
     }
 }
@@ -64,6 +75,7 @@ fun pagePath(url: String?): String? {
     if (url == null) return null
     val uri = runCatching { URI(url) }.getOrNull() ?: return url
     val host = uri.host ?: return url
+    val port = if (uri.port == -1) "" else ":${uri.port}"
     val path = uri.path.orEmpty()
-    return host + if (path == "/" ) "" else path
+    return host + port + if (path == "/") "" else path
 }

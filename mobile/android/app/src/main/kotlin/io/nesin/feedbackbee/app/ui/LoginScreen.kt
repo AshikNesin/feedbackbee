@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -25,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -48,8 +48,10 @@ import kotlinx.coroutines.launch
 fun LoginScreen(graph: AppGraph) {
     var host by rememberSaveable { mutableStateOf(graph.lastHost?.removePrefix("https://").orEmpty()) }
     var email by rememberSaveable { mutableStateOf(graph.lastEmail.orEmpty()) }
-    var password by rememberSaveable { mutableStateOf("") }
-    var busy by rememberSaveable { mutableStateOf(false) }
+    // Not saveable: the password never goes into the saved-state Bundle, and a
+    // sign-in cancelled by recreation must not come back as "busy".
+    var password by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val canSubmit = host.isNotBlank() && email.isNotBlank() && password.isNotEmpty() && !busy
@@ -69,7 +71,6 @@ fun LoginScreen(graph: AppGraph) {
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .systemBarsPadding()
                 .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),

@@ -18,6 +18,7 @@ import io.nesin.feedbackbee.app.data.InboxStore
 import io.nesin.feedbackbee.app.data.ProjectsStore
 import io.nesin.feedbackbee.app.data.Session
 import io.nesin.feedbackbee.app.data.SessionStore
+import io.nesin.feedbackbee.app.data.isLocalDevHost
 import io.nesin.feedbackbee.app.data.normalizeHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -65,7 +66,10 @@ class AppGraph(private val app: Application, private val sessionStore: SessionSt
     private val _session = MutableStateFlow(sessionStore.load())
     val session: StateFlow<Session?> = _session.asStateFlow()
 
-    val cache = DiskCache(File(app.filesDir, "cache"))
+    private val cacheDir = File(app.filesDir, "cache")
+    /** This session's cache; replaced (and the old one retired) on every session change. */
+    var cache = DiskCache(cacheDir)
+        private set
     val contentResolver: ContentResolver get() = app.contentResolver
 
     val device = DeviceContext(
@@ -92,7 +96,7 @@ class AppGraph(private val app: Application, private val sessionStore: SessionSt
     fun api(): Api {
         api?.let { return it }
         val s = _session.value ?: error("Not signed in")
-        return Api(http, s.host, s.token, onSessionInvalid = ::expire).also { api = it }
+        return Api(http, s.host, s.token, onSessionInvalid = { expire(s.token) }).also { api = it }
     }
 
     fun inbox(projectId: String): InboxStore = inboxes.getOrPut(projectId) { InboxStore(this, scope, projectId) }
@@ -100,11 +104,15 @@ class AppGraph(private val app: Application, private val sessionStore: SessionSt
     /** Sign in, then switch to that session. Throws with the server's message on failure. */
     suspend fun signIn(hostInput: String, email: String, password: String) {
         val host = normalizeHost(hostInput) ?: throw IllegalArgumentException("Enter your FeedbackBee address, like bee.example.com")
+        if (host.startsWith("http://") && !(BuildConfig.DEBUG && isLocalDevHost(host))) {
+            throw IllegalArgumentException("Use an https:// address (plain http works only for a local dev server in debug builds)")
+        }
         val result = Api(http, host, token = null).signIn(email.trim(), password)
         val session = Session(host, result.user.email, result.token)
-        if (lastHost != host || lastEmail != session.email) cache.clear()
+        val accountChanged = lastHost != host || lastEmail != session.email
         sessionStore.save(session)
         reset()
+        if (accountChanged) cache.clear()
         _session.value = session
     }
 
@@ -112,19 +120,25 @@ class AppGraph(private val app: Application, private val sessionStore: SessionSt
         sessionStore.clear()
         reset()
         _session.value = null
-        CoroutineScope(Dispatchers.IO).launch { cache.clear() }
     }
 
-    /** The server refused the token (expired or the account is gone): back to sign-in. */
-    private fun expire() {
-        CoroutineScope(Dispatchers.Main).launch { if (_session.value != null) signOut() }
+    /**
+     * The server refused [token] (expired, or the account is gone): back to
+     * sign-in. A late 401 from an earlier session's request is ignored.
+     */
+    private fun expire(token: String) {
+        CoroutineScope(Dispatchers.Main).launch { if (_session.value?.token == token) signOut() }
     }
 
+    /** Drop the session's stores and retire its cache (its pending writes are discarded, files wiped). */
     private fun reset() {
         scope.cancel()
         scope = newScope()
         api = null
         inboxes.clear()
+        val old = cache
+        CoroutineScope(Dispatchers.IO).launch { old.retireAndClear() }
+        cache = DiskCache(cacheDir)
         projects = ProjectsStore(this, scope)
     }
 

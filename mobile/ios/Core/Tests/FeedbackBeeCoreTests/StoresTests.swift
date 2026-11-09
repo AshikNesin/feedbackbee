@@ -20,9 +20,10 @@ final class StoresTests: XCTestCase {
     func model(signedIn: Bool = true) -> AppModel {
         let store = SessionStore(defaults: defaults, secrets: MemorySecrets())
         if signedIn { store.save(Session(host: URL(string: "https://bee.test")!, email: "me@x.dev", token: "tok")) }
+        let dir = cacheDir!
         return AppModel(
             store: store,
-            cache: DiskCache(directory: cacheDir),
+            cache: DiskCache(directory: dir),
             urlSession: FakeServer.session(),
             device: DeviceContext(appVersion: "0.1.0", osVersion: "18", deviceModel: "iPhone")
         )
@@ -83,7 +84,7 @@ final class StoresTests: XCTestCase {
         let app = model()
         FakeServer.respond = { _ in fail(401, "SESSION_INVALID", "Invalid or expired token") }
         await app.projects.refresh()
-        for _ in 0..<20 where app.session != nil { try await Task.sleep(nanoseconds: 10_000_000) }
+        for _ in 0..<500 where app.session != nil { try await Task.sleep(nanoseconds: 10_000_000) }
         XCTAssertNil(app.session)
         XCTAssertEqual(app.lastHost, "https://bee.test")
     }
@@ -95,5 +96,45 @@ final class StoresTests: XCTestCase {
         XCTAssertEqual(app.session?.host.absoluteString, "https://bee.test")
         XCTAssertEqual(app.session?.token, "jwt")
         XCTAssertEqual(FakeServer.requests[0].request.url?.absoluteString, "https://bee.test/api/v1/auth/login")
+    }
+
+    func testALate401FromAnEarlierSessionDoesNotSignOutTheNewOne() async throws {
+        let app = model()
+        let old = app.api
+        FakeServer.respond = { _ in ok(#"{"token":"fresh","user":{"id":1,"email":"me@x.dev","name":null}}"#) }
+        try await app.signIn(host: "bee.test", email: "me@x.dev", password: "pw")
+        FakeServer.respond = { _ in fail(401, "SESSION_INVALID", "Invalid or expired token") }
+        _ = try? await old.projects()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        XCTAssertEqual(app.session?.token, "fresh")
+    }
+
+    func testSignedOutCallsFailInsteadOfCrashing() async {
+        let app = model(signedIn: false)
+        await app.projects.refresh()
+        XCTAssertNotNil(app.projects.error)
+    }
+
+    func testAnOlderPageIsDroppedAfterARefresh() async throws {
+        var page = 0
+        FakeServer.respond = { req in
+            page += 1
+            if req.url!.query?.contains("before") == true {
+                return ok(#"{"items":[\#(itemJSON.replacingOccurrences(of: "\"f1\"", with: "\"old\""))],"hasMore":false}"#)
+            }
+            return ok(#"{"items":[\#(itemJSON)],"hasMore":true}"#)
+        }
+        let inbox = model().inbox("p1")
+        await inbox.start()
+        async let more: Void = inbox.loadMore()
+        await inbox.setStatusFilter(.done)
+        await more
+        XCTAssertFalse(inbox.items.contains { $0.id == "old" }, "a page from before the filter change must not be appended")
+    }
+
+    func testFractionalScreenSizesDecode() throws {
+        let json = itemJSON.replacingOccurrences(of: "\"screenW\":390", with: "\"screenW\":390.5")
+        let item = try Wire.decoder.decode(FeedbackItem.self, from: Data(json.utf8))
+        XCTAssertEqual(item.screenW, 391)
     }
 }

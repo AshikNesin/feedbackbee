@@ -313,6 +313,9 @@ export async function updateGithubIssue(repo: string, number: number, status: Fe
 /**
  * Rewrite an issue after its report was edited: title and body, and swap the
  * kind label when the kind changed. Other labels (e.g. `in progress`) stay.
+ * Only the title/body PATCH can fail the edit: once the issue text is
+ * rewritten, a label request that fails leaves at most a stale kind label,
+ * never a report that disagrees with its issue.
  */
 export async function editGithubIssue(
   repo: string,
@@ -327,19 +330,16 @@ export async function editGithubIssue(
   });
   if (!patched.ok) throw Boom.unavailable(`GitHub ${patched.status}: issue update failed`);
   if (edit.addLabel) {
-    const added = await github.call(`${issue}/labels`, {
+    await github.call(`${issue}/labels`, {
       method: "POST",
       body: JSON.stringify({ labels: [edit.addLabel] }),
     });
-    if (!added.ok) throw Boom.unavailable(`GitHub ${added.status}: label update failed`);
   }
   if (edit.removeLabel) {
-    const removed = await github.call(`${issue}/labels/${encodeURIComponent(edit.removeLabel)}`, {
+    // A 404 means the label was not on the issue; other failures leave it stale.
+    await github.call(`${issue}/labels/${encodeURIComponent(edit.removeLabel)}`, {
       method: "DELETE",
     });
-    // 404: the label was not on the issue.
-    if (!removed.ok && removed.status !== 404)
-      throw Boom.unavailable(`GitHub ${removed.status}: label update failed`);
   }
 }
 

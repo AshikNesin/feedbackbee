@@ -18,12 +18,16 @@ data class ProjectsState(
     val projects: List<Project> = emptyList(),
     /** True once anything (cache or network) has filled the list. */
     val loaded: Boolean = false,
+    /** True once the server (not just the cache) has answered. */
+    val fromServer: Boolean = false,
     val refreshing: Boolean = false,
     val error: String? = null,
 )
 
 /** The project list: cached on disk, refreshed from the server. */
 class ProjectsStore(private val graph: AppGraph, private val scope: CoroutineScope) {
+    /** This session's cache; a store from a signed-out session writes nowhere. */
+    private val cache = graph.cache
     private val _state = MutableStateFlow(ProjectsState())
     val state: StateFlow<ProjectsState> = _state.asStateFlow()
     private var started = false
@@ -32,7 +36,7 @@ class ProjectsStore(private val graph: AppGraph, private val scope: CoroutineSco
         if (started) return
         started = true
         scope.launch {
-            graph.cache.projects()?.let { cached ->
+            cache.projects()?.let { cached ->
                 _state.update { if (it.loaded) it else it.copy(projects = cached, loaded = true) }
             }
             refresh()
@@ -43,10 +47,10 @@ class ProjectsStore(private val graph: AppGraph, private val scope: CoroutineSco
         if (_state.value.refreshing) return
         _state.update { it.copy(refreshing = true, error = null) }
         scope.launch {
-            runCatching { graph.api().projects() }
+            attempt { graph.api().projects() }
                 .onSuccess { projects ->
-                    _state.update { it.copy(projects = projects, loaded = true, refreshing = false) }
-                    graph.cache.saveProjects(projects)
+                    _state.update { it.copy(projects = projects, loaded = true, fromServer = true, refreshing = false) }
+                    cache.saveProjects(projects)
                 }
                 .onFailure { e -> _state.update { it.copy(refreshing = false, loaded = true, error = e.userMessage()) } }
         }
@@ -62,7 +66,7 @@ class ProjectsStore(private val graph: AppGraph, private val scope: CoroutineSco
         if (_repositories.value is RepositoriesState.Loaded) return
         _repositories.value = RepositoriesState.Loading
         scope.launch {
-            _repositories.value = runCatching { graph.api().repositories() }
+            _repositories.value = attempt { graph.api().repositories() }
                 .fold({ RepositoriesState.Loaded(it) }, { RepositoriesState.Failed(it.userMessage()) })
         }
     }
@@ -70,14 +74,14 @@ class ProjectsStore(private val graph: AppGraph, private val scope: CoroutineSco
     suspend fun create(name: String, slug: String, repo: String): Project {
         val project = graph.api().createProject(name, slug, repo)
         _state.update { it.copy(projects = listOf(project) + it.projects) }
-        graph.cache.saveProjects(_state.value.projects)
+        cache.saveProjects(_state.value.projects)
         return project
     }
 
     suspend fun delete(project: Project) {
         graph.api().deleteProject(project.id)
         _state.update { s -> s.copy(projects = s.projects.filterNot { it.id == project.id }) }
-        graph.cache.saveProjects(_state.value.projects)
+        cache.saveProjects(_state.value.projects)
     }
 }
 
@@ -109,6 +113,7 @@ class InboxStore(
     private val scope: CoroutineScope,
     val projectId: String,
 ) {
+    private val cache = graph.cache
     private val _state = MutableStateFlow(InboxState())
     val state: StateFlow<InboxState> = _state.asStateFlow()
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
@@ -120,7 +125,7 @@ class InboxStore(
         if (started) return
         started = true
         scope.launch {
-            graph.cache.inbox(projectId)?.let { cached ->
+            cache.inbox(projectId)?.let { cached ->
                 _state.update { if (it.loaded) it else it.copy(items = cached.items, hasMore = cached.hasMore, loaded = true) }
             }
         }
@@ -132,10 +137,10 @@ class InboxStore(
         pageJob?.cancel()
         _state.update { it.copy(refreshing = true, error = null) }
         pageJob = scope.launch {
-            runCatching { graph.api().feedback(projectId, status = status) }
+            attempt { graph.api().feedback(projectId, status = status) }
                 .onSuccess { page ->
                     _state.update { it.copy(items = page.items, hasMore = page.hasMore, loaded = true, refreshing = false) }
-                    if (status == null) graph.cache.saveInbox(projectId, page)
+                    if (status == null) cache.saveInbox(projectId, page)
                 }
                 .onFailure { e -> _state.update { it.copy(refreshing = false, loaded = true, error = e.userMessage()) } }
         }
@@ -153,7 +158,7 @@ class InboxStore(
         val cursor = s.items.lastOrNull()?.createdAtMs ?: return
         _state.update { it.copy(loadingMore = true) }
         pageJob = scope.launch {
-            runCatching { graph.api().feedback(projectId, before = cursor, status = s.status) }
+            attempt { graph.api().feedback(projectId, before = cursor, status = s.status) }
                 .onSuccess { page ->
                     _state.update { cur ->
                         val known = cur.items.mapTo(HashSet()) { it.id }
@@ -180,7 +185,7 @@ class InboxStore(
         if (item.status == status) return
         replace(item.copy(status = status))
         scope.launch {
-            runCatching { graph.api().updateFeedback(projectId, item.id, status = status) }
+            attempt { graph.api().updateFeedback(projectId, item.id, status = status) }
                 .onSuccess(::replace)
                 .onFailure { e ->
                     replace(item)
@@ -205,7 +210,7 @@ class InboxStore(
         val before = _state.value.items
         _state.update { s -> s.copy(items = s.items.filterNot { it.id == item.id }) }
         scope.launch {
-            runCatching { graph.api().deleteFeedback(projectId, item.id) }
+            attempt { graph.api().deleteFeedback(projectId, item.id) }
                 .onSuccess { _messages.tryEmit("Report deleted") }
                 .onFailure { e ->
                     _state.update { it.copy(items = before) }
@@ -216,7 +221,7 @@ class InboxStore(
 
     fun sync() {
         scope.launch {
-            runCatching { graph.api().sync(projectId) }
+            attempt { graph.api().sync(projectId) }
                 .onSuccess { result ->
                     _messages.tryEmit(
                         if (result.updated == 0) "Up to date with GitHub" else "Updated ${result.updated} of ${result.checked} from GitHub",
@@ -236,7 +241,7 @@ class InboxStore(
         } else {
             _messages.tryEmit("Filed")
         }
-        val item = runCatching { graph.api().feedbackItem(projectId, result.id) }.getOrNull()
+        val item = attempt { graph.api().feedbackItem(projectId, result.id) }.getOrNull()
         if (item == null) {
             refresh()
             return

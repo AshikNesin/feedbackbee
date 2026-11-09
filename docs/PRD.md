@@ -190,7 +190,7 @@ Authenticated (groot's JWT cookie; passkeys optional):
 | DELETE | `/api/v1/projects/:id`                          | Delete project + feedback rows (media kept)                         |
 | GET    | `/api/v1/projects/:id/feedback?before=&status=` | Paged list, newest first (cursor: epoch ms), optional status filter |
 | GET    | `/api/v1/projects/:id/feedback/:fid`            | One report                                                          |
-| PATCH  | `/api/v1/projects/:id/feedback/:fid`            | Edit status, kind or text; updates the GitHub issue                 |
+| PATCH  | `/api/v1/projects/:id/feedback/:fid`            | Edit status, kind or text; updates its GitHub issue, if filed       |
 | DELETE | `/api/v1/projects/:id/feedback/:fid`            | Delete a report (its GitHub issue and media stay)                   |
 | POST   | `/api/v1/projects/:id/sync`                     | Pull issue statuses from GitHub (newest 500)                        |
 | POST   | `/api/v1/github/webhook`                        | GitHub `issues` webhook (signature-verified)                        |

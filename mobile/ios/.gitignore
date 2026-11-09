@@ -1,6 +1,7 @@
 Core/.build/
 Core/.swiftpm/
 DerivedData/
-build/
+build*/
+screenshots/
 xcuserdata/
 *.xcuserstate

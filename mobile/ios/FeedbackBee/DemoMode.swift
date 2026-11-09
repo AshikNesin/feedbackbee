@@ -25,6 +25,7 @@ enum DemoMode {
         if [.inbox, .compose, .report, .edit].contains(screen) { store.lastProjectId = "p1" }
         let config = URLSessionConfiguration.ephemeral
         config.protocolClasses = [DemoServer.self]
+        ImageLoader.protocolClasses = [DemoServer.self]
         let cache = FileManager.default.temporaryDirectory.appendingPathComponent("demo-\(UUID().uuidString)")
         return AppModel(
             store: store,

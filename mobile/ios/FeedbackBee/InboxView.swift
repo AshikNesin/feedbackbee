@@ -58,6 +58,13 @@ struct InboxView: View {
                     composing = true
                 }
             }
+            .onChange(of: model.projects.fromServer) { _, fresh in
+                // The remembered project was deleted elsewhere: back to the list.
+                if fresh, project == nil {
+                    model.lastProjectId = nil
+                    path = []
+                }
+            }
             .onChange(of: scenePhase) { _, phase in
                 // Back from another app: the Share Extension may have filed something.
                 if phase == .active, store.loaded { Task { await store.refresh() } }
@@ -65,7 +72,7 @@ struct InboxView: View {
             .onChange(of: composeOnOpen) { _, open in
                 if open { composeOnOpen = false; composing = true }
             }
-            .sheet(isPresented: $composing) {
+            .sheet(isPresented: Binding(get: { composing && project != nil }, set: { composing = $0 })) {
                 if let project {
                     ComposeSheet(title: "New issue", action: "Send", allowImages: true) { kind, text, images in
                         try await store.submit(project: project, kind: kind, text: text, images: images)
@@ -95,12 +102,19 @@ struct InboxView: View {
         if !store.loaded {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if shown.isEmpty {
+            let filtered = !query.isEmpty || kindFilter != nil
             ContentUnavailableView {
-                Label(query.isEmpty ? "Nothing here yet" : "No matches", systemImage: query.isEmpty ? "tray" : "magnifyingglass")
+                Label(filtered ? "No matches" : "Nothing here yet", systemImage: filtered ? "magnifyingglass" : "tray")
             } description: {
-                Text(query.isEmpty
-                    ? (store.error ?? "Reports from your widget and SDKs land here. Tap New issue to file one.")
-                    : "Search covers the reports loaded so far.")
+                Text(filtered
+                    ? "Filters and search cover the reports loaded so far."
+                    : (store.error ?? "Reports from your widget and SDKs land here. Tap New issue to file one."))
+            } actions: {
+                // Kind and search filter loaded pages only: keep older reports reachable.
+                if store.hasMore {
+                    Button(store.loadingMore ? "Loading…" : "Load older reports") { Task { await store.loadMore() } }
+                        .disabled(store.loadingMore)
+                }
             }
         } else {
             List {

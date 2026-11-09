@@ -200,5 +200,18 @@ suspend fun <R> Call.await(transform: (Response) -> R): R = suspendCancellableCo
     })
 }
 
+/**
+ * `runCatching` that never swallows cancellation: a request cancelled by a
+ * newer refresh or a filter change is not a failure to show.
+ */
+inline fun <T> attempt(block: () -> T): Result<T> =
+    try {
+        Result.success(block())
+    } catch (cancelled: kotlinx.coroutines.CancellationException) {
+        throw cancelled
+    } catch (error: Throwable) {
+        Result.failure(error)
+    }
+
 /** A message fit for a snackbar. */
 fun Throwable.userMessage(): String = (this as? ApiException)?.message ?: message ?: "Something went wrong"

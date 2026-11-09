@@ -8,8 +8,12 @@ import UIKit
 actor ImageLoader {
     static let shared = ImageLoader()
 
+    /// Debug demo mode serves media from its fake server (FeedbackBee/DemoMode.swift).
+    nonisolated(unsafe) static var protocolClasses: [AnyClass] = []
+
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
+        if !ImageLoader.protocolClasses.isEmpty { config.protocolClasses = ImageLoader.protocolClasses }
         config.urlCache = URLCache(memoryCapacity: 16 << 20, diskCapacity: 256 << 20, directory: nil)
         config.requestCachePolicy = .returnCacheDataElseLoad
         return URLSession(configuration: config)
@@ -71,8 +75,10 @@ struct RemoteImage: View {
             }
         }
         .task(id: url) {
+            image = nil
             let points = maxPoints ?? max(UIScreen.main.bounds.width, UIScreen.main.bounds.height)
-            image = await ImageLoader.shared.image(url, maxPixels: Int(points * scale))
+            let loaded = await ImageLoader.shared.image(url, maxPixels: Int(points * scale))
+            if !Task.isCancelled { image = loaded } // the url changed meanwhile: keep the newer image
         }
     }
 }
@@ -83,6 +89,8 @@ struct ImageViewer: View {
     @Environment(\.dismiss) private var dismiss
     @State private var zoom: CGFloat = 1
     @GestureState private var pinch: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @GestureState private var drag: CGSize = .zero
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
@@ -90,13 +98,26 @@ struct ImageViewer: View {
             RemoteImage(url: url, contentMode: .fit)
                 .background(Color.black)
                 .scaleEffect(zoom * pinch)
+                .offset(x: offset.width + drag.width, y: offset.height + drag.height)
                 .gesture(
                     MagnifyGesture()
                         .updating($pinch) { value, state, _ in state = value.magnification }
                         .onEnded { zoom = min(6, max(1, zoom * $0.magnification)) }
                 )
-                .onTapGesture(count: 2) { withAnimation { zoom = 1 } }
-                .gesture(DragGesture().onEnded { if $0.translation.height > 120, zoom == 1 { dismiss() } })
+                .onTapGesture(count: 2) { withAnimation { zoom = 1; offset = .zero } }
+                // Zoomed in, a drag pans; at 1x, a long swipe down closes.
+                .simultaneousGesture(
+                    DragGesture()
+                        .updating($drag) { value, state, _ in if zoom > 1 { state = value.translation } }
+                        .onEnded { value in
+                            if zoom > 1 {
+                                offset.width += value.translation.width
+                                offset.height += value.translation.height
+                            } else if value.translation.height > 120 {
+                                dismiss()
+                            }
+                        }
+                )
             Button { dismiss() } label: {
                 Image(systemName: "xmark").font(.headline).foregroundStyle(.white)
                     .padding(12).background(.white.opacity(0.15), in: Circle())

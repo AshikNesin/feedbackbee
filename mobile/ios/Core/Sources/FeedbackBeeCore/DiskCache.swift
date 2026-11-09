@@ -1,10 +1,12 @@
 import Foundation
 
 /// Last-known server data on disk, so a screen paints at once and refreshes
-/// after (stale-while-revalidate). Reads and writes run off the main thread.
-/// Signing out or switching servers wipes it.
-public struct DiskCache: Sendable {
+/// after (stale-while-revalidate). An actor, so reads, writes and the wipe run
+/// off the main thread one at a time. One instance per session: signing out
+/// retires it (later writes from that session are dropped) and wipes the files.
+public actor DiskCache {
     private let directory: URL
+    private var retired = false
 
     public init(directory: URL) { self.directory = directory }
 
@@ -18,29 +20,29 @@ public struct DiskCache: Sendable {
     public func inbox(_ projectId: String) async -> FeedbackPage? { await read("inbox-\(safe(projectId)).json") }
     public func saveInbox(_ projectId: String, _ page: FeedbackPage) async { await write("inbox-\(safe(projectId)).json", page) }
 
-    public func clear() async {
-        let dir = directory
-        await Task.detached(priority: .utility) { try? FileManager.default.removeItem(at: dir) }.value
+    /// Wipe the files, keeping this cache usable (signing in to another account).
+    public func clear() {
+        try? FileManager.default.removeItem(at: directory)
     }
 
-    private func read<T: Decodable & Sendable>(_ name: String) async -> T? {
-        let url = directory.appendingPathComponent(name)
-        return await Task.detached(priority: .userInitiated) { () -> T? in
-            guard let data = try? Data(contentsOf: url) else { return nil }
-            return try? Wire.decoder.decode(T.self, from: data)
-        }.value
+    /// Sign-out: drop every later write from this session, then wipe.
+    public func retireAndClear() {
+        retired = true
+        clear()
     }
 
-    private func write<T: Encodable & Sendable>(_ name: String, _ value: T) async {
-        let dir = directory
-        await Task.detached(priority: .utility) {
-            guard let data = try? Wire.encoder.encode(value) else { return }
-            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            try? data.write(to: dir.appendingPathComponent(name), options: .atomic)
-        }.value
+    private func read<T: Decodable & Sendable>(_ name: String) -> T? {
+        guard !retired, let data = try? Data(contentsOf: directory.appendingPathComponent(name)) else { return nil }
+        return try? Wire.decoder.decode(T.self, from: data)
     }
 
-    private func safe(_ id: String) -> String {
+    private func write<T: Encodable & Sendable>(_ name: String, _ value: T) {
+        guard !retired, let data = try? Wire.encoder.encode(value) else { return }
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try? data.write(to: directory.appendingPathComponent(name), options: .atomic)
+    }
+
+    private nonisolated func safe(_ id: String) -> String {
         id.replacingOccurrences(of: "[^A-Za-z0-9_-]", with: "_", options: .regularExpression)
     }
 }

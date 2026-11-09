@@ -18,6 +18,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -107,7 +109,7 @@ fun ComposeSheet(
         containerColor = Bee.card,
     ) {
         Column(
-            Modifier.fillMaxWidth().imePadding().padding(horizontal = 16.dp).padding(bottom = 16.dp),
+            Modifier.fillMaxWidth().imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp).padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge, color = Bee.ink)
@@ -144,17 +146,19 @@ fun ComposeSheet(
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.size(64.dp).clip(MaterialTheme.shapes.small).background(Bee.muted),
                             )
-                            // A small badge; the 48dp touch target comes from the padding around it.
+                            // A 20dp badge drawn inside a 40dp tap target over the thumbnail's corner.
                             Box(
                                 Modifier
                                     .align(Alignment.TopEnd)
-                                    .clip(CircleShape)
-                                    .clickable(onClickLabel = "Remove image") { images.remove(uri) }
-                                    .padding(4.dp)
-                                    .size(20.dp)
-                                    .background(Bee.ink.copy(alpha = 0.75f), CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) { Icon(Icons.Filled.Close, contentDescription = "Remove image", tint = Bee.paper, modifier = Modifier.size(12.dp)) }
+                                    .size(40.dp)
+                                    .clickable(onClickLabel = "Remove image") { images.remove(uri) },
+                                contentAlignment = Alignment.TopEnd,
+                            ) {
+                                Box(
+                                    Modifier.padding(4.dp).size(20.dp).background(Bee.ink.copy(alpha = 0.75f), CircleShape),
+                                    contentAlignment = Alignment.Center,
+                                ) { Icon(Icons.Filled.Close, contentDescription = "Remove image", tint = Bee.paper, modifier = Modifier.size(12.dp)) }
+                            }
                         }
                     }
                 }
