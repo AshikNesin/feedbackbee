@@ -102,7 +102,9 @@ struct InboxView: View {
         if !store.loaded {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if shown.isEmpty {
-            let filtered = !query.isEmpty || kindFilter != nil
+            // A failed first page stays an error, filters or not.
+            let failed = store.error != nil && store.items.isEmpty
+            let filtered = !failed && (!query.trimmingCharacters(in: .whitespaces).isEmpty || kindFilter != nil)
             ContentUnavailableView {
                 Label(filtered ? "No matches" : "Nothing here yet", systemImage: filtered ? "magnifyingglass" : "tray")
             } description: {
@@ -148,6 +150,12 @@ struct InboxView: View {
                 }
                 if store.loadingMore {
                     ProgressView().frame(maxWidth: .infinity).listRowBackground(Bee.paper).listRowSeparator(.hidden)
+                } else if store.hasMore, kindFilter != nil || !query.trimmingCharacters(in: .whitespaces).isEmpty {
+                    // A filtered list can end before the next page loads on its own: offer it.
+                    Button("Load older reports") { Task { await store.loadMore() } }
+                        .frame(maxWidth: .infinity)
+                        .listRowBackground(Bee.paper)
+                        .listRowSeparator(.hidden)
                 }
             }
             .listStyle(.plain)

@@ -249,7 +249,7 @@ fun ReportScreen(graph: AppGraph, projectId: String, feedbackId: String, onBack:
                 report.osName?.let { "OS" to listOfNotNull(it, report.osVersion).joinToString(" ") },
                 report.deviceModel?.let { "Device" to it },
                 report.appVersion?.let { "App version" to it },
-                if (report.screenW != null && report.screenH != null) "Screen" to "${report.screenW.toInt()}×${report.screenH.toInt()}" else null,
+                if (report.screenW != null && report.screenH != null) "Screen" to "${Math.round(report.screenW)}×${Math.round(report.screenH)}" else null,
                 report.userAgent?.let { "User agent" to it },
             ) + report.metadata.orEmpty().map { (k, v) -> k to v.content }
             if (details.isNotEmpty()) {

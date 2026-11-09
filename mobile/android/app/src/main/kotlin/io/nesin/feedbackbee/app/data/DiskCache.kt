@@ -50,8 +50,12 @@ class DiskCache(private val dir: File) {
             runCatching {
                 dir.mkdirs()
                 val tmp = File.createTempFile("$name-", ".tmp", dir)
-                tmp.writeText(json.encodeToString(serializer, value))
-                if (!tmp.renameTo(File(dir, name))) tmp.delete()
+                try {
+                    tmp.writeText(json.encodeToString(serializer, value))
+                    tmp.renameTo(File(dir, name))
+                } finally {
+                    tmp.delete() // a no-op after a successful rename
+                }
             }
         }
         Unit
