@@ -1,8 +1,8 @@
 import { SELF, env } from "cloudflare:test";
 import { http, HttpResponse } from "msw";
-import { afterAll, beforeAll, beforeEach, expect, test } from "vitest";
+import { afterAll, beforeAll, beforeEach, expect, test, vi } from "vitest";
 import { statusFromIssue } from "../../apps/web/src/server/lib/issue-status";
-import { network, stubGithub, stubGithubApp } from "./gh-server";
+import { network, pushCalls, stubGithub, stubGithubApp } from "./gh-server";
 import { ORIGIN, api, createProject, encryptForTest, login, submit } from "./helpers";
 
 // Feedback status ⇄ GitHub issue sync: dashboard edits push to GitHub, the
@@ -279,6 +279,41 @@ test("the issues webhook refreshes status from GitHub, signed requests only", as
   const other = { ...payload, issue: { number: 99999 } };
   expect((await webhook(other)).status).toBe(204);
   expect(calls).toEqual([]);
+});
+
+test("a status change from the webhook sends a push notification when chosen", async () => {
+  const cookie = await login();
+  const p = await createProject(cookie, "hook-push");
+  const item = await report(cookie, p.slug, p.id, "notify me");
+  await env.DB.prepare("UPDATE github_apps SET webhook_secret = ? WHERE id = 1")
+    .bind(await encryptForTest(SECRET))
+    .run();
+  const saved = await api(cookie, "/notifications", {
+    method: "PUT",
+    body: { events: { newFeedback: false, statusChange: true } },
+  });
+  expect(saved.status).toBe(200);
+  pushCalls.length = 0;
+
+  issues.set(item.issueNumber, { state: "CLOSED", stateReason: "COMPLETED", labels: [] });
+  const payload = {
+    action: "closed",
+    issue: { number: item.issueNumber },
+    repository: { full_name: "ashik/myapp" },
+  };
+  expect((await webhook(payload)).status).toBe(204);
+  await vi.waitFor(() => expect(pushCalls).toHaveLength(1));
+  expect(pushCalls[0]).toMatchObject({
+    title: "My App: Open → Done",
+    message: "notify me",
+    url: item.issueUrl,
+  });
+
+  // A repeat delivery changes nothing, so it notifies nothing.
+  expect((await webhook(payload)).status).toBe(204);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(pushCalls).toHaveLength(1);
+  await api(cookie, "/notifications", { method: "PUT", body: {} });
 });
 
 test("editing text and kind rewrites the issue and swaps the kind label", async () => {

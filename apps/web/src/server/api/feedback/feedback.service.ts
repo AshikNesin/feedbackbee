@@ -23,6 +23,7 @@ import {
   updateGithubIssue,
 } from "../github/github.client";
 import { safeGithubError } from "../github/github.service";
+import { notifyNewFeedback, notifyStatusChange } from "../notifications/notifications.service";
 import { findProjectBySlug } from "../projects/projects.service";
 import type { UpdateFeedbackInput } from "../projects/projects.schema";
 import { LIMITS, type Submission } from "./feedback.schema";
@@ -159,18 +160,16 @@ export async function submitFeedback(
     ),
   ]);
 
+  const links = issueLinks(
+    project,
+    row,
+    images.map((image) => image.key),
+    request.origin,
+  );
   const issue = await createIssue(project.githubRepo, {
     title: issueTitle(row),
     labels: issueLabels(row.kind, project.labels),
-    body: issueBody(
-      row,
-      issueLinks(
-        project,
-        row,
-        images.map((image) => image.key),
-        request.origin,
-      ),
-    ),
+    body: issueBody(row, links),
   });
 
   if (!issue.ok) {
@@ -178,12 +177,14 @@ export async function submitFeedback(
       .update(feedback)
       .set({ state: "issue_error", issueError: issue.error })
       .where(eq(feedback.id, row.id));
+    notifyNewFeedback(project, row, { dashboardUrl: links.dashboard, error: issue.error });
     return { id: row.id, state: "issue_error", error: issue.error };
   }
   await db
     .update(feedback)
     .set({ state: "created", issueNumber: issue.number, issueUrl: issue.url, issueError: null })
     .where(eq(feedback.id, row.id));
+  notifyNewFeedback(project, row, { dashboardUrl: links.dashboard });
   return { id: row.id, state: "created", issueUrl: issue.url };
 }
 
@@ -322,24 +323,28 @@ export async function deleteFeedback(projectId: string, feedbackId: string): Pro
 
 type TrackedRow = { id: string; status: FeedbackStatus; issueNumber: number | null };
 
+type StatusChange = { id: string; from: FeedbackStatus; to: FeedbackStatus };
+
 /** Read the issues of `rows` from GitHub and store any status that changed. */
-async function pullStatuses(repo: string, rows: TrackedRow[]): Promise<number> {
-  let updated = 0;
+async function pullStatuses(repo: string, rows: TrackedRow[]): Promise<StatusChange[]> {
+  const updated: StatusChange[] = [];
   for (let i = 0; i < rows.length; i += ISSUE_BATCH) {
     const chunk = rows.slice(i, i + ISSUE_BATCH);
     const issues = await fetchGithubIssues(
       repo,
       chunk.flatMap((row) => (row.issueNumber ? [row.issueNumber] : [])),
     );
-    const changed = chunk.flatMap((row) => {
+    const changed = chunk.flatMap((row): StatusChange[] => {
       const issue = row.issueNumber ? issues.get(row.issueNumber) : undefined;
       const status = issue && statusFromIssue(issue);
-      return status && status !== row.status
-        ? [db.update(feedback).set({ status }).where(eq(feedback.id, row.id))]
-        : [];
+      return status && status !== row.status ? [{ id: row.id, from: row.status, to: status }] : [];
     });
-    await batchAll(changed);
-    updated += changed.length;
+    await batchAll(
+      changed.map((change) =>
+        db.update(feedback).set({ status: change.to }).where(eq(feedback.id, change.id)),
+      ),
+    );
+    updated.push(...changed);
   }
   return updated;
 }
@@ -358,7 +363,8 @@ export async function syncProjectStatuses(
     .orderBy(desc(feedback.createdAt))
     .limit(SYNC_LIMIT);
   try {
-    return { checked: rows.length, updated: await pullStatuses(project.githubRepo, rows) };
+    const changes = await pullStatuses(project.githubRepo, rows);
+    return { checked: rows.length, updated: changes.length };
   } catch (error) {
     throw Boom.unavailable(safeGithubError(error));
   }
@@ -371,12 +377,7 @@ export async function syncProjectStatuses(
  */
 export async function syncIssueStatus(repo: string, issueNumber: number): Promise<number> {
   const rows = await db
-    .select({
-      id: feedback.id,
-      status: feedback.status,
-      issueNumber: feedback.issueNumber,
-      githubRepo: projects.githubRepo,
-    })
+    .select({ report: feedback, project: projects })
     .from(feedback)
     .innerJoin(projects, eq(projects.id, feedback.projectId))
     .where(
@@ -386,5 +387,13 @@ export async function syncIssueStatus(repo: string, issueNumber: number): Promis
       ),
     );
   if (rows.length === 0) return 0;
-  return pullStatuses(rows[0]!.githubRepo, rows);
+  const changes = await pullStatuses(
+    rows[0]!.project.githubRepo,
+    rows.map(({ report }) => report),
+  );
+  for (const change of changes) {
+    const { report, project } = rows.find((row) => row.report.id === change.id)!;
+    notifyStatusChange(project, { ...report, status: change.to }, change);
+  }
+  return changes.length;
 }

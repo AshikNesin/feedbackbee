@@ -4,6 +4,7 @@
  * A leaf: it may import only the schema, never a service or route.
  */
 import type { Feedback, Project } from "./db/schema";
+import type { NotificationSettings } from "./api/notifications/notifications.schema";
 
 export type { FeedbackKind, FeedbackStatus, LabelsMap } from "./db/schema";
 
@@ -20,4 +21,11 @@ export type GithubSettingsDTO = {
   app: { slug: string; name: string; webhooks: boolean } | null;
   repositories: GithubRepositoryDTO[];
   connectionError: string | null;
+};
+
+export type { NotificationSettings };
+export type NotificationSettingsDTO = {
+  /** `PUSHOVER_USER_KEY` and `PUSHOVER_API_TOKEN` are both set. */
+  configured: boolean;
+  settings: NotificationSettings;
 };

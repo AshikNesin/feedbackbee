@@ -82,9 +82,11 @@ for (const kind of ["callback", "installed"] as const) {
         const id = z.coerce.number().int().positive().parse(c.req.query("installation_id"));
         await service.completeInstallation(query.state, binding, id);
       }
-      return c.redirect(`/app/settings?github=${kind === "callback" ? "connected" : "installed"}`);
+      return c.redirect(
+        `/app/settings/github?github=${kind === "callback" ? "connected" : "installed"}`,
+      );
     } catch {
-      return c.redirect("/app/settings?github=error");
+      return c.redirect("/app/settings/github?github=error");
     }
   });
 }

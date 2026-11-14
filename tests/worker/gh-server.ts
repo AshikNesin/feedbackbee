@@ -7,6 +7,23 @@ export const ghAuthCalls: Array<{ method: string; auth: string | null; path: str
 
 export const network = setupNetwork();
 
+/** Pushover messages the app sent (the keys are test bindings in vitest.config.worker.ts). */
+export const pushCalls: Array<Record<string, string>> = [];
+
+/**
+ * Pushover's messages endpoint. Registered with every GitHub stub, so a test
+ * that submits feedback never reaches the real Pushover. `status` other than
+ * 200 simulates Pushover refusing the message.
+ */
+export function stubPushover(status = 200) {
+  return network.use(
+    http.post("https://api.pushover.net/1/messages.json", async ({ request }) => {
+      pushCalls.push(Object.fromEntries(await request.formData()) as Record<string, string>);
+      return HttpResponse.json({ status: status === 200 ? 1 : 0 }, { status });
+    }),
+  );
+}
+
 let privateKeyPromise: Promise<string> | undefined;
 
 export function githubPrivateKey(): Promise<string> {
@@ -35,6 +52,7 @@ export function githubPrivateKey(): Promise<string> {
 
 /** Common deterministic GitHub App responses used by project and issue tests. */
 export function stubGithubApp() {
+  stubPushover();
   return network.use(
     http.get("https://api.github.com/app/installations", async ({ request }) => {
       record(request, {});
@@ -111,6 +129,7 @@ function record(request: Request, body: any) {
 export function stubGithub(
   respond: (req: { headers: Headers; body: any; url: URL }) => { status: number; json: unknown },
 ) {
+  stubPushover();
   return network.use(
     http.post("https://api.github.com/repos/:owner/:repo/issues", async ({ request }) => {
       const body = JSON.parse(await request.text());

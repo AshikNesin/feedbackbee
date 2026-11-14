@@ -8,7 +8,6 @@ import { Field } from "@groot/ui/form";
 import { Input } from "@groot/ui/input";
 import { useConfirm } from "@groot/ui/primitives";
 import { monoClass, Text } from "@groot/ui/typography";
-import { PageLayout } from "@groot/shell/components/layout/PageLayout";
 import { apiClient } from "@groot/shell/lib/api";
 import { errorMessage } from "../../lib/errors";
 import {
@@ -89,11 +88,7 @@ export function GithubSettings() {
   };
 
   return (
-    <PageLayout
-      title="GitHub App"
-      description="Connect FeedbackBee to GitHub and choose which repositories can receive feedback."
-      maxWidth="6xl"
-    >
+    <div className="space-y-6">
       {callbackMessage && (
         <div
           role={callbackIsError ? "alert" : "status"}
@@ -283,6 +278,6 @@ export function GithubSettings() {
           )}
         </CardContent>
       </Card>
-    </PageLayout>
+    </div>
   );
 }

@@ -27,9 +27,17 @@ import { AppSettings } from "./pages/AppSettings";
  * Every page that has a place in the navigation, declared once: each entry
  * becomes a route and a sidebar (`primary`), account-menu and ⌘K entry.
  */
-const PAGES: Array<NavDestination & { element: ReactNode }> = [
+const PAGES: Array<NavDestination & { element: ReactNode; path?: string }> = [
   { label: "Projects", icon: FolderGit2, to: "/projects", primary: true, element: <Projects /> },
-  { label: "Settings", icon: SettingsIcon, to: "/settings", element: <AppSettings /> },
+  {
+    label: "Settings",
+    icon: SettingsIcon,
+    to: "/settings",
+    // A splat route: each settings section has its own URL (`/settings/github`).
+    path: "/settings/*",
+    fullPage: true,
+    element: <AppSettings />,
+  },
 ];
 
 const SHELL_CONFIG: ShellConfig = {
@@ -84,7 +92,7 @@ function App() {
               >
                 <Route index element={<Navigate to="/projects" replace />} />
                 {PAGES.map((page) => (
-                  <Route key={page.to} path={page.to} element={page.element} />
+                  <Route key={page.to} path={page.path ?? page.to} element={page.element} />
                 ))}
                 <Route path="projects/:slug" element={<ProjectInbox />} />
               </Route>

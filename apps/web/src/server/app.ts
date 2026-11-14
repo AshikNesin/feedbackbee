@@ -13,6 +13,7 @@ import embedRoutes from "./api/embed/embed.routes";
 import feedbackRoutes from "./api/feedback/feedback.routes";
 import mediaRoutes from "./api/media/media.routes";
 import githubRoutes, { githubCallbacks } from "./api/github/github.routes";
+import notificationRoutes from "./api/notifications/notifications.routes";
 import projectRoutes from "./api/projects/projects.routes";
 import { appConfig } from "./config";
 import { memoryStorage } from "@groot/core/storage/memory";
@@ -91,6 +92,7 @@ export function createWebApp(
       api.use(jwtAuthMiddleware);
       api.route("/projects", projectRoutes);
       api.route("/github", githubRoutes);
+      api.route("/notifications", notificationRoutes);
       api.route("/settings", appSettingsRoutes);
       app.route("/api/v1", api);
 
