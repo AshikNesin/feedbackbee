@@ -75,6 +75,7 @@ test("settings are validated and kept", async () => {
     { quietHours: { start: "25:00" } },
     { priority: 2 },
     { kinds: ["bug"] },
+    { quietHours: { start: "08:00", end: "08:00" } },
   ]) {
     const res = await api(cookie, "/notifications", { method: "PUT", body });
     expect(res.status, JSON.stringify(body)).toBe(400);
@@ -137,6 +138,22 @@ test("the reporter and device context are included when chosen", async () => {
   expect(push!.message).toBe(
     "From: Jane <jane@example.com>\nPage: https://shop.example.com/cart\nDevice: iOS 18.1",
   );
+});
+
+test("a long report keeps the reporter and context lines inside Pushover's limit", async () => {
+  const p = await project("push-long");
+  await save({ content: { text: true, reporter: true, context: true } });
+  await submit({
+    project: p.slug,
+    kind: "issue",
+    text: "x".repeat(4000),
+    email: "jane@example.com",
+    os_name: "Android",
+  });
+
+  const [push] = await pushes(1);
+  expect(push!.message.length).toBeLessThanOrEqual(1024);
+  expect(push!.message).toMatch(/…\nFrom: <jane@example\.com>\nDevice: Android$/);
 });
 
 test("kind and project filters decide which feedback notifies", async () => {

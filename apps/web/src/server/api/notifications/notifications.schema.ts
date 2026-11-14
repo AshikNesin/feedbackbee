@@ -68,6 +68,10 @@ export const notificationSettingsSchema = z.object({
       timeZone: timeZone.default("UTC"),
       mode: z.enum(["silent", "skip"]).default("silent"),
     })
+    .refine((quiet) => quiet.start !== quiet.end, {
+      message: "Quiet hours must start and end at different times",
+      path: ["end"],
+    })
     .prefault({}),
 });
 

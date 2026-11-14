@@ -284,15 +284,17 @@ test("the issues webhook refreshes status from GitHub, signed requests only", as
 test("a status change from the webhook sends a push notification when chosen", async () => {
   const cookie = await login();
   const p = await createProject(cookie, "hook-push");
-  const item = await report(cookie, p.slug, p.id, "notify me");
   await env.DB.prepare("UPDATE github_apps SET webhook_secret = ? WHERE id = 1")
     .bind(await encryptForTest(SECRET))
     .run();
+  // Before the report: with new-feedback notifications off, filing it sends
+  // nothing that could land after the reset below.
   const saved = await api(cookie, "/notifications", {
     method: "PUT",
     body: { events: { newFeedback: false, statusChange: true } },
   });
   expect(saved.status).toBe(200);
+  const item = await report(cookie, p.slug, p.id, "notify me");
   pushCalls.length = 0;
 
   issues.set(item.issueNumber, { state: "CLOSED", stateReason: "COMPLETED", labels: [] });

@@ -19,6 +19,7 @@ const SECTIONS: SettingsSection[] = [
     keywords: ["github app", "repository", "repo", "install", "webhook"],
     items: [{ label: "GitHub connection" }, { label: "Repositories" }],
     element: <GithubSettings />,
+    wide: true,
   },
   {
     id: "notifications",

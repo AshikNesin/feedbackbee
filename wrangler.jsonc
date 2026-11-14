@@ -8,7 +8,8 @@
 //   pnpm exec wrangler login
 //   pnpm deploy:worker
 //   pnpm exec wrangler secret put FEEDBACKBEE_ENCRYPTION_KEY      (base64-encoded 32-byte encryption key)
-//   pnpm exec wrangler secret put PUSHOVER_USER_KEY / PUSHOVER_API_TOKEN   (optional: push notifications)
+//   pnpm exec wrangler secret put PUSHOVER_USER_KEY              (optional: push notifications)
+//   pnpm exec wrangler secret put PUSHOVER_API_TOKEN             (optional: push notifications)
 //
 // Migrations apply on the first request (apps/web/src/server/worker/boot.ts).
 // groot's production secrets (JWT_SECRET_KEY, ADMIN_AUTH_KEY) are generated on

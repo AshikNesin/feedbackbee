@@ -84,10 +84,8 @@ function Section({
 }) {
   return (
     <fieldset className="space-y-3">
-      <div className="space-y-0.5">
-        <legend className="text-sm font-semibold">{title}</legend>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
+      <legend className="text-sm font-semibold">{title}</legend>
+      <p className="-mt-2.5 text-xs text-muted-foreground">{description}</p>
       {children}
     </fieldset>
   );
@@ -163,6 +161,7 @@ function SettingsForm({ initial, configured }: { initial: Settings; configured: 
   };
 
   const allProjects = draft.projectIds.length === 0;
+  const selectedProjects = new Set(draft.projectIds);
   const projectList: ProjectDTO[] = projects.data ?? [];
 
   return (
@@ -211,14 +210,19 @@ function SettingsForm({ initial, configured }: { initial: Settings; configured: 
               checked={draft.quietHours.enabled}
               disabled={off}
               onChange={(enabled) =>
-                setIn("quietHours", {
-                  enabled,
-                  // A first-time setup starts in the browser's time zone.
-                  ...(enabled &&
-                  initial.quietHours.timeZone === "UTC" &&
-                  !initial.quietHours.enabled
-                    ? { timeZone: browserTimeZone() }
-                    : {}),
+                setDraft((current) => {
+                  const quiet = current.quietHours;
+                  // A first-time setup starts in the browser's time zone; a zone
+                  // already chosen (saved or typed in this session) is kept.
+                  const fresh = enabled && !initial.quietHours.enabled && quiet.timeZone === "UTC";
+                  return {
+                    ...current,
+                    quietHours: {
+                      ...quiet,
+                      enabled,
+                      ...(fresh ? { timeZone: browserTimeZone() } : {}),
+                    },
+                  };
                 })
               }
             >
@@ -306,7 +310,9 @@ function SettingsForm({ initial, configured }: { initial: Settings; configured: 
                 <div key={project.id} className="pl-7">
                   <Check
                     id={`notify-project-${project.id}`}
-                    checked={draft.projectIds.includes(project.id)}
+                    checked={selectedProjects.has(project.id)}
+                    // An empty list means "All projects", so the last one stays checked.
+                    disabled={selectedProjects.size === 1 && selectedProjects.has(project.id)}
                     onChange={(on) => set("projectIds", toggle(draft.projectIds, project.id, on))}
                   >
                     {project.name}
@@ -379,7 +385,9 @@ function SettingsForm({ initial, configured }: { initial: Settings; configured: 
           type="button"
           variant="outline"
           onClick={() => void test.run()}
-          disabled={!configured || test.isPending}
+          // The test uses the saved settings (priority), so save first.
+          disabled={!configured || dirty || test.isPending}
+          title={dirty ? "Save your changes to test them" : undefined}
         >
           <Send className="size-4" />
           {test.isPending ? "Sending…" : "Send test notification"}

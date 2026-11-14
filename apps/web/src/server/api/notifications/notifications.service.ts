@@ -63,26 +63,32 @@ export async function saveNotificationSettings(
 const clip = (value: string, max: number) =>
   value.length > max ? `${value.slice(0, max - 1)}…` : value;
 
-/** The report details the owner chose to include, one per line. */
+/** Room for the lines after the text (reporter, page, device, a GitHub error), so a long report can't push them out. */
+const RESERVED = 400;
+
+/**
+ * The report details the owner chose to include, one per line. The text and
+ * the page are clipped so every chosen line fits Pushover's message limit.
+ */
 function details(row: Feedback, content: NotificationSettings["content"]): string[] {
-  const lines: string[] = [];
-  if (content.text) lines.push(row.text.trim() || "(no text)");
+  const extra: string[] = [];
   if (content.reporter) {
     const who = [row.reporterName, row.reporterEmail && `<${row.reporterEmail}>`]
       .filter(Boolean)
       .join(" ");
-    if (who) lines.push(`From: ${who}`);
+    if (who) extra.push(clip(`From: ${who}`, 150));
   }
   if (content.context) {
-    if (row.url) lines.push(`Page: ${row.url}`);
+    if (row.url) extra.push(clip(`Page: ${row.url}`, 150));
     const device = [
       row.appVersion && `v${row.appVersion}`,
       [row.osName, row.osVersion].filter(Boolean).join(" "),
       row.deviceModel,
     ].filter(Boolean);
-    if (device.length > 0) lines.push(`Device: ${device.join(" · ")}`);
+    if (device.length > 0) extra.push(clip(`Device: ${device.join(" · ")}`, 100));
   }
-  return lines;
+  const text = content.text ? [clip(row.text.trim() || "(no text)", MAX_MESSAGE - RESERVED)] : [];
+  return [...text, ...extra];
 }
 
 type Delivery = Omit<PushNotification, "priority">;
@@ -139,7 +145,7 @@ export function notifyNewFeedback(
     (s) => s.events.newFeedback || (failed && s.events.issueError),
     (s) => {
       const lines = details(row, s.content);
-      if (failed) lines.push(`GitHub issue not filed: ${outcome.error}`);
+      if (failed) lines.push(clip(`GitHub issue not filed: ${outcome.error}`, 200));
       return {
         title: failed
           ? `${project.name}: ${KIND_NAMES[row.kind]} (GitHub issue failed)`

@@ -339,12 +339,18 @@ async function pullStatuses(repo: string, rows: TrackedRow[]): Promise<StatusCha
       const status = issue && statusFromIssue(issue);
       return status && status !== row.status ? [{ id: row.id, from: row.status, to: status }] : [];
     });
-    await batchAll(
+    // Compare-and-set on the status read above: when two webhook deliveries
+    // race, only the one whose update lands reports (and notifies) the change.
+    const results = (await batchAll(
       changed.map((change) =>
-        db.update(feedback).set({ status: change.to }).where(eq(feedback.id, change.id)),
+        db
+          .update(feedback)
+          .set({ status: change.to })
+          .where(and(eq(feedback.id, change.id), eq(feedback.status, change.from)))
+          .returning({ id: feedback.id }),
       ),
-    );
-    updated.push(...changed);
+    )) as Array<Array<{ id: string }>>;
+    updated.push(...changed.filter((_, i) => (results[i]?.length ?? 0) > 0));
   }
   return updated;
 }
@@ -391,8 +397,9 @@ export async function syncIssueStatus(repo: string, issueNumber: number): Promis
     rows[0]!.project.githubRepo,
     rows.map(({ report }) => report),
   );
+  const byId = new Map(rows.map((row) => [row.report.id, row]));
   for (const change of changes) {
-    const { report, project } = rows.find((row) => row.report.id === change.id)!;
+    const { report, project } = byId.get(change.id)!;
     notifyStatusChange(project, { ...report, status: change.to }, change);
   }
   return changes.length;
