@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import { Boom } from "@groot/core/errors";
 import {
   batchAll,
+  changes,
   db,
   feedback,
   feedbackImages,
@@ -341,16 +342,15 @@ async function pullStatuses(repo: string, rows: TrackedRow[]): Promise<StatusCha
     });
     // Compare-and-set on the status read above: when two webhook deliveries
     // race, only the one whose update lands reports (and notifies) the change.
-    const results = (await batchAll(
+    const results = await batchAll(
       changed.map((change) =>
         db
           .update(feedback)
           .set({ status: change.to })
-          .where(and(eq(feedback.id, change.id), eq(feedback.status, change.from)))
-          .returning({ id: feedback.id }),
+          .where(and(eq(feedback.id, change.id), eq(feedback.status, change.from))),
       ),
-    )) as Array<Array<{ id: string }>>;
-    updated.push(...changed.filter((_, i) => (results[i]?.length ?? 0) > 0));
+    );
+    updated.push(...changed.filter((_, i) => changes(results[i]) > 0));
   }
   return updated;
 }
@@ -369,8 +369,8 @@ export async function syncProjectStatuses(
     .orderBy(desc(feedback.createdAt))
     .limit(SYNC_LIMIT);
   try {
-    const changes = await pullStatuses(project.githubRepo, rows);
-    return { checked: rows.length, updated: changes.length };
+    const applied = await pullStatuses(project.githubRepo, rows);
+    return { checked: rows.length, updated: applied.length };
   } catch (error) {
     throw Boom.unavailable(safeGithubError(error));
   }
@@ -393,14 +393,14 @@ export async function syncIssueStatus(repo: string, issueNumber: number): Promis
       ),
     );
   if (rows.length === 0) return 0;
-  const changes = await pullStatuses(
+  const applied = await pullStatuses(
     rows[0]!.project.githubRepo,
     rows.map(({ report }) => report),
   );
   const byId = new Map(rows.map((row) => [row.report.id, row]));
-  for (const change of changes) {
+  for (const change of applied) {
     const { report, project } = byId.get(change.id)!;
     notifyStatusChange(project, { ...report, status: change.to }, change);
   }
-  return changes.length;
+  return applied.length;
 }
