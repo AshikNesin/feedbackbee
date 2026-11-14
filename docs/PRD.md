@@ -23,7 +23,7 @@ FeedbackBee gives any project a five-minute feedback loop. Embed one script tag 
   private GitHub App registered from the Dashboard Settings manifest.
 - iOS, Flutter, React Native SDKs.
 - Video transcoding, GIF conversion, or frame-accurate trimming.
-- Email notifications (GitHub already notifies the repo's watchers).
+- Email notifications (GitHub already notifies the repo's watchers). Push notifications go through Pushover only.
 
 ## Success metrics
 
@@ -128,7 +128,8 @@ Pages:
 - **Project inbox.** One list filtered by type (All, Issues, Ideas, Other). Each row shows the message, time, page and reporter, with chips for screenshot, replay, voice note and issue state. A row expands to the screenshot, voice player, links to the GitHub issue and replay, a mailto reply, and the device context. Paged with "Load more".
 - **Status.** Each report has a status (Open, In progress, Done, Won't fix), filterable in the inbox and kept in sync with its GitHub issue both ways: open, open + `in progress` label, closed as completed, closed as not planned. Changing it in the dashboard updates the issue; GitHub changes arrive by webhook, and **Sync from GitHub** catches up on missed ones. Reports whose issue was never filed keep a local status.
 - **Setup.** Hidden behind a button (open by default while a project has no feedback): web, Android, iOS & macOS and React Native snippets plus an AI prompt, with copy buttons, the target repo, and delete project.
-- **Settings.** Change password. That is all.
+- **Settings.** GitHub App, push notifications, and change password.
+- **Push notifications.** Optional, through Pushover: the keys are the `PUSHOVER_USER_KEY` / `PUSHOVER_API_TOKEN` env vars (nothing is sent without both). Settings chooses when (new feedback, a GitHub issue that could not be filed, a status change on GitHub, quiet hours that deliver silently or skip), for which feedback (kinds, projects) and what the message shows (text, reporter, page and device; the reporter is off by default because it leaves the deployment), plus the Pushover priority and a test button. Sending runs after the response (`waitUntil`) and a Pushover failure never affects the report.
 
 ### 5. GitHub integration
 

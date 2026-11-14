@@ -21,6 +21,9 @@ export default defineConfig({
           LOG_LEVEL: "silent",
           // A dashboard allow-list must not affect the public submit endpoint.
           CORS_ALLOWED_ORIGINS: "https://dashboard.feedbackbee.test",
+          // Fake Pushover keys: notifications are on, and gh-server.ts stubs Pushover.
+          PUSHOVER_USER_KEY: "test-pushover-user", // gitleaks:allow (fake)
+          PUSHOVER_API_TOKEN: "test-pushover-token", // gitleaks:allow (fake)
         },
       },
     }),

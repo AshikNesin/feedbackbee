@@ -33,6 +33,26 @@ never replace an existing key casually. If upgrading from the earlier app-key
 variable name, copy its existing value to `FEEDBACKBEE_ENCRYPTION_KEY`; do not
 generate a replacement key.
 
+### Push notifications (optional)
+
+FeedbackBee can send a [Pushover](https://pushover.net) notification when
+feedback arrives. Create an application at pushover.net, then set your user key
+and the application's API token as Worker secrets:
+
+```bash
+pnpm exec wrangler secret put PUSHOVER_USER_KEY
+pnpm exec wrangler secret put PUSHOVER_API_TOKEN
+```
+
+(For `pnpm dev`, put them in `.env`; for `pnpm dev:worker`, in `.dev.vars`.)
+Without both, nothing is sent. Everything else is chosen in the dashboard under
+**Settings → Push notifications**: the events (new feedback, a GitHub issue
+that could not be filed, a status change on GitHub), which feedback kinds and
+projects notify, what the message includes (text, reporter, page and device),
+the Pushover priority, and quiet hours. The reporter's name and email are only
+sent to Pushover when you turn that on. **Send test notification** checks the
+keys.
+
 Database migrations apply on the Worker's first request
 (`apps/web/src/server/worker/boot.ts`), so there is no separate migrate step.
 Groot's production secrets (`JWT_SECRET_KEY`, `ADMIN_AUTH_KEY`) are generated

@@ -8,3 +8,7 @@
 # to your public HTTPS tunnel origin. Without a connected app, reports are
 # stored but no issue is filed (state "issue_error").
 FEEDBACKBEE_ENCRYPTION_KEY=
+
+# Optional: Pushover push notifications (Settings → Push notifications).
+# PUSHOVER_USER_KEY=
+# PUSHOVER_API_TOKEN=

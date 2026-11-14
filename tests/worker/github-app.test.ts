@@ -82,13 +82,13 @@ test("manifest registration binds callback to the flow cookie and consumes state
   const state = stateFrom(started.body.data.url);
   const missingCookie = await callback("callback", "", { state, code: "manifest-code" });
   expect(missingCookie.status).toBe(302);
-  expect(missingCookie.headers.get("location")).toBe("/app/settings?github=error");
+  expect(missingCookie.headers.get("location")).toBe("/app/settings/github?github=error");
 
   const badState = await callback("callback", started.cookie, {
     state: `${state}x`,
     code: "manifest-code",
   });
-  expect(badState.headers.get("location")).toBe("/app/settings?github=error");
+  expect(badState.headers.get("location")).toBe("/app/settings/github?github=error");
 
   const hexDigest = async (value: string) => {
     const bytes = new Uint8Array(
@@ -113,11 +113,11 @@ test("manifest registration binds callback to the flow cookie and consumes state
   )
     .bind(flow.state)
     .first();
-  expect(connected.headers.get("location")).toBe("/app/settings?github=connected");
+  expect(connected.headers.get("location")).toBe("/app/settings/github?github=connected");
   expect(remainingFlow).toBeNull();
   expect(connected.headers.get("referrer-policy")).toBe("no-referrer");
   const replay = await callback("callback", started.cookie, { state, code: "manifest-code" });
-  expect(replay.headers.get("location")).toBe("/app/settings?github=error");
+  expect(replay.headers.get("location")).toBe("/app/settings/github?github=error");
 
   const saved = await env.DB.prepare(
     "SELECT app_id, slug, name, private_key, webhook_secret FROM github_apps WHERE id=1",
@@ -154,14 +154,14 @@ test("manifest setup rejects cross-origin mutations and expired flow state", asy
     .join("");
   await env.DB.prepare("UPDATE github_flows SET expires_at=0 WHERE state=?").bind(stateHash).run();
   const expired = await callback("callback", started.cookie, { state, code: "manifest-code" });
-  expect(expired.headers.get("location")).toBe("/app/settings?github=error");
+  expect(expired.headers.get("location")).toBe("/app/settings/github?github=error");
   const reconnect = await startManifest(session);
   const reconnectState = stateFrom(reconnect.body.data.url);
   expect(
     (
       await callback("callback", reconnect.cookie, { state: reconnectState, code: "manifest-code" })
     ).headers.get("location"),
-  ).toBe("/app/settings?github=connected");
+  ).toBe("/app/settings/github?github=connected");
 });
 
 test("installation callback ignores untrusted ids and lists app repositories", async () => {
@@ -170,7 +170,7 @@ test("installation callback ignores untrusted ids and lists app repositories", a
   expect(started.response.status).toBe(200);
   const state = stateFrom(started.body.data.url);
   const forged = await callback("installed", started.cookie, { state, installation_id: "9999" });
-  expect(forged.headers.get("location")).toBe("/app/settings?github=error");
+  expect(forged.headers.get("location")).toBe("/app/settings/github?github=error");
 
   const validStart = await startInstall(session);
   const validState = stateFrom(validStart.body.data.url);
@@ -178,7 +178,7 @@ test("installation callback ignores untrusted ids and lists app repositories", a
     state: validState,
     installation_id: "701",
   });
-  expect(installed.headers.get("location")).toBe("/app/settings?github=installed");
+  expect(installed.headers.get("location")).toBe("/app/settings/github?github=installed");
 
   const listed = await api(session, "/github/repositories");
   expect(listed.status).toBe(200);
@@ -248,7 +248,7 @@ test("disconnect invalidates a manifest conversion that is already in flight", a
     code: "racing-code",
   });
   expect(disconnected).toBe(true);
-  expect(completed.headers.get("location")).toBe("/app/settings?github=error");
+  expect(completed.headers.get("location")).toBe("/app/settings/github?github=error");
   expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM github_apps").first()).toMatchObject({
     n: 0,
   });
